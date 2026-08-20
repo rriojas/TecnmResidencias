@@ -17,7 +17,7 @@ function Free-Port([int]$port) {
                 if ($p -and $p -ne 0) {
                     $proc = Get-Process -Id $p -ErrorAction SilentlyContinue
                     if ($proc) {
-                        Write-Host "   🔄 Liberando puerto $port (cerrando proceso previo PID $p: $($proc.ProcessName))..." -ForegroundColor Yellow
+                        Write-Host "   🔄 Liberando puerto $port (cerrando proceso previo PID $($p) - $($proc.ProcessName))..." -ForegroundColor Yellow
                         Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
                     }
                 }
