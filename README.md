@@ -74,6 +74,26 @@ Accede desde tu navegador a: **`http://localhost:5000/auth/login`**
 
 ### Opción B: Ejecución Local en Desarrollo
 
+#### ⚡ Scripts de Inicio Rápido (Recomendado)
+
+Se incluyen scripts para PowerShell (Windows) y Bash (Linux/macOS/Git Bash):
+
+- **Levantar todo (Base de datos, Backend y Frontend):**
+  - PowerShell: `.\start-all.ps1`
+  - Bash: `./start-all.sh`
+
+- **Levantar solo Backend (y PostgreSQL si es necesario):**
+  - PowerShell: `.\start-backend.ps1`
+  - Bash: `./start-backend.sh`
+
+- **Levantar solo Frontend:**
+  - PowerShell: `.\start-frontend.ps1`
+  - Bash: `./start-frontend.sh`
+
+---
+
+#### 🛠️ Ejecución Manual Paso a Paso
+
 #### 1. Iniciar Base de Datos PostgreSQL (vía Docker)
 
 ```bash
