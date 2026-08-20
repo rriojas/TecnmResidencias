@@ -9,23 +9,19 @@ $BackendDir = Join-Path $ScriptDir "RTecNM_V2_Backend"
 
 # Función para liberar puerto si ya está ocupado
 function Free-Port([int]$port) {
-    try {
-        $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
-        if ($connections) {
-            $pids = $connections | Select-Object -ExpandProperty OwningProcess -Unique
-            foreach ($p in $pids) {
-                if ($p -and $p -ne 0) {
-                    $proc = Get-Process -Id $p -ErrorAction SilentlyContinue
-                    if ($proc) {
-                        Write-Host "   🔄 Liberando puerto $port (cerrando proceso previo PID $($p) - $($proc.ProcessName))..." -ForegroundColor Yellow
-                        Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
-                    }
+    $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
+    if ($connections) {
+        $pids = $connections | Select-Object -ExpandProperty OwningProcess -Unique
+        foreach ($p in $pids) {
+            if ($p -and $p -ne 0) {
+                $proc = Get-Process -Id $p -ErrorAction SilentlyContinue
+                if ($proc) {
+                    Write-Host "   🔄 Liberando puerto $port (cerrando proceso previo PID $($p) - $($proc.ProcessName))..." -ForegroundColor Yellow
+                    Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
                 }
             }
-            Start-Sleep -Milliseconds 500
         }
-    } catch {
-        # Continuar si no se pudo consultar
+        Start-Sleep -Milliseconds 500
     }
 }
 
@@ -35,10 +31,11 @@ Write-Host "======================================================" -ForegroundC
 
 # 1. Verificar .NET SDK
 Write-Host "`n🔍 Verificando .NET SDK..." -ForegroundColor Yellow
-try {
+$dotnetCmd = Get-Command dotnet -ErrorAction SilentlyContinue
+if ($dotnetCmd) {
     $dotnetVersion = dotnet --version
     Write-Host "   ✅ .NET SDK detectado: v$dotnetVersion" -ForegroundColor Green
-} catch {
+} else {
     Write-Host "   ❌ ERROR: .NET SDK no está instalado o no se encuentra en el PATH." -ForegroundColor Red
     exit 1
 }
@@ -48,27 +45,22 @@ Write-Host "`n🐘 Verificando Base de Datos PostgreSQL..." -ForegroundColor Yel
 $dockerCmd = Get-Command docker -ErrorAction SilentlyContinue
 
 if ($dockerCmd) {
-    try {
-        # Intentar verificar si el contenedor de postgres ya está corriendo
-        $pgRunning = docker ps --filter "name=residencia-v2-db" --filter "status=running" --format "{{.Names}}"
-        if (-not $pgRunning) {
-            Write-Host "   ⚙️  Levantando contenedor PostgreSQL (residencia-v2-db)..." -ForegroundColor Cyan
-            Push-Location $ScriptDir
-            if (docker compose version 2>$null) {
-                docker compose up -d postgres
-            } else {
-                docker-compose up -d postgres
-            }
-            Pop-Location
-            Write-Host "   ✅ Contenedor PostgreSQL iniciado correctamente." -ForegroundColor Green
+    $pgRunning = docker ps --filter "name=residencia-v2-db" --filter "status=running" --format "{{.Names}}" 2>$null
+    if (-not $pgRunning) {
+        Write-Host "   ⚙️  Levantando contenedor PostgreSQL (residencia-v2-db)..." -ForegroundColor Cyan
+        Push-Location $ScriptDir
+        if (docker compose version 2>$null) {
+            docker compose up -d postgres
         } else {
-            Write-Host "   ✅ Contenedor PostgreSQL ya se encuentra en ejecución." -ForegroundColor Green
+            docker-compose up -d postgres
         }
-    } catch {
-        Write-Host "   ⚠️  Aviso: No se pudo verificar/iniciar Docker automáticamente. Si usas PostgreSQL local, asegúrate de que esté activo en el puerto 5432." -ForegroundColor Yellow
+        Pop-Location
+        Write-Host "   ✅ Contenedor PostgreSQL iniciado correctamente." -ForegroundColor Green
+    } else {
+        Write-Host "   ✅ Contenedor PostgreSQL ya se encuentra en ejecución." -ForegroundColor Green
     }
 } else {
-    Write-Host "   ⚠️  Docker no detectado. Asegúrate de tener PostgreSQL corriendo localmente en el puerto 5432." -ForegroundColor Yellow
+    Write-Host "   ⚠️  Docker no detectado. Asegúrate de tener PostgreSQL corriendo localmente en el puerto 5433." -ForegroundColor Yellow
 }
 
 # 3. Verificar y liberar puerto 5144 si está ocupado

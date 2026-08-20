@@ -16,6 +16,9 @@ public static class DbSeeder
     //   admin@monclova.tecnm.mx / contraseña configurable vía Seed:AdminPassword
     public static async Task BootstrapSystemAsync(AppDbContext db, string adminPassword)
     {
+        // 0. Compatibilidad de esquema de columnas existentes
+        await EnsureSchemaCompatibilityAsync(db);
+
         // 1. Sembrado Idempotente de Módulos
         var existingModules = await db.Modules.ToListAsync();
         var moduleDefs = new List<(string Name, string Slug)>
@@ -317,6 +320,94 @@ public static class DbSeeder
         await EnsureSearchViewsCreatedAsync(db);
     }
 
+    private static async Task EnsureSchemaCompatibilityAsync(AppDbContext db)
+    {
+        var sql = @"
+            DO $$ BEGIN
+                -- 1. Drop search views if they exist to allow column alterations
+                DROP VIEW IF EXISTS vw_search_students CASCADE;
+                DROP VIEW IF EXISTS vw_search_advisors CASCADE;
+                DROP VIEW IF EXISTS vw_search_projects CASCADE;
+                DROP VIEW IF EXISTS vw_search_companies CASCADE;
+
+                IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='companies') THEN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='name') THEN
+                        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='legal_name') THEN
+                            ALTER TABLE companies RENAME COLUMN legal_name TO name;
+                        ELSE
+                            ALTER TABLE companies ADD COLUMN name character varying(200) NOT NULL DEFAULT '';
+                        END IF;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='sector') THEN
+                        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='industry_sector') THEN
+                            ALTER TABLE companies RENAME COLUMN industry_sector TO sector;
+                        ELSE
+                            ALTER TABLE companies ADD COLUMN sector character varying(100) NULL;
+                        END IF;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='contact_name') THEN
+                        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='contact_person') THEN
+                            ALTER TABLE companies RENAME COLUMN contact_person TO contact_name;
+                        ELSE
+                            ALTER TABLE companies ADD COLUMN contact_name character varying(150) NOT NULL DEFAULT '';
+                        END IF;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='contact_email') THEN
+                        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='email') THEN
+                            ALTER TABLE companies RENAME COLUMN email TO contact_email;
+                        ELSE
+                            ALTER TABLE companies ADD COLUMN contact_email character varying(150) NOT NULL DEFAULT '';
+                        END IF;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='contact_phone') THEN
+                        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='phone') THEN
+                            ALTER TABLE companies RENAME COLUMN phone TO contact_phone;
+                        ELSE
+                            ALTER TABLE companies ADD COLUMN contact_phone character varying(30) NULL;
+                        END IF;
+                    END IF;
+                END IF;
+
+                -- Convertir columnas de tipo ENUM de PostgreSQL a VARCHAR para compatibilidad total con EF Core
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='projects' AND column_name='status' AND data_type='USER-DEFINED') THEN
+                    ALTER TABLE projects ALTER COLUMN status TYPE VARCHAR(50) USING status::text;
+                END IF;
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='role' AND data_type='USER-DEFINED') THEN
+                    ALTER TABLE users ALTER COLUMN role TYPE VARCHAR(50) USING role::text;
+                END IF;
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='project_objectives' AND column_name='status' AND data_type='USER-DEFINED') THEN
+                    ALTER TABLE project_objectives ALTER COLUMN status TYPE VARCHAR(50) USING status::text;
+                END IF;
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='weekly_progress' AND column_name='status' AND data_type='USER-DEFINED') THEN
+                    ALTER TABLE weekly_progress ALTER COLUMN status TYPE VARCHAR(50) USING status::text;
+                END IF;
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='documents' AND column_name='status' AND data_type='USER-DEFINED') THEN
+                    ALTER TABLE documents ALTER COLUMN status TYPE VARCHAR(50) USING status::text;
+                END IF;
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='documents' AND column_name='document_type' AND data_type='USER-DEFINED') THEN
+                    ALTER TABLE documents ALTER COLUMN document_type TYPE VARCHAR(50) USING document_type::text;
+                END IF;
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='evaluations' AND column_name='period' AND data_type='USER-DEFINED') THEN
+                    ALTER TABLE evaluations ALTER COLUMN period TYPE VARCHAR(50) USING period::text;
+                END IF;
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='advisors' AND column_name='advisor_type' AND data_type='USER-DEFINED') THEN
+                    ALTER TABLE advisors ALTER COLUMN advisor_type TYPE VARCHAR(50) USING advisor_type::text;
+                END IF;
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='gender' AND data_type='USER-DEFINED') THEN
+                    ALTER TABLE students ALTER COLUMN gender TYPE VARCHAR(50) USING gender::text;
+                END IF;
+            END $$;
+        ";
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(sql);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DbSeeder Warning] Error en compatibilidad de esquema: {ex.Message}");
+        }
+    }
+
     private static async Task EnsureSearchViewsCreatedAsync(AppDbContext db)
     {
         var viewStatements = new string[]
@@ -363,7 +454,7 @@ public static class DbSeeder
             LEFT JOIN students s ON p.student_id = s.id
             LEFT JOIN advisors a ON p.advisor_id = a.id
             LEFT JOIN companies c ON p.company_id = c.id
-            WHERE p.status <> 'draft';",
+            WHERE p.status::text <> 'draft';",
 
             "DROP VIEW IF EXISTS vw_search_companies CASCADE;",
             @"CREATE VIEW vw_search_companies AS
@@ -580,8 +671,8 @@ public static class DbSeeder
                 Justification = "Automatizar el proceso de residencia profesional reduce tiempos administrativos y mejora la trazabilidad de los expedientes.",
                 GeneralObjective = "Desarrollar un sistema web integral para la gestión del proceso de residencia profesional del TecNM.",
                 Status = ProjectStatus.InProgress,
-                StartDate = new DateTime(2026, 1, 15),
-                EndDate = new DateTime(2026, 6, 15),
+                StartDate = new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc),
+                EndDate = new DateTime(2026, 6, 15, 0, 0, 0, DateTimeKind.Utc),
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow

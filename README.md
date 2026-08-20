@@ -59,7 +59,7 @@ docker-compose up -d --build
 ```
 
 Esto ejecutará:
-1. **Contenedor PostgreSQL 17** (`residencia-v2-db`) en el puerto `5432` inicializado con el esquema DDL (`docs/database/schema_pg18.sql`) y datos semilla (`docs/database/seed_v2.sql`).
+1. **Contenedor PostgreSQL 17** (`residencia-v2-db`) en el puerto `5433` inicializado con el esquema DDL (`docs/database/schema_pg18.sql`) y datos semilla (`docs/database/seed_v2.sql`).
 2. **Contenedor Backend Web API** (`residencia-v2-backend`) en el puerto `5144`.
 
 Para ejecutar el **Frontend (Razor Pages)**:

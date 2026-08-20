@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -10,33 +10,19 @@ namespace TecNM.Residency.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<long>(
-                name: "company_id",
-                table: "projects",
-                type: "bigint",
-                nullable: true);
-
-            migrationBuilder.AlterColumn<long>(
-                name: "company_id",
-                table: "projects",
-                type: "bigint",
-                nullable: false,
-                oldClrType: typeof(long),
-                oldType: "bigint",
-                oldNullable: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_projects_company_id",
-                table: "projects",
-                column: "company_id");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_projects_companies_company_id",
-                table: "projects",
-                column: "company_id",
-                principalTable: "companies",
-                principalColumn: "id",
-                onDelete: ReferentialAction.Restrict);
+            migrationBuilder.Sql(@"
+                DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='projects' AND column_name='company_id') THEN
+                        ALTER TABLE projects ADD COLUMN company_id bigint NOT NULL DEFAULT 0;
+                    END IF;
+                END $$;
+                DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_projects_companies_company_id') THEN
+                        ALTER TABLE projects ADD CONSTRAINT ""FK_projects_companies_company_id"" FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT;
+                    END IF;
+                END $$;
+                CREATE INDEX IF NOT EXISTS ""IX_projects_company_id"" ON projects (company_id);
+            ");
         }
 
         /// <inheritdoc />

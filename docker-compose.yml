@@ -10,7 +10,7 @@ services:
       POSTGRES_USER: residency_user
       POSTGRES_PASSWORD: SecurePassword2026!
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_v2_data:/var/lib/postgresql/data
       - ./docs/database/schema_pg18.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
