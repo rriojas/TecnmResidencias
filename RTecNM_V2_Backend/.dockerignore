@@ -1,0 +1,6 @@
+bin/
+obj/
+uploads/
+.git/
+.vscode/
+.idea/

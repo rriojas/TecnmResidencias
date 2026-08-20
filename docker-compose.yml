@@ -1,0 +1,43 @@
+name: residenciastecnm-v2
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: residencia-v2-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: residency_v2
+      POSTGRES_USER: residency_user
+      POSTGRES_PASSWORD: SecurePassword2026!
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_v2_data:/var/lib/postgresql/data
+      - ./docs/database/schema_pg18.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./docs/database/seed_v2.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U residency_user -d residency_v2"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./RTecNM_V2_Backend
+      dockerfile: Dockerfile
+    container_name: residencia-v2-backend
+    restart: unless-stopped
+    ports:
+      - "5144:5144"
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=residency_v2;Username=residency_user;Password=SecurePassword2026!
+      - Uploads__Path=uploads
+    volumes:
+      - uploads_v2_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_v2_data:
+  uploads_v2_data:

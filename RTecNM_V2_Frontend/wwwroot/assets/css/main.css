@@ -1,0 +1,2487 @@
+/* ============================================================
+   TecNM 2024 - Sistema de Residencias Profesionales
+   main.css - Componentes centralizados (Spec 08 - UI Design System)
+   ------------------------------------------------------------
+   Orden de carga requerido (Spec 08 §1):
+     1. assets/css/tecnm-theme.css  (design tokens)
+     2. assets/css/main.css         (componentes)
+   ============================================================ */
+
+/* ============================================================
+   1. RESET & BASE
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--tecnm-font-family);
+  font-size: var(--tecnm-font-size-base);
+  color: var(--tecnm-text-primary);
+  background-color: var(--tecnm-bg-main);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================
+   2. TIPOGRAFÍA (Spec 08 §3)
+   ============================================================ */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--tecnm-text-primary);
+  margin-bottom: var(--tecnm-spacing-md);
+}
+
+h1 { font-size: var(--tecnm-font-size-4xl); font-weight: var(--tecnm-font-weight-bold); color: var(--tecnm-blue-primary); line-height: 1.2; }
+h2 { font-size: 1.75rem; font-weight: var(--tecnm-font-weight-semibold); color: var(--tecnm-blue-primary); line-height: 1.3; }
+h3 { font-size: var(--tecnm-font-size-xl); font-weight: var(--tecnm-font-weight-semibold); line-height: 1.4; }
+h4 { font-size: 1.1rem; font-weight: var(--tecnm-font-weight-medium); }
+
+p {
+  margin-bottom: var(--tecnm-spacing-md);
+  color: var(--tecnm-text-secondary);
+}
+
+/* ============================================================
+   3. LINKS
+   ============================================================ */
+a {
+  color: var(--tecnm-blue-primary);
+  text-decoration: none;
+  transition: color var(--tecnm-transition-fast);
+}
+
+a:hover {
+  color: var(--tecnm-blue-hover);
+}
+
+/* ============================================================
+   4. LAYOUT
+   ============================================================ */
+.tecnm-container {
+  width: 100%;
+  max-width: 1280px;               /* Spec 08 §5 - Desktop container */
+  margin: 0 auto;
+  padding: 0 var(--tecnm-spacing-md);
+}
+
+.tecnm-page-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.tecnm-main-content {
+  flex: 1;
+  padding: var(--tecnm-spacing-xl) 0;
+  background-color: var(--tecnm-bg-main);
+}
+
+.tecnm-public-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--tecnm-bg-main);
+}
+
+/* ============================================================
+   5. HEADER INSTITUCIONAL (.tecnm-header) - Spec 08 §4.1
+   ------------------------------------------------------------
+   Estructura: fondo azul TecNM, texto blanco, borde inferior
+   dorado 3px. Logotipo izquierda, campus derecha (margen de
+   seguridad 16px alrededor del logo).
+   ============================================================ */
+.tecnm-header {
+  background-color: var(--tecnm-header-bg);
+  color: var(--tecnm-text-on-blue);
+  border-bottom: 3px solid var(--tecnm-gold-accent);
+}
+
+.tecnm-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--tecnm-spacing-md);
+}
+
+.tecnm-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--tecnm-spacing-md);
+}
+
+.tecnm-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.tecnm-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--tecnm-spacing-md);
+}
+
+.tecnm-brand-logo {
+  margin: var(--tecnm-spacing-md);   /* Spec 08 §4.1 - margen de seguridad 16px */
+  height: 52px;
+  width: auto;
+}
+
+.tecnm-brand-title {
+  font-size: var(--tecnm-font-size-sm);
+  font-weight: var(--tecnm-font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--tecnm-text-on-blue);
+}
+
+.tecnm-brand-subtitle {
+  font-size: var(--tecnm-font-size-xs);
+  color: var(--tecnm-gold-accent);
+  margin-top: var(--tecnm-spacing-xs);
+}
+
+.tecnm-campus {
+  font-size: var(--tecnm-font-size-xs);
+  text-align: right;
+  opacity: 0.9;
+}
+
+/* ============================================================
+   6. NAVBAR (.tecnm-navbar) - Spec 08 §4.2
+   ------------------------------------------------------------
+   Fondo azul primario, tab activo azul oscuro con acento
+   dorado superior (3px).
+   ============================================================ */
+.tecnm-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: var(--tecnm-blue-primary);
+  padding: 0;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.tecnm-navbar-inner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tecnm-navbar-nav {
+  display: flex;
+  gap: var(--tecnm-spacing-xs);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+.tecnm-nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 40px;
+  margin: var(--tecnm-spacing-sm) 0;
+  background-color: transparent;
+  border: 1px solid rgb(255 255 255 / 0.4);
+  border-radius: var(--tecnm-radius-md);
+  color: var(--tecnm-text-on-blue);
+  cursor: pointer;
+  transition: background-color var(--tecnm-transition-fast);
+}
+
+.tecnm-nav-toggle:hover {
+  background-color: rgb(255 255 255 / 0.12);
+}
+
+.tecnm-nav-toggle svg {
+  width: 22px;
+  height: 22px;
+}
+
+.tecnm-nav-toggle-icon-close {
+  display: none;
+}
+
+.tecnm-nav-toggle[aria-expanded="true"] .tecnm-nav-toggle-icon-open {
+  display: none;
+}
+
+.tecnm-nav-toggle[aria-expanded="true"] .tecnm-nav-toggle-icon-close {
+  display: block;
+}
+
+.tecnm-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--tecnm-spacing-sm);
+  color: var(--tecnm-text-on-blue);
+  padding: var(--tecnm-spacing-sm) var(--tecnm-spacing-md);
+  font-size: var(--tecnm-font-size-sm);
+  font-weight: var(--tecnm-font-weight-medium);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tecnm-nav-item:hover {
+  background-color: var(--tecnm-blue-hover);
+  color: var(--tecnm-text-on-blue);
+}
+
+.tecnm-nav-item.active {
+  background-color: var(--tecnm-blue-dark);
+  color: var(--tecnm-text-on-blue);
+}
+
+/* ============================================================
+   6.1 NAV GROUPS (acordeón / mega-menú) - Spec 08 §4.2
+   ------------------------------------------------------------
+   Desktop: categorías en la barra; sublista como dropdown
+   absoluto bajo cada categoría (mega-menú de un panel abierto).
+   Mobile (<1024px): acordeón inline que empuja el contenido.
+   ============================================================ */
+.tecnm-nav-item-standalone,
+.tecnm-nav-group {
+  position: relative;
+}
+
+.tecnm-nav-group-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--tecnm-spacing-sm);
+  width: auto;
+  background-color: transparent;
+  border: 0;
+  color: var(--tecnm-text-on-blue);
+  padding: var(--tecnm-spacing-sm) var(--tecnm-spacing-md);
+  font-family: inherit;
+  font-size: var(--tecnm-font-size-sm);
+  font-weight: var(--tecnm-font-weight-medium);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.tecnm-nav-group-btn:hover {
+  background-color: var(--tecnm-blue-hover);
+  color: var(--tecnm-text-on-blue);
+}
+
+.tecnm-nav-group-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+.tecnm-nav-group-icon svg { width: 20px; height: 20px; }
+
+.tecnm-nav-group-label { flex: 1 1 auto; }
+
+.tecnm-nav-group-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  transition: transform var(--tecnm-transition-fast);
+}
+.tecnm-nav-group-chevron svg { width: 14px; height: 14px; }
+.tecnm-nav-group.open .tecnm-nav-group-chevron { transform: rotate(180deg); }
+
+.tecnm-nav-sublist {
+  list-style: none;
+  margin: 0;
+  padding: var(--tecnm-spacing-xs);
+  background-color: var(--tecnm-blue-dark);
+  border-radius: 0 0 var(--tecnm-radius-md) var(--tecnm-radius-md);
+  box-shadow: var(--tecnm-shadow-md);
+  display: none;
+}
+
+.tecnm-nav-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+.tecnm-nav-item-icon svg { width: 20px; height: 20px; }
+
+/* Categoría activa (contiene el item de la ruta actual) */
+.tecnm-nav-group.is-active > .tecnm-nav-group-btn {
+  background-color: var(--tecnm-blue-dark);
+}
+
+/* Sub-item activo dentro del dropdown: fondo sutil (sin acento dorado) */
+.tecnm-nav-sublist .tecnm-nav-item.active {
+  background-color: var(--tecnm-blue-hover);
+}
+
+/* ---------- Desktop: dropdown absoluto (mega-menú) ---------- */
+@media (min-width: 1024px) {
+  .tecnm-nav-sublist {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 300px;
+    z-index: 50;
+  }
+  .tecnm-nav-group.open > .tecnm-nav-sublist { display: block; }
+}
+
+/* ---------- Mobile (<1024px): acordeón inline ---------- */
+@media (max-width: 1023.98px) {
+  .tecnm-nav-group { width: 100%; }
+  .tecnm-nav-group-btn {
+    width: 100%;
+    border-radius: var(--tecnm-radius-sm);
+  }
+  .tecnm-nav-sublist {
+    position: static;
+    margin: var(--tecnm-spacing-xs) 0 var(--tecnm-spacing-xs) var(--tecnm-spacing-md);
+    border-radius: var(--tecnm-radius-md);
+    box-shadow: none;
+  }
+  .tecnm-nav-group.open > .tecnm-nav-sublist { display: block; }
+}
+
+/* ============================================================
+   7. FOOTER (.tecnm-footer)
+   ============================================================ */
+.tecnm-footer {
+  background-color: var(--tecnm-footer-bg);
+  color: var(--tecnm-text-on-blue);
+  padding: var(--tecnm-spacing-md) 0;
+  margin-top: auto;
+  text-align: center;
+  font-size: var(--tecnm-font-size-xs);
+}
+
+.tecnm-footer p {
+  color: var(--tecnm-text-on-blue);
+  margin: 0;
+}
+
+/* ============================================================
+   8. BOTONES (.tecnm-btn) - Spec 08 §4.3
+   ============================================================ */
+.tecnm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tecnm-spacing-sm);
+  padding: 0.625rem 1.25rem;
+  font-family: var(--tecnm-font-family);
+  font-size: var(--tecnm-font-size-sm);
+  font-weight: var(--tecnm-font-weight-semibold);
+  border: none;
+  border-radius: var(--tecnm-radius-md);
+  cursor: pointer;
+  transition: all var(--tecnm-transition-fast);
+  text-decoration: none;
+}
+
+.tecnm-btn-primary {
+  background-color: var(--tecnm-blue-primary);
+  color: var(--tecnm-text-on-blue);
+}
+
+.tecnm-btn-primary:hover {
+  background-color: var(--tecnm-blue-hover);
+  color: var(--tecnm-text-on-blue);
+}
+
+.tecnm-btn-success {
+  background-color: var(--tecnm-success-strong);
+  color: var(--tecnm-text-on-blue);
+}
+
+.tecnm-btn-success:hover {
+  background-color: var(--tecnm-success-strong-hover);
+  color: var(--tecnm-text-on-blue);
+}
+
+.tecnm-btn-secondary {
+  background-color: var(--tecnm-border-color);
+  color: var(--tecnm-text-primary);
+}
+
+.tecnm-btn-secondary:hover {
+  background-color: var(--tecnm-gray-200);
+}
+
+.tecnm-btn-outline {
+  background-color: transparent;
+  border: 2px solid var(--tecnm-blue-primary);
+  color: var(--tecnm-blue-primary);
+}
+
+.tecnm-btn-outline:hover {
+  background-color: var(--tecnm-bg-main);
+  color: var(--tecnm-blue-primary);
+}
+
+.tecnm-btn-danger {
+  background-color: var(--tecnm-danger-strong);
+  color: var(--tecnm-text-on-blue);
+}
+
+.tecnm-btn-danger:hover {
+  background-color: var(--tecnm-danger-strong-hover);
+  color: var(--tecnm-text-on-blue);
+}
+
+.tecnm-btn-warning {
+  background-color: var(--tecnm-warning);
+  color: var(--tecnm-text-on-blue);
+}
+
+.tecnm-btn-warning:hover {
+  filter: brightness(0.95);
+  color: var(--tecnm-text-on-blue);
+}
+
+.tecnm-btn-accent {
+  background-color: var(--tecnm-blue-primary);
+  color: var(--tecnm-text-on-blue);
+}
+
+.tecnm-btn-accent:hover {
+  background-color: var(--tecnm-blue-hover);
+  color: var(--tecnm-text-on-blue);
+}
+
+.tecnm-btn-outline-danger {
+  background-color: transparent;
+  border: 1px solid var(--tecnm-danger);
+  color: var(--tecnm-danger-strong);
+}
+
+.tecnm-btn-outline-danger:hover {
+  background-color: var(--tecnm-danger-bg);
+  color: var(--tecnm-danger-strong);
+}
+
+.tecnm-btn-sm {
+  padding: var(--tecnm-spacing-xs) var(--tecnm-spacing-md);
+  font-size: var(--tecnm-font-size-xs);
+}
+
+/* ============================================================
+   9. CARDS (.tecnm-card) - Spec 08 §4.4
+   ============================================================ */
+.tecnm-card {
+  background-color: var(--tecnm-surface-white);
+  border: 1px solid var(--tecnm-border-color);
+  border-top: 4px solid var(--tecnm-gold-accent);   /* acento dorado */
+  border-radius: var(--tecnm-radius-lg);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+  padding: var(--tecnm-spacing-lg);
+}
+
+.tecnm-card-header {
+  border-bottom: 1px solid var(--tecnm-border-color);
+  padding-bottom: var(--tecnm-spacing-md);
+  margin-bottom: var(--tecnm-spacing-md);
+}
+
+.tecnm-card-title {
+  font-size: var(--tecnm-font-size-lg);
+  font-weight: var(--tecnm-font-weight-semibold);
+  color: var(--tecnm-text-primary);
+}
+
+.tecnm-card-body {
+  padding: 0;
+}
+
+.tecnm-card-body--loose {
+  padding: var(--tecnm-spacing-lg) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tecnm-spacing-lg);
+}
+
+.tecnm-card-footer {
+  border-top: 1px solid var(--tecnm-border-color);
+  padding-top: var(--tecnm-spacing-md);
+  margin-top: var(--tecnm-spacing-md);
+}
+
+.tecnm-card-constrained {
+  max-width: 850px;
+  margin: 0 auto;
+}
+
+/* ============================================================
+   10. FORMULARIOS (.tecnm-form-*) - Spec 08 §4.6
+   ============================================================ */
+.tecnm-form-group {
+  margin-bottom: var(--tecnm-spacing-md);
+}
+
+.tecnm-label {
+  display: block;
+  font-size: var(--tecnm-font-size-sm);
+  font-weight: var(--tecnm-font-weight-medium);
+  color: var(--tecnm-text-primary);
+  margin-bottom: var(--tecnm-spacing-xs);
+}
+
+.tecnm-form-control {
+  width: 100%;
+  height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--tecnm-font-family);
+  font-size: var(--tecnm-font-size-base);
+  color: var(--tecnm-text-primary);
+  background-color: var(--tecnm-surface-white);
+  border: 1px solid var(--tecnm-gray-200);
+  border-radius: var(--tecnm-radius-md);
+  transition: border-color var(--tecnm-transition-fast), box-shadow var(--tecnm-transition-fast);
+}
+
+textarea.tecnm-form-control {
+  height: auto;
+}
+
+.tecnm-form-control:focus {
+  outline: none;
+  border-color: var(--tecnm-border-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tecnm-blue-primary) 15%, transparent);
+}
+
+.tecnm-form-control::placeholder {
+  color: var(--tecnm-text-muted);
+}
+
+.tecnm-form-error {
+  display: block;
+  margin-top: var(--tecnm-spacing-xs);
+  font-size: var(--tecnm-font-size-sm);
+  color: var(--tecnm-status-rejected-text);
+}
+
+.tecnm-form-hint {
+  display: block;
+  margin-top: var(--tecnm-spacing-xs);
+  font-size: var(--tecnm-font-size-sm);
+  color: var(--tecnm-text-secondary);
+}
+
+/* Caja de permisos del catálogo de roles (lista clave/valor desplazable) */
+.tecnm-permissions-box {
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid var(--tecnm-border-color);
+  border-radius: var(--tecnm-radius-md);
+  padding: var(--tecnm-spacing-md);
+}
+
+/* Checklist de permisos del catálogo de roles */
+.tecnm-perm-section {
+  margin-bottom: var(--tecnm-spacing-md);
+}
+
+.tecnm-perm-section-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  color: var(--tecnm-blue-primary);
+  border-bottom: 1px solid var(--tecnm-border-color);
+  padding-bottom: 0.25rem;
+}
+
+.tecnm-perm-section-body {
+  padding-left: 0.5rem;
+}
+
+.tecnm-perm-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+  cursor: pointer;
+}
+
+.tecnm-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--tecnm-spacing-md);
+}
+
+.tecnm-form-group-full {
+  grid-column: 1 / -1;
+}
+
+.tecnm-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--tecnm-spacing-sm);
+}
+
+.tecnm-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--tecnm-spacing-xs);
+}
+
+.tecnm-label-row .tecnm-label {
+  margin-bottom: 0;
+}
+
+/* ============================================================
+   11. TABLAS (.tecnm-table) - Spec 08 §4.5
+   ============================================================ */
+.tecnm-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--tecnm-surface-white);
+  border: 1px solid var(--tecnm-border-color);
+  border-radius: var(--tecnm-radius-lg);
+  overflow: hidden;
+}
+
+.tecnm-table th,
+.tecnm-table td {
+  padding: var(--tecnm-spacing-sm) var(--tecnm-spacing-md);
+  text-align: left;
+  border-bottom: 1px solid var(--tecnm-border-color);
+}
+
+.tecnm-table th {
+  background-color: var(--tecnm-blue-primary);
+  color: var(--tecnm-text-on-blue);
+  font-weight: var(--tecnm-font-weight-semibold);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tecnm-table tbody tr:hover {
+  background-color: var(--tecnm-blue-tint-50);
+}
+
+.tecnm-table-striped tbody tr:nth-child(even) {
+  background-color: var(--tecnm-bg-main);
+}
+
+.tecnm-table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tecnm-table-empty {
+  text-align: center;
+  padding: 1.25rem;
+}
+
+/* ============================================================
+   11.1 PAGINACIÓN (.tecnm-pagination)
+   ============================================================ */
+.tecnm-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tecnm-spacing-sm);
+  padding: var(--tecnm-spacing-sm) var(--tecnm-spacing-md);
+  border-top: 1px solid var(--tecnm-border-color);
+  background-color: var(--tecnm-surface-white);
+}
+
+.tecnm-pagination-info {
+  font-size: 0.85rem;
+  color: var(--tecnm-text-secondary);
+}
+
+.tecnm-pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tecnm-pagination-btn {
+  min-width: 2.15rem;
+  height: 2.15rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--tecnm-border-color);
+  border-radius: var(--tecnm-radius-md);
+  background-color: var(--tecnm-surface-white);
+  color: var(--tecnm-text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.tecnm-pagination-btn:hover:not(:disabled):not(.active) {
+  background-color: var(--tecnm-blue-tint-50);
+  border-color: var(--tecnm-blue-primary);
+}
+
+.tecnm-pagination-btn.active {
+  background-color: var(--tecnm-blue-primary);
+  border-color: var(--tecnm-blue-primary);
+  color: var(--tecnm-text-on-blue);
+  font-weight: var(--tecnm-font-weight-semibold);
+  cursor: default;
+}
+
+.tecnm-pagination-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tecnm-pagination-ellipsis {
+  color: var(--tecnm-text-secondary);
+  padding: 0 0.15rem;
+}
+
+.tecnm-score-approved {
+  color: var(--tecnm-status-approved-text);
+}
+
+.tecnm-score-rejected {
+  color: var(--tecnm-status-rejected-text);
+}
+
+/* ============================================================
+   12. BADGES (.tecnm-badge) - Spec 08 §4.7
+   ============================================================ */
+.tecnm-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--tecnm-radius-full);
+  font-size: 0.75rem;
+  font-weight: var(--tecnm-font-weight-semibold);
+}
+
+.tecnm-badge-approved {
+  background-color: var(--tecnm-status-approved-bg);
+  color: var(--tecnm-status-approved-text);
+}
+
+.tecnm-badge-pending {
+  background-color: var(--tecnm-status-pending-bg);
+  color: var(--tecnm-status-pending-text);
+}
+
+.tecnm-badge-rejected {
+  background-color: var(--tecnm-status-rejected-bg);
+  color: var(--tecnm-status-rejected-text);
+}
+
+.tecnm-badge-info {
+  background-color: var(--tecnm-status-info-bg);
+  color: var(--tecnm-status-info-text);
+}
+
+.tecnm-badge-neutral {
+  background-color: var(--tecnm-gray-100);
+  color: var(--tecnm-text-secondary);
+}
+
+/* Badges funcionales */
+.tecnm-badge-warning {
+  background-color: var(--tecnm-warning-bg);
+  color: var(--tecnm-warning);
+}
+
+/* ============================================================
+   13. ALERTAS (.tecnm-alert) - Spec 08 §4.8
+   ============================================================ */
+#alertContainer {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  max-width: 440px;
+  width: calc(100% - 3rem);
+  pointer-events: none;
+}
+
+.tecnm-alert {
+  padding: var(--tecnm-spacing-md);
+  border-radius: var(--tecnm-radius-md);
+  margin-bottom: var(--tecnm-spacing-sm);
+  border-left: 4px solid;
+  pointer-events: auto;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  animation: tecnmAlertSlideIn 0.25s ease-out;
+}
+
+@keyframes tecnmAlertSlideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.tecnm-alert-close {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  font-weight: bold;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+  padding: 0 0.25rem;
+  margin-left: 0.75rem;
+  transition: opacity 0.15s ease;
+}
+
+.tecnm-alert-close:hover {
+  opacity: 1;
+}
+
+.tecnm-alert-success {
+  background-color: var(--tecnm-success-bg);
+  border-color: var(--tecnm-success);
+  color: var(--tecnm-success);
+}
+
+.tecnm-alert-warning {
+  background-color: var(--tecnm-warning-bg);
+  border-color: var(--tecnm-warning);
+  color: var(--tecnm-warning);
+}
+
+.tecnm-alert-danger {
+  background-color: var(--tecnm-danger-bg);
+  border-color: var(--tecnm-danger);
+  color: var(--tecnm-danger);
+}
+
+.tecnm-alert-info {
+  background-color: var(--tecnm-info-bg);
+  border-color: var(--tecnm-info);
+  color: var(--tecnm-info);
+}
+
+/* ============================================================
+   14. CABECERA DE PÁGINA Y BARRA DE ACCIONES
+   ============================================================ */
+.tecnm-page-title {
+  font-size: var(--tecnm-font-size-3xl);
+  font-weight: var(--tecnm-font-weight-bold);
+  color: var(--tecnm-blue-primary);
+  margin: 0;
+}
+
+.tecnm-page-subtitle {
+  color: var(--tecnm-text-secondary);
+  margin: var(--tecnm-spacing-xs) 0 0 0;
+}
+
+.tecnm-actions-bar,
+.actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--tecnm-spacing-lg);
+  gap: var(--tecnm-spacing-md);
+  flex-wrap: wrap;
+}
+
+/* Grupo de acciones de la cabecera de página (buscar + registrar).
+   Separación amplia para evitar que los botones queden pegados. */
+.tecnm-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+/* Divisor vertical entre acciones de consulta y la acción principal */
+.tecnm-page-actions-divider {
+  width: 1px;
+  height: 1.5rem;
+  background-color: var(--tecnm-border-color);
+}
+
+/* Toolbar de tabla en fila propia (Spec 08 §4.5):
+   búsqueda a la izquierda, controles agrupados a la derecha. */
+.tecnm-card-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tecnm-spacing-sm);
+  padding: var(--tecnm-spacing-sm) var(--tecnm-spacing-lg);
+  background-color: var(--tecnm-bg-main);
+  border-bottom: 1px solid var(--tecnm-border-color);
+}
+
+.tecnm-card-toolbar .tecnm-search-input {
+  flex: 1 1 240px;
+  max-width: 380px;
+}
+
+.tecnm-card-toolbar .tecnm-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tecnm-spacing-sm);
+  margin-left: auto;
+}
+
+/* Contenedor de acciones por fila de tabla: neutros juntos primero,
+   la acción destructiva (danger) siempre al final. */
+.tecnm-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--tecnm-spacing-xs);
+}
+
+/* ============================================================
+   15. DASHBOARD: KPIs, ACTION CARDS Y PANELES
+   ============================================================ */
+/* KPIs — jerarquía superior (grid 4 columnas) */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--tecnm-spacing-xl);
+  margin-bottom: var(--tecnm-spacing-2xl);
+}
+
+/* Conteos por rol para distribución simétrica (equal-height + filas completas) */
+.kpi-grid[data-kpi-count="3"] { grid-template-columns: repeat(3, 1fr); }
+.kpi-grid[data-kpi-count="6"] { grid-template-columns: repeat(3, 1fr); }
+
+@media (max-width: 1023.98px) {
+  .kpi-grid,
+  .kpi-grid[data-kpi-count="3"],
+  .kpi-grid[data-kpi-count="6"] {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .kpi-grid,
+  .kpi-grid[data-kpi-count="3"],
+  .kpi-grid[data-kpi-count="6"] {
+    grid-template-columns: 1fr;
+    gap: var(--tecnm-spacing-md);
+  }
+}
+
+.kpi-card {
+  display: flex;
+  align-items: center;
+  gap: var(--tecnm-spacing-md);
+  background-color: var(--tecnm-surface-white);
+  border: 1px solid var(--tecnm-border-color);
+  border-top: 4px solid var(--tecnm-border-color);
+  border-radius: var(--tecnm-radius-lg);
+  box-shadow: var(--tecnm-shadow-sm);
+  padding: var(--tecnm-spacing-lg) var(--tecnm-spacing-xl);
+  transition: transform var(--tecnm-transition-fast), box-shadow var(--tecnm-transition-fast);
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--tecnm-shadow-md);
+}
+
+.kpi-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: var(--tecnm-radius-lg);
+  background-color: color-mix(in srgb, var(--tecnm-blue-primary) 10%, transparent);
+  color: var(--tecnm-blue-primary);
+}
+
+.kpi-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.kpi-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.kpi-label {
+  font-size: var(--tecnm-font-size-xs);
+  color: var(--tecnm-text-secondary);
+  text-transform: uppercase;
+  font-weight: var(--tecnm-font-weight-semibold);
+  letter-spacing: 0.04em;
+}
+
+.kpi-value {
+  font-size: var(--tecnm-font-size-2xl);
+  font-weight: var(--tecnm-font-weight-bold);
+  color: var(--tecnm-blue-primary);
+  margin-top: var(--tecnm-spacing-xs);
+  line-height: 1.2;
+}
+
+/* Variantes de color para KPI cards */
+.kpi-card--gold,
+.kpi-card--orange,
+.kpi-card--warning {
+  border-top-color: var(--tecnm-gold-accent);
+}
+
+.kpi-card--gold .kpi-icon,
+.kpi-card--orange .kpi-icon,
+.kpi-card--warning .kpi-icon {
+  background-color: var(--tecnm-gold-light);
+  color: var(--tecnm-gold-accent);
+}
+
+.kpi-card--gold .kpi-value,
+.kpi-card--orange .kpi-value,
+.kpi-card--warning .kpi-value {
+  color: #D97706; /* Naranja / Ámbar estandarizado */
+}
+
+.kpi-card--green,
+.kpi-card--success {
+  border-top-color: var(--tecnm-status-approved-text);
+}
+
+.kpi-card--green .kpi-icon,
+.kpi-card--success .kpi-icon {
+  background-color: var(--tecnm-status-approved-bg);
+  color: var(--tecnm-status-approved-text);
+}
+
+.kpi-card--green .kpi-value,
+.kpi-card--success .kpi-value {
+  color: var(--tecnm-status-approved-text);
+}
+
+/* Layout principal: contenido + sidebar */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--tecnm-spacing-xl);
+  align-items: start;
+}
+
+@media (max-width: 1023.98px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dashboard-main {
+  min-width: 0;
+}
+
+.dashboard-section {
+  margin-top: var(--tecnm-spacing-xl);
+}
+
+.dashboard-section-title {
+  font-size: var(--tecnm-font-size-lg);
+  font-weight: var(--tecnm-font-weight-semibold);
+  color: var(--tecnm-blue-primary);
+  margin: 0 0 var(--tecnm-spacing-md);
+}
+
+/* Action Cards — accesos rápidos, separados de los números */
+.action-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--tecnm-spacing-lg);
+}
+
+.action-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tecnm-spacing-sm);
+  background-color: var(--tecnm-surface-white);
+  border: 1px solid var(--tecnm-border-color);
+  border-radius: var(--tecnm-radius-lg);
+  padding: var(--tecnm-spacing-lg);
+  text-decoration: none;
+  transition: transform var(--tecnm-transition-fast), box-shadow var(--tecnm-transition-fast), border-color var(--tecnm-transition-fast);
+}
+
+.action-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--tecnm-shadow-md);
+  border-color: var(--tecnm-blue-primary);
+}
+
+.action-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--tecnm-radius-md);
+  background-color: color-mix(in srgb, var(--tecnm-blue-primary) 10%, transparent);
+  color: var(--tecnm-blue-primary);
+}
+
+.action-card-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.action-card-title {
+  font-size: var(--tecnm-font-size-sm);
+  font-weight: var(--tecnm-font-weight-semibold);
+  color: var(--tecnm-text-primary);
+}
+
+.action-card-sub {
+  font-size: var(--tecnm-font-size-xs);
+  color: var(--tecnm-text-secondary);
+}
+
+/* Paneles laterales (pendientes / checklist) */
+.panel-card {
+  background-color: var(--tecnm-surface-white);
+  border: 1px solid var(--tecnm-border-color);
+  border-radius: var(--tecnm-radius-lg);
+  box-shadow: var(--tecnm-shadow-sm);
+  padding: var(--tecnm-spacing-xl);
+}
+
+.panel-card + .panel-card {
+  margin-top: var(--tecnm-spacing-xl);
+}
+
+.panel-card--loose {
+  padding: var(--tecnm-spacing-2xl);
+}
+
+.panel-title {
+  font-size: var(--tecnm-font-size-base);
+  font-weight: var(--tecnm-font-weight-semibold);
+  color: var(--tecnm-blue-primary);
+  margin: 0 0 var(--tecnm-spacing-md);
+  padding-bottom: var(--tecnm-spacing-sm);
+  border-bottom: 1px solid var(--tecnm-border-color);
+}
+
+.list-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tecnm-spacing-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list-panel-item {
+  display: flex;
+  align-items: center;
+  gap: var(--tecnm-spacing-sm);
+  padding: var(--tecnm-spacing-md);
+  border-radius: var(--tecnm-radius-md);
+  background-color: var(--tecnm-bg-main);
+}
+
+.list-panel-item > div {
+  min-width: 0;
+}
+
+.list-panel-item-title {
+  font-size: var(--tecnm-font-size-sm);
+  font-weight: var(--tecnm-font-weight-semibold);
+  color: var(--tecnm-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.list-panel-item-sub {
+  font-size: var(--tecnm-font-size-xs);
+  color: var(--tecnm-text-secondary);
+}
+
+.list-panel-empty {
+  padding: var(--tecnm-spacing-md);
+  text-align: center;
+  font-size: var(--tecnm-font-size-sm);
+  color: var(--tecnm-text-secondary);
+}
+
+.list-panel-more {
+  padding: var(--tecnm-spacing-sm) var(--tecnm-spacing-md);
+  text-align: center;
+  font-size: var(--tecnm-font-size-xs);
+  font-weight: var(--tecnm-font-weight-semibold);
+  color: var(--tecnm-status-pending-text);
+  background-color: var(--tecnm-status-pending-bg);
+  border-radius: var(--tecnm-radius-md);
+  margin-top: var(--tecnm-spacing-xs);
+  border: 1px solid color-mix(in srgb, var(--tecnm-gold-accent) 30%, transparent);
+}
+
+.progress-track {
+  width: 100%;
+  height: 10px;
+  border-radius: var(--tecnm-radius-full);
+  background-color: var(--tecnm-gray-100);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: var(--tecnm-radius-full);
+  background: linear-gradient(90deg, var(--tecnm-blue-primary) 0%, var(--tecnm-blue-hover) 100%);
+  transition: width var(--tecnm-transition-normal);
+}
+
+/* ============================================================
+   16. MODALES (.tecnm-modal)
+   ============================================================ */
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background-color: rgb(0 0 0 / 0.5);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-backdrop.active {
+  display: flex;
+}
+
+.modal-card {
+  background-color: var(--tecnm-surface-white);
+  border-radius: var(--tecnm-radius-md);
+  border-top: 4px solid var(--tecnm-gold-accent);
+  width: 100%;
+  max-width: 550px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: var(--tecnm-spacing-xl);
+  box-shadow: 0 10px 25px rgb(0 0 0 / 0.2);
+}
+
+.modal-card-wide {
+  max-width: 750px;
+}
+
+.document-preview-container {
+  width: 100%;
+  min-height: 420px;
+  max-height: 70vh;
+  overflow: auto;
+  background-color: var(--tecnm-surface-white);
+  border: 1px solid var(--tecnm-border-color);
+  border-radius: var(--tecnm-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.document-preview-container embed {
+  width: 100%;
+  height: 70vh;
+  border: none;
+}
+
+.document-preview-container img {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+}
+
+.document-preview-compact {
+  min-height: 160px;
+  max-height: 35vh;
+  margin-bottom: var(--tecnm-spacing-md);
+}
+
+.document-preview-compact embed {
+  height: 35vh;
+}
+
+.document-preview-compact img {
+  max-height: 35vh;
+}
+
+.tecnm-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--tecnm-border-color);
+  padding-bottom: var(--tecnm-spacing-sm);
+  margin-bottom: var(--tecnm-spacing-lg);
+}
+
+.tecnm-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--tecnm-spacing-sm);
+  margin-top: var(--tecnm-spacing-lg);
+  border-top: 1px solid var(--tecnm-border-color);
+  padding-top: var(--tecnm-spacing-md);
+}
+
+.tecnm-modal-title {
+  color: var(--tecnm-blue-primary);
+  font-size: var(--tecnm-font-size-lg);
+  margin: 0;
+}
+
+.tecnm-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--tecnm-text-secondary);
+  transition: color var(--tecnm-transition-fast);
+}
+
+.tecnm-modal-close:hover {
+  color: var(--tecnm-text-primary);
+}
+
+/* Campos de detalle (modal de dictamen, perfil) */
+.tecnm-field-label {
+  display: block;
+  font-size: var(--tecnm-font-size-sm);
+  font-weight: var(--tecnm-font-weight-semibold);
+  color: var(--tecnm-text-secondary);
+  margin: 0 0 var(--tecnm-spacing-xs);
+}
+
+.tecnm-field-value {
+  display: block;
+  color: var(--tecnm-text-primary);
+  margin: 0 0 var(--tecnm-spacing-md);
+}
+
+.tecnm-field-value-emphasis {
+  font-weight: var(--tecnm-font-weight-semibold);
+  color: var(--tecnm-blue-primary);
+}
+
+.tecnm-field-value-box {
+  background-color: var(--tecnm-bg-main);
+  padding: var(--tecnm-spacing-sm) var(--tecnm-spacing-md);
+  border-radius: var(--tecnm-radius-sm);
+}
+
+.tecnm-field-list {
+  margin: 0 0 var(--tecnm-spacing-lg);
+  padding-left: 1.25rem;
+}
+
+.tecnm-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+/* ============================================================
+   17. PERFIL DE USUARIO (header sesión)
+   ============================================================ */
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: var(--tecnm-spacing-sm);
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--tecnm-spacing-sm);
+}
+
+.user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: var(--tecnm-radius-full);
+  background: linear-gradient(135deg, var(--tecnm-blue-dark) 0%, var(--tecnm-blue-primary) 100%);
+  border: 2px solid var(--tecnm-gold-accent);
+  color: var(--tecnm-text-on-blue);
+  font-size: var(--tecnm-font-size-sm);
+  font-weight: var(--tecnm-font-weight-bold);
+  text-transform: uppercase;
+}
+
+.user-profile-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  line-height: 1.3;
+}
+
+.user-profile-name {
+  font-size: var(--tecnm-font-size-sm);
+  font-weight: var(--tecnm-font-weight-semibold);
+  color: var(--tecnm-text-on-blue);
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-profile-role {
+  font-size: var(--tecnm-font-size-xs);
+  color: var(--tecnm-gold-accent);
+  font-weight: var(--tecnm-font-weight-medium);
+}
+
+.user-logout-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  border-radius: var(--tecnm-radius-md);
+  color: rgb(255 255 255 / 0.75);
+  cursor: pointer;
+  transition: color var(--tecnm-transition-fast), background-color var(--tecnm-transition-fast);
+}
+
+.user-logout-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.user-logout-btn:hover {
+  color: var(--tecnm-text-on-blue);
+  background-color: rgb(255 255 255 / 0.1);
+}
+
+.user-logout-btn:focus-visible {
+  outline: 2px solid var(--tecnm-gold-accent);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   18. LANDING PAGE (index)
+   ============================================================ */
+.landing-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.landing-header-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tecnm-spacing-sm);
+  padding: var(--tecnm-spacing-sm) var(--tecnm-spacing-lg);
+  background-color: var(--tecnm-blue-primary);
+  color: var(--tecnm-text-on-blue);
+  font-size: var(--tecnm-font-size-sm);
+  font-weight: var(--tecnm-font-weight-semibold);
+  border-radius: var(--tecnm-radius-md);
+  text-decoration: none;
+  transition: all var(--tecnm-transition-fast);
+}
+
+.landing-header-btn:hover {
+  background-color: var(--tecnm-blue-hover);
+  color: var(--tecnm-text-on-blue);
+}
+
+.landing-header-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.landing-hero {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--tecnm-spacing-2xl) var(--tecnm-spacing-md);
+  background: linear-gradient(135deg, var(--tecnm-bg-main) 0%, var(--tecnm-blue-tint-hero) 100%);
+  text-align: center;
+}
+
+.landing-hero-content {
+  max-width: 640px;
+}
+
+.landing-hero-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto var(--tecnm-spacing-xl);
+  background-color: var(--tecnm-surface-white);
+  border: 2px solid var(--tecnm-gold-accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--tecnm-shadow-md);
+}
+
+.landing-hero-icon svg {
+  width: 40px;
+  height: 40px;
+  color: var(--tecnm-blue-primary);
+}
+
+.landing-hero-title {
+  font-size: var(--tecnm-font-size-4xl);
+  font-weight: var(--tecnm-font-weight-bold);
+  color: var(--tecnm-blue-primary);
+  margin-bottom: var(--tecnm-spacing-md);
+  line-height: 1.2;
+}
+
+.landing-hero-subtitle {
+  font-size: var(--tecnm-font-size-lg);
+  color: var(--tecnm-text-secondary);
+  margin-bottom: var(--tecnm-spacing-xl);
+  line-height: 1.6;
+}
+
+.landing-hero-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tecnm-spacing-sm);
+  padding: var(--tecnm-spacing-md) var(--tecnm-spacing-xl);
+  background-color: var(--tecnm-blue-primary);
+  color: var(--tecnm-text-on-blue);
+  font-size: var(--tecnm-font-size-base);
+  font-weight: var(--tecnm-font-weight-semibold);
+  border-radius: var(--tecnm-radius-md);
+  text-decoration: none;
+  transition: all var(--tecnm-transition-fast);
+  box-shadow: var(--tecnm-shadow-md);
+}
+
+.landing-hero-btn:hover {
+  background-color: var(--tecnm-blue-hover);
+  color: var(--tecnm-text-on-blue);
+  transform: translateY(-2px);
+  box-shadow: var(--tecnm-shadow-lg);
+}
+
+.landing-hero-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.landing-features {
+  padding: var(--tecnm-spacing-2xl) var(--tecnm-spacing-md);
+  background-color: var(--tecnm-surface-white);
+}
+
+.landing-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--tecnm-spacing-xl);
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.landing-feature-card {
+  text-align: center;
+  padding: var(--tecnm-spacing-lg);
+}
+
+.landing-feature-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto var(--tecnm-spacing-md);
+  background-color: var(--tecnm-gold-light);
+  border-radius: var(--tecnm-radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.landing-feature-icon svg {
+  width: 28px;
+  height: 28px;
+  color: var(--tecnm-gold-accent);
+}
+
+.landing-feature-title {
+  font-size: var(--tecnm-font-size-base);
+  font-weight: var(--tecnm-font-weight-semibold);
+  color: var(--tecnm-text-primary);
+  margin-bottom: var(--tecnm-spacing-sm);
+}
+
+.landing-feature-desc {
+  font-size: var(--tecnm-font-size-sm);
+  color: var(--tecnm-text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.landing-footer {
+  background-color: var(--tecnm-footer-bg);
+  color: var(--tecnm-text-on-blue);
+  padding: var(--tecnm-spacing-lg) 0;
+  text-align: center;
+}
+
+.landing-footer p {
+  color: var(--tecnm-text-on-blue);
+  margin: 0;
+  font-size: var(--tecnm-font-size-xs);
+  opacity: 0.9;
+}
+
+/* ============================================================
+   19. LOGIN (auth)
+   ============================================================ */
+.login-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.login-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--tecnm-spacing-xl) var(--tecnm-spacing-md);
+  background-color: var(--tecnm-bg-main);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background-color: var(--tecnm-surface-white);
+  border: 1px solid var(--tecnm-border-color);
+  border-top: 4px solid var(--tecnm-gold-accent);
+  border-radius: var(--tecnm-radius-lg);
+  box-shadow: var(--tecnm-shadow-md);
+  padding: var(--tecnm-spacing-xl);
+}
+
+.login-title {
+  font-size: var(--tecnm-font-size-xl);
+  font-weight: var(--tecnm-font-weight-bold);
+  color: var(--tecnm-blue-primary);
+  text-align: center;
+  margin-bottom: var(--tecnm-spacing-xs);
+}
+
+.login-subtitle {
+  font-size: var(--tecnm-font-size-sm);
+  color: var(--tecnm-text-secondary);
+  text-align: center;
+  margin-bottom: var(--tecnm-spacing-xl);
+}
+
+.login-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--tecnm-spacing-md);
+}
+
+.login-icon svg {
+  width: 48px;
+  height: 48px;
+  color: var(--tecnm-blue-primary);
+}
+
+.login-form .tecnm-form-group {
+  margin-bottom: var(--tecnm-spacing-lg);
+}
+
+.login-form .tecnm-label {
+  font-weight: var(--tecnm-font-weight-medium);
+  margin-bottom: var(--tecnm-spacing-sm);
+}
+
+.login-form .tecnm-form-control {
+  height: 2.75rem;
+}
+
+.login-btn {
+  width: 100%;
+  height: 2.75rem;
+  font-size: var(--tecnm-font-size-base);
+  font-weight: var(--tecnm-font-weight-semibold);
+  margin-top: var(--tecnm-spacing-sm);
+}
+
+.login-alert {
+  display: none;
+  margin-bottom: var(--tecnm-spacing-lg);
+}
+
+.login-alert.visible {
+  display: block;
+}
+
+.login-footer {
+  background-color: var(--tecnm-footer-bg);
+  color: var(--tecnm-text-on-blue);
+  padding: var(--tecnm-spacing-md) 0;
+  text-align: center;
+  font-size: var(--tecnm-font-size-xs);
+  opacity: 0.9;
+}
+
+.login-footer p {
+  color: var(--tecnm-text-on-blue);
+  margin: 0;
+}
+
+/* ============================================================
+   20. MATRIZ DE AVANCE SEMANAL (activities/schedule)
+   ============================================================ */
+.matrix-table {
+  font-size: 12px;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.matrix-table th,
+.matrix-table td {
+  border: 1px solid var(--tecnm-border-color);
+  padding: 6px;
+  text-align: center;
+}
+
+.matrix-table th.act-title-col {
+  text-align: left;
+  min-width: 240px;
+}
+
+.matrix-table thead th {
+  background-color: var(--tecnm-blue-primary);
+  color: var(--tecnm-text-on-blue);
+}
+
+.matrix-table thead th:first-child {
+  width: 40px;
+}
+
+.matrix-table th.matrix-week-header {
+  width: 32px;
+}
+
+.tecnm-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--tecnm-spacing-sm);
+  font-size: var(--tecnm-font-size-xs);
+}
+
+.week-cell {
+  cursor: pointer;
+  font-weight: var(--tecnm-font-weight-semibold);
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.week-cell.completed {
+  background-color: var(--tecnm-status-approved-bg);
+  color: var(--tecnm-status-approved-text);
+}
+
+.week-cell.in_progress {
+  background-color: var(--tecnm-status-pending-bg);
+  color: var(--tecnm-status-pending-text);
+}
+
+.week-cell.pending {
+  background-color: var(--tecnm-gray-100);
+  color: var(--tecnm-text-secondary);
+}
+
+/* ============================================================
+   21. OBJETIVOS ESPECÍFICOS (projects/proposal)
+   ============================================================ */
+.objective-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+.objective-row input {
+  flex: 1;
+}
+
+/* ============================================================
+   22. UTILIDADES
+   ============================================================ */
+.tecnm-text-center { text-align: center; }
+.tecnm-text-danger { color: var(--tecnm-danger); }
+.tecnm-hidden { display: none !important; }
+.tecnm-mt-2 { margin-top: var(--tecnm-spacing-md); }
+.tecnm-mt-3 { margin-top: var(--tecnm-spacing-lg); }
+.tecnm-mb-2 { margin-bottom: var(--tecnm-spacing-md); }
+.tecnm-mb-3 { margin-bottom: var(--tecnm-spacing-lg); }
+.tecnm-d-flex { display: flex; }
+.tecnm-justify-between { justify-content: space-between; }
+.tecnm-align-center { align-items: center; }
+.tecnm-flex-wrap { flex-wrap: wrap; }
+.tecnm-gap-1 { gap: var(--tecnm-spacing-xs); }
+.tecnm-gap-2 { gap: var(--tecnm-spacing-sm); }
+
+/* Progreso semanal del residente */
+.progress-label {
+  display: block;
+  font-size: var(--tecnm-font-size-xs);
+  color: var(--tecnm-text-secondary);
+  margin-top: var(--tecnm-spacing-xs);
+}
+
+/* Enlace de tarea pendiente en listas del dashboard */
+.list-panel-link {
+  font-size: var(--tecnm-font-size-sm);
+  font-weight: var(--tecnm-font-weight-semibold);
+  color: var(--tecnm-blue-primary);
+}
+
+/* Screen-reader only (accesibilidad) */
+.tecnm-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Controles de filtro de catálogos (Spec 08 §4.6) */
+.tecnm-filter-select {
+  width: auto;
+  min-width: 150px;
+  max-width: 220px;
+}
+
+.tecnm-filter-group {
+  width: 100%;
+  max-width: 250px;
+}
+
+/* Toolbar de tablas: búsqueda, filtros y exportación (Spec 08 §4.5) */
+.tecnm-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tecnm-spacing-sm);
+}
+
+.tecnm-search-input {
+  width: 100%;
+  max-width: 260px;
+}
+
+.tecnm-switch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--tecnm-font-size-sm);
+  color: var(--tecnm-text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tecnm-switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.tecnm-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.tecnm-switch-slider {
+  position: absolute;
+  inset: 0;
+  background-color: var(--tecnm-gray-200);
+  border: 1px solid var(--tecnm-text-muted);
+  border-radius: 9999px;
+  transition: background-color var(--tecnm-transition-fast), border-color var(--tecnm-transition-fast);
+}
+
+.tecnm-switch-slider::before {
+  content: "";
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 2px;
+  background-color: var(--tecnm-white);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  border-radius: 50%;
+  transition: transform var(--tecnm-transition-fast);
+}
+
+.tecnm-switch input:checked + .tecnm-switch-slider {
+  background-color: var(--tecnm-blue-primary);
+  border-color: var(--tecnm-blue-primary);
+}
+
+.tecnm-switch input:checked + .tecnm-switch-slider::before {
+  transform: translateX(18px);
+}
+
+/* Ordenamiento por columnas */
+.tecnm-sort-th {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  padding-right: 1.25rem !important;
+}
+
+.tecnm-sort-th::after {
+  content: "\2195";
+  position: absolute;
+  right: 0.5rem;
+  opacity: 0.45;
+  font-size: 0.75rem;
+}
+
+.tecnm-sort-asc::after {
+  content: "\25B2";
+  opacity: 1;
+}
+
+.tecnm-sort-desc::after {
+  content: "\25BC";
+  opacity: 1;
+}
+
+/* Tabs centralizados (Spec 08) */
+.tecnm-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid var(--tecnm-border-color);
+  margin-bottom: 1.5rem;
+}
+
+.tecnm-tabs .tab-btn {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  margin-bottom: -2px;
+}
+
+.tecnm-tabs .tab-btn.active {
+  border-bottom: 2px solid var(--tecnm-gold-accent);
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* Modal de Auditoría: lista clave → valor (Spec 08 §4) */
+.tecnm-audit-list {
+  margin: 0 0 var(--tecnm-spacing-md) 0;
+  padding: 0;
+}
+
+.tecnm-audit-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--tecnm-spacing-md);
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--tecnm-border-color);
+  font-size: var(--tecnm-font-size-sm);
+}
+
+.tecnm-audit-row:last-child {
+  border-bottom: none;
+}
+
+.tecnm-audit-row dt {
+  color: var(--tecnm-text-secondary);
+  font-weight: var(--tecnm-font-weight-medium);
+}
+
+.tecnm-audit-row dd {
+  margin: 0;
+  color: var(--tecnm-text-primary);
+  font-weight: var(--tecnm-font-weight-semibold, 600);
+  text-align: right;
+}
+
+/* ============================================================
+   23. SPINNER
+   ============================================================ */
+.login-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgb(255 255 255 / 0.3);
+  border-top-color: var(--tecnm-white);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   24. RESPONSIVE (Spec 08 §5)
+   ------------------------------------------------------------
+   Breakpoints: tablet/mobile < 1024px (nav hamburguesa) y
+   < 640px (header apilado).
+   ============================================================ */
+@media (max-width: 1023.98px) {
+  .tecnm-nav-toggle {
+    display: inline-flex;
+  }
+
+  .tecnm-navbar-nav {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    overflow: visible;
+    padding-bottom: var(--tecnm-spacing-sm);
+  }
+
+  .tecnm-navbar-nav.open {
+    display: flex;
+  }
+
+  .tecnm-nav-item {
+    border-radius: var(--tecnm-radius-sm);
+  }
+}
+
+@media (max-width: 640px) {
+  .tecnm-header-inner {
+    flex-direction: column;
+    gap: var(--tecnm-spacing-sm);
+    text-align: center;
+    padding: var(--tecnm-spacing-sm) 0;
+  }
+
+  .tecnm-brand {
+    flex-direction: column;
+    gap: var(--tecnm-spacing-xs);
+  }
+
+  .tecnm-brand-text {
+    align-items: center;
+  }
+
+  .tecnm-brand-logo {
+    height: 44px;
+  }
+
+  .tecnm-header-actions {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .user-menu {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .user-profile-name {
+    max-width: 160px;
+  }
+
+  .landing-hero-title {
+    font-size: 1.75rem;
+  }
+
+  .landing-hero-subtitle {
+    font-size: var(--tecnm-font-size-base);
+  }
+
+  .login-card {
+    padding: var(--tecnm-spacing-lg);
+  }
+
+  .tecnm-campus {
+    text-align: center;
+  }
+}
+
+/* ============================================================
+   19. MODAL DE BÚSQUEDA GLOBAL / UNIVERSAL (ESTRUCTURA DE REFERENCIA)
+   ============================================================ */
+.tecnm-search-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.tecnm-search-modal-container {
+  background-color: var(--tecnm-white, #ffffff);
+  border-radius: var(--tecnm-radius-lg, 12px);
+  box-shadow: var(--tecnm-shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1));
+  width: 100%;
+  max-width: 1100px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--tecnm-border-color, #e2e8f0);
+  font-family: var(--tecnm-font-family, 'Montserrat', sans-serif);
+}
+
+/* Header del Modal */
+.tecnm-search-modal-header {
+  background-color: #ffffff;
+  padding: 1.15rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--tecnm-gold-accent, #C5A059);
+}
+
+.tecnm-search-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.tecnm-search-header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.tecnm-search-modal-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--tecnm-blue-primary, #1B396A);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.tecnm-search-count-badge {
+  background-color: var(--tecnm-blue-tint-50, #EBF3FF);
+  color: var(--tecnm-blue-primary, #1B396A);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  border: 1px solid #BFDBFE;
+}
+
+.tecnm-search-modal-subtitle {
+  font-size: 0.85rem;
+  color: var(--tecnm-text-secondary, #64748b);
+  font-weight: 500;
+}
+
+.tecnm-search-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tecnm-search-instruction {
+  font-size: 0.875rem;
+  color: var(--tecnm-text-secondary, #64748b);
+  font-weight: 500;
+}
+
+.tecnm-search-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--tecnm-text-muted, #94a3b8);
+  font-size: 1.75rem;
+  cursor: pointer;
+  line-height: 1;
+  margin-left: 0.5rem;
+  transition: color 0.2s ease;
+}
+
+.tecnm-search-modal-close:hover {
+  color: var(--tecnm-danger-strong, #DC2626);
+}
+
+/* Popover de Columnas */
+.tecnm-search-columns-popover-wrapper {
+  position: relative;
+}
+
+.tecnm-search-col-badge {
+  background-color: var(--tecnm-blue-tint-50, #EBF3FF);
+  color: var(--tecnm-blue-primary, #1B396A);
+  border-radius: 9999px;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid #BFDBFE;
+}
+
+.tecnm-search-columns-dropdown {
+  position: absolute;
+  right: 0;
+  top: 110%;
+  width: 250px;
+  background-color: #ffffff;
+  border: 1px solid var(--tecnm-border-color, #e2e8f0);
+  border-radius: var(--tecnm-radius-md, 8px);
+  box-shadow: var(--tecnm-shadow-lg, 0 10px 15px -3px rgba(0,0,0,0.1));
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.tecnm-search-dropdown-header {
+  background-color: var(--tecnm-gray-100, #f1f5f9);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--tecnm-blue-primary, #1B396A);
+  border-bottom: 1px solid var(--tecnm-border-color, #e2e8f0);
+  letter-spacing: 0.03em;
+}
+
+.tecnm-search-dropdown-body {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tecnm-search-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--tecnm-text-primary, #1e293b);
+  cursor: pointer;
+  padding: 0.3rem 0.4rem;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.tecnm-search-checkbox-label:hover {
+  background-color: var(--tecnm-blue-tint-50, #EBF3FF);
+}
+
+/* Toolbar de Filtros */
+.tecnm-search-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  background-color: var(--tecnm-bg-main, #F4F6F9);
+  border-bottom: 1px solid var(--tecnm-border-color, #e2e8f0);
+  flex-wrap: wrap;
+}
+
+.tecnm-search-filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tecnm-search-filter-item.flex-grow-2 {
+  flex: 2;
+  min-width: 200px;
+}
+
+.tecnm-search-filter-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--tecnm-blue-primary, #1B396A);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.tecnm-search-filter-input,
+.tecnm-search-filter-select {
+  padding: 0.5rem 0.75rem;
+  border: 1.5px solid var(--tecnm-border-color, #cbd5e1);
+  border-radius: var(--tecnm-radius-md, 8px);
+  font-size: 0.875rem;
+  background-color: #ffffff;
+  color: var(--tecnm-text-primary, #1e293b);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.tecnm-search-filter-input:focus,
+.tecnm-search-filter-select:focus {
+  border-color: var(--tecnm-blue-primary, #1B396A);
+  box-shadow: 0 0 0 3px rgba(27, 57, 106, 0.15);
+}
+
+.align-self-end {
+  align-self: flex-end;
+}
+
+/* Status Pills */
+.tecnm-search-status-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--tecnm-blue-primary, #1B396A);
+  margin-bottom: 0.25rem;
+  display: block;
+  letter-spacing: 0.02em;
+}
+
+.tecnm-search-status-pills {
+  display: flex;
+  background-color: var(--tecnm-gray-200, #e2e8f0);
+  padding: 0.2rem;
+  border-radius: var(--tecnm-radius-md, 8px);
+}
+
+.tecnm-status-pill {
+  background: transparent;
+  border: none;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--tecnm-text-secondary, #64748b);
+  border-radius: var(--tecnm-radius-sm, 6px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tecnm-status-pill.active {
+  background-color: var(--tecnm-blue-primary, #1B396A);
+  color: var(--tecnm-white, #ffffff);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  font-weight: 700;
+}
+
+/* Tabla Dinámica */
+.tecnm-search-table-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 420px;
+  background-color: #ffffff;
+}
+
+.tecnm-search-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.tecnm-search-table th {
+  background-color: var(--tecnm-blue-tint-hero, #E8EDF5);
+  color: var(--tecnm-blue-primary, #1B396A);
+  font-weight: 700;
+  padding: 0.85rem 1rem;
+  text-align: left;
+  border-bottom: 2px solid var(--tecnm-gold-accent, #C5A059);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  user-select: none;
+}
+
+.tecnm-search-th-sortable {
+  cursor: pointer;
+}
+
+.tecnm-search-th-sortable:hover {
+  background-color: var(--tecnm-blue-tint-50, #EBF3FF);
+}
+
+.tecnm-search-th-sortable.sorted {
+  color: var(--tecnm-blue-primary, #1B396A);
+}
+
+.tecnm-search-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--tecnm-border-color, #f1f5f9);
+  color: var(--tecnm-text-primary, #1e293b);
+}
+
+.tecnm-search-row {
+  transition: background-color 0.15s ease;
+  cursor: pointer;
+}
+
+.tecnm-search-row:hover {
+  background-color: var(--tecnm-blue-tint-50, #EBF3FF);
+}
+
+.tecnm-search-row.selected {
+  background-color: #DBEAFE !important;
+  font-weight: 600;
+  border-left: 4px solid var(--tecnm-blue-primary, #1B396A);
+}
+
+.tecnm-search-empty {
+  text-align: center;
+  padding: 3rem !important;
+  color: var(--tecnm-text-secondary, #64748b);
+  font-size: 0.9375rem;
+}
+
+/* Footer Paginación */
+.tecnm-search-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  background-color: #ffffff;
+  border-top: 1px solid var(--tecnm-border-color, #e2e8f0);
+}
+
+.tecnm-search-pagination-text {
+  font-size: 0.8125rem;
+  color: var(--tecnm-text-secondary, #64748b);
+  font-weight: 500;
+}
+
+

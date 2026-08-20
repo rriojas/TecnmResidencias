@@ -1,0 +1,28 @@
+@page
+@{
+    ViewData["Title"] = "Panel Principal - Sistema de Residencias";
+    ViewData["NavActive"] = "dashboard";
+}
+@section Scripts {
+    <script src="~/assets/js/dashboard/dashboard.js"></script>
+}
+
+<div class="tecnm-actions-bar">
+    <div>
+        <h1 id="welcomeTitle" class="tecnm-page-title">Cargando panel...</h1>
+        <p id="welcomeDescription" class="tecnm-page-subtitle">Por favor espere mientras cargamos la información de su perfil.</p>
+    </div>
+</div>
+
+<div id="statsSection" class="kpi-grid"></div>
+
+<div class="dashboard-grid">
+    <div class="dashboard-main">
+        <div id="contentCard" class="tecnm-card"></div>
+        <section id="roleActions" class="dashboard-section" hidden>
+            <h2 class="dashboard-section-title">Acceso Rápido</h2>
+            <div id="actionCards" class="action-cards"></div>
+        </section>
+    </div>
+    <div id="sidePanel" class="dashboard-side"></div>
+</div>

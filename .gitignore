@@ -1,0 +1,62 @@
+## Build results
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]uild/
+[Ll]og/
+[Ll]ogs/
+
+## NuGet
+*.nupkg
+*.snupkg
+.nuget/
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+## IDE / Editors
+.vs/
+.vscode/
+*.user
+*.suo
+*.userprefs
+*.sln.docstates
+.idea/
+
+## dotnet
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## Environment & Secrets / DB
+*.env
+*.local
+pgdata/
+uploads/
+
+## OS generated
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+## Node / Web
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+## Publish & Test
+*.publish.xml
+publish/
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+TestResult.xml
+*.coverage
+*.coveragexml
+coverage/

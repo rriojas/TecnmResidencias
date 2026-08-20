@@ -1,0 +1,118 @@
+@page
+@{
+    ViewData["Title"] = "Empresas Receptoras - TecNM";
+    ViewData["NavActive"] = "companies";
+}
+@section Scripts {
+    <script src="~/assets/js/ui.js"></script>
+    <script src="~/assets/js/companies/companies.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            initCompaniesPage();
+        });
+    </script>
+}
+
+<div id="alertContainer"></div>
+
+<div class="tecnm-actions-bar">
+    <div>
+        <h1 class="tecnm-page-title">Directorio de Empresas Receptoras</h1>
+        <p class="tecnm-page-subtitle">Gestión y catálogo de instituciones y organizaciones vinculadas a residencias profesionales</p>
+    </div>
+    <div class="tecnm-page-actions">
+        <button type="button" id="openCompanyModalBtn" class="tecnm-btn tecnm-btn-primary tecnm-hidden">+ Registrar Nueva Empresa</button>
+    </div>
+</div>
+
+<div class="tecnm-card">
+    <div class="tecnm-card-header">
+        <h3 class="tecnm-card-title">Empresas Registradas</h3>
+    </div>
+    <div class="tecnm-card-toolbar">
+        <div class="tecnm-toolbar-actions">
+            <label class="tecnm-switch-label">
+                <span class="tecnm-switch">
+                    <input type="checkbox" id="companyIncludeInactiveToggle">
+                    <span class="tecnm-switch-slider"></span>
+                </span>
+                Mostrar inactivas
+            </label>
+            <button type="button" id="refreshCompaniesBtn" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm">Recargar Lista</button>
+        </div>
+    </div>
+    <div class="tecnm-card-body">
+        <div class="tecnm-table-responsive">
+            <table class="tecnm-table tecnm-table-striped">
+                <thead>
+                    <tr>
+                        <th>Razón Social / Nombre</th>
+                        <th>RFC</th>
+                        <th>Sector</th>
+                        <th>Contacto Principal</th>
+                        <th>Correo / Teléfono</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="companiesTableBody">
+                    <tr>
+                        <td colspan="7" class="tecnm-table-empty">Cargando catálogo de empresas...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Registrar / Editar Empresa -->
+<div id="companyModal" class="modal-backdrop">
+    <div class="modal-card">
+        <div class="tecnm-modal-header">
+            <h3 id="companyModalTitle" class="tecnm-modal-title">Registrar Empresa Receptora</h3>
+            <button type="button" id="closeCompanyModalBtn" class="tecnm-modal-close" aria-label="Cerrar">&times;</button>
+        </div>
+
+        <form id="companyForm">
+            <div class="tecnm-form-group">
+                <label for="companyNameInput" class="tecnm-label">Nombre / Razón Social *</label>
+                <input type="text" id="companyNameInput" class="tecnm-form-control" placeholder="Ej. Tecnología e Innovación S.A. de C.V." required maxlength="200">
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="companyRfcInput" class="tecnm-label">RFC *</label>
+                <input type="text" id="companyRfcInput" class="tecnm-form-control" placeholder="Ej. TINO900101ABC" required maxlength="13" style="text-transform: uppercase;">
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="companySectorInput" class="tecnm-label">Sector Industrial / Servicios</label>
+                <input type="text" id="companySectorInput" class="tecnm-form-control" placeholder="Ej. Tecnológico, Industrial, Público, Privado" maxlength="100">
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="companyAddressInput" class="tecnm-label">Dirección Fiscal / Ubicación</label>
+                <input type="text" id="companyAddressInput" class="tecnm-form-control" placeholder="Ej. Av. Tecnológico #123, Monclova, Coahuila" maxlength="300">
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="companyContactNameInput" class="tecnm-label">Nombre del Contacto Principal *</label>
+                <input type="text" id="companyContactNameInput" class="tecnm-form-control" placeholder="Ej. Ing. Roberto García" required maxlength="150">
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="companyContactEmailInput" class="tecnm-label">Correo Electrónico de Contacto *</label>
+                <input type="email" id="companyContactEmailInput" class="tecnm-form-control" placeholder="contacto@empresa.com" required maxlength="150">
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="companyContactPhoneInput" class="tecnm-label">Teléfono de Contacto</label>
+                <input type="tel" id="companyContactPhoneInput" class="tecnm-form-control" placeholder="Ej. 866-123-4567" maxlength="30">
+            </div>
+
+            <div class="tecnm-modal-footer">
+                <button type="button" id="cancelCompanyModalBtn" class="tecnm-btn tecnm-btn-secondary">Cancelar</button>
+                <button type="submit" id="submitCompanyBtn" class="tecnm-btn tecnm-btn-primary">Guardar Empresa</button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,125 @@
+<!-- Modal de Búsqueda Global / Universal con Filtros Avanzados -->
+<div id="tecnmGlobalSearchModal" class="tecnm-search-modal-backdrop" aria-hidden="true" style="display: none;">
+    <div class="tecnm-search-modal-container" role="dialog" aria-modal="true" aria-labelledby="globalSearchModalTitle">
+        
+        <!-- Header del Modal -->
+        <div class="tecnm-search-modal-header">
+            <div class="tecnm-search-header-info">
+                <div class="tecnm-search-header-title-row">
+                    <h3 id="globalSearchModalTitle" class="tecnm-search-modal-title">Búsqueda</h3>
+                    <span id="globalSearchCountBadge" class="tecnm-search-count-badge">0</span>
+                </div>
+                <span id="globalSearchSubtitle" class="tecnm-search-modal-subtitle">por ID</span>
+            </div>
+
+            <div class="tecnm-search-header-actions">
+                <span class="tecnm-search-instruction">Selecciona un registro para continuar.</span>
+                
+                <button type="button" id="acceptGlobalSearchBtn" class="tecnm-btn tecnm-btn-success tecnm-btn-sm" disabled>
+                    Aceptar ✓
+                </button>
+
+                <!-- Menu desplegable de Columnas -->
+                <div class="tecnm-search-columns-popover-wrapper">
+                    <button type="button" id="toggleColumnsDropdownBtn" class="tecnm-btn tecnm-btn-outline tecnm-btn-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v13.5c0 .621.504 1.125 1.125 1.125Z" />
+                        </svg>
+                        <span>Columnas</span>
+                        <span id="globalSearchVisibleColCount" class="tecnm-search-col-badge">0</span>
+                        <span class="tecnm-search-chevron">▾</span>
+                    </button>
+
+                    <div id="globalSearchColumnsMenu" class="tecnm-search-columns-dropdown" style="display: none;">
+                        <div class="tecnm-search-dropdown-header">Mostrar / Ocultar Columnas</div>
+                        <div id="globalSearchColumnsChecklist" class="tecnm-search-dropdown-body">
+                            <!-- Checkboxes generados dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" id="closeGlobalSearchModalBtn" class="tecnm-search-modal-close" aria-label="Cerrar modal">&times;</button>
+            </div>
+        </div>
+
+        <!-- Cuerpo del Modal -->
+        <div class="tecnm-search-modal-body">
+            
+            <!-- Barra Horizontal de Filtros -->
+            <div class="tecnm-search-toolbar">
+                <div class="tecnm-search-filter-item flex-grow-2">
+                    <label for="globalSearchTextInput" class="tecnm-search-filter-label">Valor</label>
+                    <input type="text" id="globalSearchTextInput" class="tecnm-search-filter-input" placeholder="Escribe para buscar...">
+                </div>
+
+                <div class="tecnm-search-filter-item">
+                    <label for="globalSearchSourceSelect" class="tecnm-search-filter-label">Fuente</label>
+                    <select id="globalSearchSourceSelect" class="tecnm-search-filter-select">
+                        <option value="">Cargando fuentes...</option>
+                    </select>
+                </div>
+
+                <div class="tecnm-search-filter-item">
+                    <label for="globalSearchColumnSelect" class="tecnm-search-filter-label">Columna</label>
+                    <select id="globalSearchColumnSelect" class="tecnm-search-filter-select">
+                        <!-- Opciones dinámicas -->
+                    </select>
+                </div>
+
+                <div class="tecnm-search-filter-item">
+                    <label for="globalSearchMatchSelect" class="tecnm-search-filter-label">Coincidencia</label>
+                    <select id="globalSearchMatchSelect" class="tecnm-search-filter-select">
+                        <option value="Contains">Contiene</option>
+                        <option value="StartsWith">Inicia con</option>
+                        <option value="EndsWith">Finaliza con</option>
+                        <option value="Exact">Exacta</option>
+                    </select>
+                </div>
+
+                <div class="tecnm-search-filter-item">
+                    <label for="globalSearchSortDirSelect" class="tecnm-search-filter-label">Dirección</label>
+                    <select id="globalSearchSortDirSelect" class="tecnm-search-filter-select">
+                        <option value="ASC">Ascendente</option>
+                        <option value="DESC">Descendente</option>
+                    </select>
+                </div>
+
+                <div class="tecnm-search-filter-item align-self-end">
+                    <button type="button" id="executeSearchBtn" class="tecnm-btn tecnm-btn-success">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                        </svg>
+                        <span>Buscar</span>
+                    </button>
+                </div>
+
+                <div class="tecnm-search-filter-item align-self-end">
+                    <span class="tecnm-search-status-title">ESTATUS</span>
+                    <div class="tecnm-search-status-pills">
+                        <button type="button" id="statusActiveBtn" class="tecnm-status-pill active">Activos</button>
+                        <button type="button" id="statusInactiveBtn" class="tecnm-status-pill">Inactivos</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla Dinámica de Resultados -->
+            <div class="tecnm-search-table-wrapper">
+                <table id="globalSearchResultTable" class="tecnm-search-table">
+                    <thead id="globalSearchTableHead">
+                        <tr><th>ID</th></tr>
+                    </thead>
+                    <tbody id="globalSearchTableBody">
+                        <tr><td class="tecnm-search-empty">No se encontraron registros.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Footer Paginación -->
+            <div class="tecnm-search-modal-footer">
+                <button type="button" id="prevPageBtn" class="tecnm-btn tecnm-btn-outline tecnm-btn-sm" disabled>Anterior</button>
+                <span id="globalSearchPaginationInfo" class="tecnm-search-pagination-text">Página 1 de 1 • Mostrando 0-0 de 0 registros</span>
+                <button type="button" id="nextPageBtn" class="tecnm-btn tecnm-btn-outline tecnm-btn-sm" disabled>Siguiente</button>
+            </div>
+        </div>
+    </div>
+</div>

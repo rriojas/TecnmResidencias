@@ -1,0 +1,126 @@
+@page
+@{
+    ViewData["Title"] = "Gestión de Asesores - TecNM";
+    ViewData["NavActive"] = "advisors";
+}
+@section Scripts {
+    <script src="~/assets/js/ui.js"></script>
+    <script src="~/assets/js/advisors/advisors.js"></script>
+}
+
+<div id="alertContainer"></div>
+
+<div class="tecnm-actions-bar">
+    <div>
+        <h1 class="tecnm-page-title">Módulo de Asesores Institucionales</h1>
+        <p class="tecnm-page-subtitle">Gestión de docentes asesores internos y externos</p>
+    </div>
+    <div class="tecnm-page-actions">
+        <button type="button" class="tecnm-btn tecnm-btn-secondary" onclick="window.openGlobalSearch({ initialSource: 'ADVISORS', onSelect: (row) => window.displaySingleAdvisor && window.displaySingleAdvisor(row) })">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+            </svg>
+            <span>Abrir búsqueda</span>
+        </button>
+        <span class="tecnm-page-actions-divider" aria-hidden="true"></span>
+        <button type="button" id="openAdvisorModalBtn" class="tecnm-btn tecnm-btn-primary">+ Registrar Nuevo Asesor</button>
+    </div>
+</div>
+
+<div class="tecnm-card">
+    <div class="tecnm-card-header">
+        <h3 class="tecnm-card-title">Lista de Asesores Registrados</h3>
+    </div>
+    <div class="tecnm-card-toolbar">
+
+        <div class="tecnm-toolbar-actions">
+            <label class="tecnm-switch-label">
+                <span class="tecnm-switch">
+                    <input type="checkbox" id="advisorsIncludeInactiveToggle">
+                    <span class="tecnm-switch-slider"></span>
+                </span>
+                Mostrar inactivos
+            </label>
+            <button type="button" id="exportAdvisorsBtn" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm">Exportar PDF</button>
+            <button id="reloadBtn" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm">Recargar</button>
+        </div>
+    </div>
+    <div class="tecnm-card-body">
+        <div class="tecnm-table-responsive">
+            <table class="tecnm-table tecnm-table-striped" id="advisorsTable">
+                <thead>
+                    <tr>
+                        <th data-sort="FullName">Nombre Completo</th>
+                        <th data-sort="AdvisorType">Tipo</th>
+                        <th data-sort="Title">Título</th>
+                        <th>Teléfono</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="advisorsTableBody">
+                    <tr><td colspan="6" class="tecnm-table-empty">Cargando asesores...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="advisorsPagination"></div>
+    </div>
+</div>
+
+<!-- Modal Registrar / Editar Asesor -->
+<div id="createAdvisorModal" class="modal-backdrop">
+    <div class="modal-card">
+        <h3 id="advisorModalTitle" class="tecnm-modal-title">Registrar Nuevo Asesor</h3>
+
+        <form id="advisorForm">
+            <input type="hidden" id="advisorId" value="">
+            <div class="tecnm-form-grid">
+                <div class="tecnm-form-group">
+                    <label for="userId" class="tecnm-label">Cuenta de acceso del asesor *</label>
+                    <select id="userId" class="tecnm-form-control" required>
+                        <option value="">Cargando usuarios...</option>
+                    </select>
+                    <small class="tecnm-form-hint">Vincula una cuenta de usuario existente (correo institucional) con este perfil. Al guardar se le asignará el rol Asesor.</small>
+                </div>
+
+                <div class="tecnm-form-group">
+                    <label for="fullName" class="tecnm-label">Nombre Completo *</label>
+                    <input type="text" id="fullName" class="tecnm-form-control" placeholder="Nombre y apellidos" required>
+                </div>
+
+                <div class="tecnm-form-group">
+                    <label for="title" class="tecnm-label">Título / Grado Académico</label>
+                    <input type="text" id="title" class="tecnm-form-control" placeholder="Ej. Ing., Dr., M.C.">
+                </div>
+
+                <div class="tecnm-form-group">
+                    <label for="departmentId" class="tecnm-label">Departamento Académico *</label>
+                    <select id="departmentId" class="tecnm-form-control" required>
+                        <option value="1">Ingeniería en Sistemas Computacionales</option>
+                        <option value="2">Ingeniería Industrial</option>
+                        <option value="3">Ingeniería en Gestión Empresarial</option>
+                        <option value="4">Ingeniería Mecatrónica</option>
+                    </select>
+                </div>
+
+                <div class="tecnm-form-group">
+                    <label for="advisorType" class="tecnm-label">Tipo de Asesor *</label>
+                    <select id="advisorType" class="tecnm-form-control" required>
+                        <option value="1">Interno (Docente TecNM)</option>
+                        <option value="2">Externo (Empresa / Institución)</option>
+                    </select>
+                </div>
+
+                <div class="tecnm-form-group">
+                    <label for="phone" class="tecnm-label">Teléfono de Contacto</label>
+                    <input type="text" id="phone" class="tecnm-form-control" placeholder="Ej. 8661234567">
+                </div>
+            </div>
+
+            <div class="tecnm-modal-footer">
+                <button type="button" id="cancelAdvisorModalBtn" class="tecnm-btn tecnm-btn-secondary">Cancelar</button>
+                <button type="submit" class="tecnm-btn tecnm-btn-primary">Guardar Asesor</button>
+            </div>
+        </form>
+    </div>
+</div>

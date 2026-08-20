@@ -1,0 +1,224 @@
+@page "/admin/roles"
+@{
+    ViewData["Title"] = "Gestión de Roles y Permisos";
+    ViewData["NavActive"] = "roles";
+}
+
+<div class="tecnm-container">
+    <div class="tecnm-page-header">
+        <div>
+            <h1 class="tecnm-page-title">Gestión de Roles, Permisos y Usuarios</h1>
+            <p class="tecnm-page-subtitle">Administración exclusiva de accesos y seguridad del sistema (SuperAdministrador)</p>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tecnm-tabs">
+        <button type="button" class="tecnm-btn tecnm-btn-primary tab-btn active" id="tabRolesBtn" onclick="switchTab('roles')">
+            Catálogo de Roles
+        </button>
+        <button type="button" class="tecnm-btn tecnm-btn-secondary tab-btn" id="tabUsersBtn" onclick="switchTab('users')">
+            Asignación de Usuarios
+        </button>
+    </div>
+
+    <!-- TAB 1: CATÁLOGO DE ROLES -->
+    <div id="tabRoles" class="tab-content active">
+        <div class="tecnm-card">
+            <div class="tecnm-card-header">
+                <h3 class="tecnm-card-title">Roles Registrados</h3>
+            </div>
+            <div class="tecnm-card-toolbar">
+                <input type="text" id="roleSearchInput" class="tecnm-form-control tecnm-search-input" placeholder="Buscar por nombre o código...">
+                <div class="tecnm-toolbar-actions">
+                    <label class="tecnm-switch-label">
+                        <span class="tecnm-switch">
+                            <input type="checkbox" id="rolesInactiveToggle">
+                            <span class="tecnm-switch-slider"></span>
+                        </span>
+                        Mostrar inactivos
+                    </label>
+                    <button type="button" id="exportRolesBtn" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm">Exportar PDF</button>
+                    <button type="button" class="tecnm-btn tecnm-btn-primary" onclick="openCreateRoleModal()">+ Nuevo Rol</button>
+                </div>
+            </div>
+            <div class="tecnm-card-body">
+                <div class="tecnm-table-responsive">
+                    <table class="tecnm-table" id="rolesTable">
+                        <thead>
+                            <tr>
+                                <th data-sort="Code">Código</th>
+                                <th data-sort="Name">Nombre</th>
+                                <th>Descripción</th>
+                                <th>Permisos Asignados</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rolesTableBody">
+                            <tr>
+                                <td colspan="5" class="tecnm-table-empty">Cargando roles...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="rolesPagination"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: ASIGNACIÓN DE USUARIOS -->
+    <div id="tabUsers" class="tab-content">
+        <div class="tecnm-card">
+            <div class="tecnm-card-header">
+                <h3 class="tecnm-card-title">Usuarios del Sistema</h3>
+            </div>
+            <div class="tecnm-card-toolbar">
+                <select id="userRoleFilter" class="tecnm-form-control tecnm-filter-select" onchange="applyUserFilters()">
+                    <option value="all">Todos los usuarios</option>
+                    <option value="with_role">Con Rol Asignado</option>
+                    <option value="without_role">Sin Rol Asignado</option>
+                </select>
+                <input type="text" id="userSearchInput" class="tecnm-form-control tecnm-search-input" placeholder="Buscar correo..." oninput="applyUserFilters()">
+                <div class="tecnm-toolbar-actions">
+                    <label class="tecnm-switch-label">
+                        <span class="tecnm-switch">
+                            <input type="checkbox" id="usersInactiveToggle">
+                            <span class="tecnm-switch-slider"></span>
+                        </span>
+                        Mostrar inactivos
+                    </label>
+                    <button type="button" id="exportUsersBtn" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm">Exportar PDF</button>
+                    <button type="button" class="tecnm-btn tecnm-btn-primary" onclick="openCreateUserModal()">+ Registrar Usuario</button>
+                </div>
+            </div>
+            <div class="tecnm-card-body">
+                <div class="tecnm-table-responsive">
+                    <table class="tecnm-table" id="usersTable">
+                        <thead>
+                            <tr>
+                                <th data-sort="Email">Correo Electrónico</th>
+                                <th>Rol Asignado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr>
+                                <td colspan="3" class="tecnm-table-empty">Cargando usuarios...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="usersPagination"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CREAR / EDITAR ROL -->
+<div id="roleModal" class="modal-backdrop">
+    <div class="modal-card">
+        <h3 id="roleModalTitle" class="tecnm-modal-title">Nuevo Rol</h3>
+        <form id="roleForm" onsubmit="saveRole(event)">
+            <input type="hidden" id="roleId" value="" />
+
+            <div class="tecnm-form-grid">
+                <div class="tecnm-form-group">
+                    <label for="roleCode" class="tecnm-label">Código del Rol *</label>
+                    <input type="text" id="roleCode" class="tecnm-form-control" placeholder="Ej. auditor_calidad" required />
+                </div>
+
+                <div class="tecnm-form-group">
+                    <label for="roleName" class="tecnm-label">Nombre del Rol *</label>
+                    <input type="text" id="roleName" class="tecnm-form-control" placeholder="Ej. Auditor de Calidad" required />
+                </div>
+
+                <div class="tecnm-form-group tecnm-form-group-full">
+                    <label for="roleDescription" class="tecnm-label">Descripción</label>
+                    <input type="text" id="roleDescription" class="tecnm-form-control" placeholder="Descripción de funciones" />
+                </div>
+
+                <div class="tecnm-form-group tecnm-form-group-full">
+                    <label class="tecnm-label">Permisos Jerárquicos por Módulo</label>
+                    <div id="permissionsCatalogContainer" class="tecnm-permissions-box">
+                        <p class="tecnm-form-hint">Cargando permisos...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tecnm-modal-footer">
+                <button type="button" class="tecnm-btn tecnm-btn-secondary" onclick="closeRoleModal()">Cancelar</button>
+                <button type="submit" class="tecnm-btn tecnm-btn-primary">Guardar Rol</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL CREAR / EDITAR USUARIO -->
+<div id="userRoleModal" class="modal-backdrop">
+    <div class="modal-card">
+        <h3 id="userModalTitle" class="tecnm-modal-title">Registrar Nuevo Usuario</h3>
+        <form id="userRoleForm" onsubmit="saveUser(event)">
+            <input type="hidden" id="assignUserId" value="" />
+
+            <div id="userFormAlert" class="tecnm-alert tecnm-alert-danger tecnm-hidden"></div>
+
+            <div class="tecnm-form-grid">
+                <div class="tecnm-form-group">
+                    <label for="userControlNumberInput" class="tecnm-label">Número de Control / Matrícula</label>
+                    <input type="text" id="userControlNumberInput" class="tecnm-form-control" placeholder="20680123" />
+                </div>
+
+                <div class="tecnm-form-group">
+                    <label for="userFirstNameInput" class="tecnm-label">Nombre(s) *</label>
+                    <input type="text" id="userFirstNameInput" class="tecnm-form-control" placeholder="Juan" />
+                </div>
+
+                <div class="tecnm-form-group">
+                    <label for="userLastNameInput" class="tecnm-label">Apellido Paterno / Materno *</label>
+                    <input type="text" id="userLastNameInput" class="tecnm-form-control" placeholder="Pérez López" />
+                </div>
+
+                <div class="tecnm-form-group">
+                    <label for="userEmailInput" class="tecnm-label">Correo institucional *</label>
+                    <input type="email" id="userEmailInput" class="tecnm-form-control" placeholder="ejemplo@monclova.tecnm.mx" required />
+                </div>
+
+                <div class="tecnm-form-group">
+                    <label for="userPasswordInput" id="userPasswordLabel" class="tecnm-label">Contraseña de Acceso *</label>
+                    <input type="password" id="userPasswordInput" class="tecnm-form-control" placeholder="••••••••" />
+                </div>
+
+                <div class="tecnm-form-group">
+                    <label for="userRoleSelect" class="tecnm-label">Rol del Sistema *</label>
+                    <select id="userRoleSelect" class="tecnm-form-control" required>
+                        <option value="">-- Seleccionar Rol --</option>
+                    </select>
+                </div>
+
+                <div class="tecnm-form-group">
+                    <label for="userCareerSelect" class="tecnm-label">Carrera / Área Académica</label>
+                    <select id="userCareerSelect" class="tecnm-form-control">
+                        <option value="4">Ingeniería en Sistemas Computacionales</option>
+                        <option value="1">Ingeniería Informática</option>
+                        <option value="2">Ingeniería Industrial</option>
+                        <option value="3">Ingeniería Mecatrónica</option>
+                    </select>
+                </div>
+
+                <div class="tecnm-form-group">
+                    <label for="userPhoneInput" class="tecnm-label">Teléfono de Contacto</label>
+                    <input type="text" id="userPhoneInput" class="tecnm-form-control" placeholder="8661234567" />
+                </div>
+            </div>
+
+            <div class="tecnm-modal-footer">
+                <button type="button" class="tecnm-btn tecnm-btn-secondary" onclick="closeUserRoleModal()">Cancelar</button>
+                <button type="submit" class="tecnm-btn tecnm-btn-primary">Guardar Usuario</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/assets/js/admin/roles.js"></script>
+}
