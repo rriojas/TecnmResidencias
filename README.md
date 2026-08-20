@@ -1,51 +1,74 @@
 # Sistema de Residencias Profesionales TecNM v2
 
-Sistema integral web para la gestión, seguimiento, evaluación y dictaminación de Residencias Profesionales del Tecnológico Nacional de México (TecNM).
+Sistema integral web para la gestión, seguimiento, evaluación, dictaminación y expediente digital de Residencias Profesionales del Tecnológico Nacional de México (TecNM).
 
 ---
 
 ## 🏛️ Descripción General
 
-El sistema está desarrollado con arquitectura limpia **Vertical Slice (Screaming Architecture)** y **Razor Pages** para ofrecer alto rendimiento, trazabilidad mediante auditoría inmutable, RBAC (Control de Acceso Basado en Roles) y cumplimiento estricto con los estándares de identidad gráfica institucional TecNM.
-
-### Roles del Sistema
-
-- **Administrador / Jefe de División (`admin`, `departmenthead`)**: Gestión total de alumnos, asesores, proyectos, empresas, calificaciones y reportes.
-- **Asesor (`advisor`)**: Seguimiento de alumnos asignados, registro de bitácora de asesorías y captura de calificaciones.
-- **Estudiante (`student`)**: Solicitud de anteproyectos, consulta de cronograma de actividades (26 semanas) y avances.
-- **Director / Consulta (`director`)**: Rol de solo lectura para auditoría y visualización de indicadores.
+El sistema está desarrollado con una arquitectura limpia **Vertical Slice (Screaming Architecture)** en el backend (.NET 10 Web API) y **Razor Pages** en el frontend, ofreciendo alto rendimiento, trazabilidad mediante auditoría inmutable, RBAC (Control de Acceso Basado en Roles) con permisos granulares y cumplimiento estricto con los estándares de identidad gráfica institucional TecNM (Azul `#1B396A` y Oro `#C5A059`).
 
 ---
 
-## 🚀 Guía de Inicio Rápido (Cómo Levantarlo)
+## 👥 Roles del Sistema (6 Roles Oficiales)
+
+El sistema cuenta con **6 roles oficiales** con permisos y ámbitos de control independientes definidos mediante RBAC:
+
+1. **Super Administrador (`admin`)**:
+   - **Ámbito**: Control total y global del sistema.
+   - **Funciones**: Administración global de usuarios, configuración y asignación de roles y permisos RBAC, gestión de catálogos institucionales, mantenimiento del sistema y auditoría completa.
+
+2. **Académicos y Jefatura de División (`academico` / `departmenthead`)**:
+   - **Ámbito**: Gestión académica por carrera y departamento.
+   - **Funciones**: Alta y administración de estudiantes y asesores, verificación de elegibilidad académica, dictamen/revisión de anteproyectos de residencia y asignación de asesores académicos.
+
+3. **Gestión Tecnológica y Vinculación (`vinculacion`)**:
+   - **Ámbito**: Vinculación institucional y gestión de convenios.
+   - **Funciones**: Alta y administración del catálogo de empresas e instituciones receptoras, solicitudes de perfiles, emisión de cartas de presentación y liberación, y seguimiento del expediente documental de vinculación.
+
+4. **Director / Directivos (`director`)**:
+   - **Ámbito**: Supervisión institucional de solo lectura.
+   - **Funciones**: Acceso de solo lectura global a todos los módulos para auditoría directiva, visualización del dashboard de indicadores clave (KPIs), métricas de desempeño y exportación de reportes.
+
+5. **Asesores Académicos (`advisor`)**:
+   - **Ámbito**: Seguimiento y evaluación académica de residentes asignados.
+   - **Funciones**: Control y validación del cronograma de 26 semanas, registro de bitácoras y sesiones de asesoría, revisión de avances y captura de calificaciones parciales y finales.
+
+6. **Estudiantes (`student`)**:
+   - **Ámbito**: Autogestión del proceso de residencia profesional.
+   - **Funciones**: Registro y actualización de perfil, solicitud e inscripción de anteproyectos vinculados a empresas, reporte semanal de avances en la matriz de 26 semanas, carga de evidencias y seguimiento a su expediente digital.
+
+---
+
+## 🚀 Guía de Inicio Rápido
 
 ### Requisitos Previos
 
-- **.NET 10 SDK** (para desarrollo local)
-- **Docker & Docker Compose** (para PostgreSQL y despliegue por contenedores)
-- **PostgreSQL 17+** (si se ejecuta sin Docker)
+- **.NET 10 SDK** (para desarrollo local de Backend y Frontend)
+- **Docker & Docker Compose** (para PostgreSQL 17/18 y despliegue en contenedores)
+- **PostgreSQL 17+** (si se ejecuta localmente sin Docker)
 
 ---
 
 ### Opción A: Despliegue con Docker Compose (Recomendado)
 
-Ejecuta el siguiente comando en la raíz del proyecto para iniciar la base de datos PostgreSQL 17 y el Backend Web API automáticamente:
+Para iniciar la base de datos PostgreSQL y el servidor Backend API automáticamente:
 
 ```bash
 docker-compose up -d --build
 ```
 
-Esto iniciará:
-1. **Contenedor PostgreSQL 17** (`residencia-v2-db`) en puerto `5432` inicializado con el esquema `docs/database/schema_pg18.sql` y datos semilla `docs/database/seed_v2.sql`.
-2. **Contenedor Backend Web API** (`residencia-v2-backend`) en puerto `5144`.
+Esto ejecutará:
+1. **Contenedor PostgreSQL 17** (`residencia-v2-db`) en el puerto `5432` inicializado con el esquema DDL (`docs/database/schema_pg18.sql`) y datos semilla (`docs/database/seed_v2.sql`).
+2. **Contenedor Backend Web API** (`residencia-v2-backend`) en el puerto `5144`.
 
-Para iniciar el **Frontend (Razor Pages)**:
+Para ejecutar el **Frontend (Razor Pages)**:
 
 ```bash
 cd RTecNM_V2_Frontend
 dotnet run
 ```
-Accede en tu navegador a: `http://localhost:5000/auth/login`
+Accede desde tu navegador a: **`http://localhost:5000/auth/login`**
 
 ---
 
@@ -65,7 +88,7 @@ dotnet restore
 dotnet build
 dotnet run
 ```
-API estará escuchando en `http://localhost:5144` (Swagger / OpenAPI habilitado en modo desarrollo).
+La API REST estará escuchando en `http://localhost:5144` (Swagger / OpenAPI interactivo disponible en desarrollo).
 
 #### 3. Iniciar Frontend UI (C# .NET 10 Razor Pages)
 
@@ -75,74 +98,58 @@ dotnet restore
 dotnet build
 dotnet run
 ```
-Aplicación web disponible en `http://localhost:5000`.
+El servidor web UI estará disponible en `http://localhost:5000`.
 
 ---
 
-## 📁 Estructura del Proyecto y Análisis de Carpetas
+## 📁 Estructura del Proyecto
 
 ```text
 TecnmResidencias/
-├── docker-compose.yml
-├── README.md
-├── GUIA_IMPLEMENTACION_BUSQUEDA_GLOBAL.md
-├── docs/
-├── RTecNM_V2_Backend/
-└── RTecNM_V2_Frontend/
+├── docker-compose.yml              # Arquitectura de contenedores Docker
+├── README.md                       # Documentación principal del proyecto
+├── .gitignore                      # Exclusiones globales de Git
+├── GUIA_IMPLEMENTACION_BUSQUEDA_GLOBAL.md # Guía del motor de búsqueda multitabla
+├── docs/                           # Documentación de arquitectura y scripts SQL
+│   ├── database/                   # Esquemas SQL, semillas y migración
+│   └── specs/                      # Especificaciones de los módulos 00 al 09
+├── RTecNM_V2_Backend/              # API REST C# .NET 10 (Vertical Slice)
+└── RTecNM_V2_Frontend/             # UI Razor Pages C# .NET 10
 ```
 
-### 1. `docker-compose.yml`
-Archivo de orquestación de contenedores Docker. Define:
-- Servicio **PostgreSQL 17-alpine** con volúmenes persistentes y montaje automático del esquema SQL (`schema_pg18.sql`) y semillas (`seed_v2.sql`).
-- Servicio **Backend API** configurado con variables de entorno para conexión a base de datos y volumen de almacenamiento de archivos adjuntos (`uploads`).
+### Detalle de Módulos y Arquitectura
 
-### 2. `docs/` - Documentación y Scripts de Base de Datos
-- **`database/`**:
-  - `schema_pg18.sql`: Definición DDL completa de la base de datos PostgreSQL 18/17 (tablas, llaves foráneas, índices y triggers de auditoría).
-  - `seed_v2.sql`: Datos iniciales de pruebas y usuarios del sistema.
-  - `migrate_v1_to_v2.py`: Script de migración de datos desde versiones previas.
-- **`specs/`**: Especificaciones funcionales y técnicas detalladas del módulo 00 al 09 (Autenticación, Estudiantes, Asesores, Anteproyectos, Actividades, Evaluaciones, Reportes y Sistema de Diseño UI).
+#### 1. `RTecNM_V2_Backend/` (Servidor API REST)
+Estructurado bajo patrón **Vertical Slice Colocation** (controlador, servicio, repositorio, DTOs y mapeos en un solo lugar):
+- **`Auth/`**: Autenticación JWT, gestión de roles (6 roles oficiales), permisos RBAC y usuarios.
+- **`Students/`**: Gestión de expedientes de alumnos, carreras, periodos lectivos y elegibilidad.
+- **`Advisors/`**: Registro de asesores internos/externos, especialidades y departamentos.
+- **`Projects/`**: Propuestas de anteproyectos de residencia, flujo de dictamen y generación de PDF.
+- **`Activities/`**: Cronograma interactivo de 26 semanas y seguimiento de avances.
+- **`Evaluations/`**: Bitácoras de asesorías y evaluaciones parciales y finales.
+- **`Companies/`**: Directorio de empresas receptoras, sectores y contactos.
+- **`Documents/`**: Carga y validación de expediente digital (PDFs, cartas de presentación y liberación).
+- **`Searches/`**: Motor de búsqueda global multitabla con vistas en PostgreSQL.
+- **`Admin/`**: Dashboard con KPIs, métricas de residencias y exportación de reportes.
 
-### 3. `RTecNM_V2_Backend/` - Servidor Backend (API REST C# .NET 10)
-Estructurado bajo **Vertical Slice Colocation** (cada módulo incluye Controlador, Servicio, Repositorio, DTOs y Configuración EF Core):
-
-- **`Auth/`**: Autenticación JWT, RBAC, gestión de roles y permisos granulares.
-- **`Students/`**: Gestión de perfiles de estudiantes, números de control, carreras y promedios.
-- **`Advisors/`**: Registro de asesores internos y externos, departamentos y asignaciones.
-- **`Projects/`**: Gestión de solicitudes de anteproyectos de residencia, dictaminación (Aprobado/Rechazado/Cancelado) y generación de PDF.
-- **`Activities/`**: Matriz del cronograma de 26 semanas y seguimiento de avances de actividades.
-- **`Evaluations/`**: Bitácora de reuniones de asesoría y captura de calificaciones parciales y finales.
-- **`Companies/`**: Directorio de empresas receptoras vinculadas y contactos.
-- **`Documents/`**: Carga y validación de expedientes digitales (formatos PDF, constancias, reportes).
-- **`Searches/`**: Motor de búsqueda universal / global multitabla con filtrado avanzado y paginación servidor.
-- **`Admin/`**: Métricas del dashboard institucional, indicadores clave (KPIs) y exportación de reportes PDF.
-- **`Common/`**: Clases base (`BaseEntity`), configuración DbContext, utilidades JWT, formateador PDF y servicio de usuario actual.
-
-### 4. `RTecNM_V2_Frontend/` - Servidor UI (Razor Pages C# .NET 10)
-Aplicación web server-rendered con JavaScript modular centralizado y arquitectura CSS sin frameworks SPA:
-
-- **`Pages/`**: Razor Pages (.cshtml) agrupadas por funcionalidad:
-  - `Auth/Login.cshtml`: Pantalla de inicio de sesión institucional.
-  - `Dashboard/Index.cshtml`: Tablero principal con KPIs por rol.
-  - `Students/`: Administración y expediente del alumno.
-  - `Advisors/`: Directorio de asesores.
-  - `Projects/`: Registro de propuesta (`Proposal.cshtml`) y revisión/dictamen (`Review.cshtml`).
-  - `Activities/Schedule.cshtml`: Matriz interactiva de 26 semanas.
-  - `Evaluations/`: Bitácora de asesorías (`Index.cshtml`) y calificaciones (`Grading.cshtml`).
-  - `Companies/`: Registro y directorio de empresas.
-  - `Documents/`: Gestión de expediente digital.
-  - `Shared/_GlobalSearchModal.cshtml`: Modal universal de búsqueda multitabla (Ctrl + K).
+#### 2. `RTecNM_V2_Frontend/` (Servidor UI Razor Pages)
+- **`Pages/`**: Razor Pages (.cshtml) por módulo funcional (`Auth`, `Dashboard`, `Students`, `Advisors`, `Projects`, `Activities`, `Evaluations`, `Companies`, `Documents`, `Admin`).
+- **`Pages/Shared/_GlobalSearchModal.cshtml`**: Modal universal de búsqueda multitabla (accesible mediante `Ctrl + K`).
 - **`wwwroot/assets/`**:
-  - **`css/`**: Sistema de diseño 100% centralizado (`tecnm-theme.css` tokens de diseño, `main.css` estilos primarios e identidad gráfica TecNM Azul `#1B396A` y Oro `#C5A059`).
-  - **`js/`**: Módulos JavaScript nativos (`layout.js` guardias de rol y sesión, `ui.js` sistema de alertas flotantes, `global-search.js` buscador universal, y scripts por módulo).
+  - **`css/`**: Tokens de diseño (`tecnm-theme.css`) e identidad institucional TecNM.
+  - **`js/`**: Módulos JS nativos (`layout.js`, `ui.js`, `global-search.js`, scripts funcionales por módulo).
 
 ---
 
 ## 🔒 Credenciales de Prueba en Desarrollo
 
-- **Administrador**: `admin@monclova.tecnm.mx`
-- **Asesor**: `asesor@monclova.tecnm.mx`
-- **Estudiante**: `estudiante@monclova.tecnm.mx`
+| Rol | Correo Institucional | Contraseña |
+|-----|----------------------|------------|
+| **Super Administrador** | `admin@monclova.tecnm.mx` | `Admin2026!` |
+| **Estudiante** | `juan.perez@monclova.tecnm.mx` | `20680123` *(N° Control)* |
+| **Asesor Académico** | `fernando.rivera@monclova.tecnm.mx` | `Advisor2026!` |
+
+> **Nota**: Los correos deben pertenecer al dominio institucional `@monclova.tecnm.mx`. En la primera ejecución con `DbSeeder.cs`, la base de datos se inicializa automáticamente con los 6 roles y permisos requeridos.
 
 ---
 
@@ -151,5 +158,6 @@ Aplicación web server-rendered con JavaScript modular centralizado y arquitectu
 | Comando | Descripción |
 |---------|-------------|
 | `dotnet build` | Compila la solución/proyecto C# |
-| `dotnet test` | Ejecuta las pruebas unitarias e integración |
-| `docker-compose logs -f` | Muestra los logs en tiempo real de los contenedores |
+| `dotnet test` | Ejecuta las pruebas unitarias y de integración |
+| `docker-compose logs -f` | Muestra los logs en tiempo real de los contenedores Docker |
+| `docker-compose up -d --build` | Reconstruye e inicia todos los servicios Docker |
