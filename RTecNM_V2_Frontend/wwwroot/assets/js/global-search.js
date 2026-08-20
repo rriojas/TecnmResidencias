@@ -64,6 +64,7 @@
         // Atajo teclado Ctrl+K / Cmd+K
         document.addEventListener('keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                if (typeof window.getCurrentRole === 'function' && window.getCurrentRole() === 'student') return;
                 e.preventDefault();
                 window.openGlobalSearch();
             } else if (e.key === 'Escape' && isModalOpen()) {
@@ -483,6 +484,7 @@
 
     // Exponer API global
     window.openGlobalSearch = function (options = {}) {
+        if (typeof window.getCurrentRole === 'function' && window.getCurrentRole() === 'student') return;
         openModal(options);
     };
 

@@ -32,11 +32,18 @@ public class SearchService : ISearchService
     public List<SearchSourceMetadataDto> GetAvailableSources()
     {
         var all = _registry.GetAllMetadata();
+        if (_currentUser.IsInRole(UserRole.Student) &&
+            !_currentUser.IsInRole(UserRole.Admin) &&
+            !_currentUser.IsInRole(UserRole.DepartmentHead))
+        {
+            return all.Where(s => s.Key.Equals("COMPANIES", StringComparison.OrdinalIgnoreCase)).ToList();
+        }
         if (_currentUser.IsInRole(UserRole.Advisor) &&
             !_currentUser.IsInRole(UserRole.Admin) &&
             !_currentUser.IsInRole(UserRole.DepartmentHead))
         {
-            return all.Where(s => s.Key.Equals("PROJECTS", StringComparison.OrdinalIgnoreCase)).ToList();
+            return all.Where(s => s.Key.Equals("PROJECTS", StringComparison.OrdinalIgnoreCase) ||
+                                  s.Key.Equals("COMPANIES", StringComparison.OrdinalIgnoreCase)).ToList();
         }
         return all;
     }
@@ -95,7 +102,23 @@ public class SearchService : ISearchService
             whereConditions.Add($"\"{searchCol.Name}\"::text {operatorClause} @searchPattern");
         }
 
-        // Seguridad RBAC: Si el usuario es Asesor, limitar estrictamente sus búsquedas a sus anteproyectos asignados.
+        // Seguridad RBAC: Si el usuario es Estudiante, limitar búsquedas a catálogo público de empresas.
+        if (_currentUser.IsInRole(UserRole.Student) &&
+            !_currentUser.IsInRole(UserRole.Admin) &&
+            !_currentUser.IsInRole(UserRole.DepartmentHead))
+        {
+            if (!request.SourceKey.Equals("COMPANIES", StringComparison.OrdinalIgnoreCase))
+            {
+                return new PagedSearchResponseDto
+                {
+                    Source = new SearchSourceMetadataDto { Key = request.SourceKey },
+                    Pagination = PaginatedResult<Dictionary<string, object?>>.Create(new List<Dictionary<string, object?>>(), 0, request.PageNumber, request.PageSize),
+                    Rows = new()
+                };
+            }
+        }
+
+        // Seguridad RBAC: Si el usuario es Asesor, limitar estrictamente sus búsquedas a sus anteproyectos asignados o empresas.
         if (_currentUser.IsInRole(UserRole.Advisor) &&
             !_currentUser.IsInRole(UserRole.Admin) &&
             !_currentUser.IsInRole(UserRole.DepartmentHead))
@@ -115,7 +138,7 @@ public class SearchService : ISearchService
             {
                 whereConditions.Add($"\"advisor_id\" = {advisorProfile.Id}");
             }
-            else
+            else if (!request.SourceKey.Equals("COMPANIES", StringComparison.OrdinalIgnoreCase))
             {
                 return new PagedSearchResponseDto
                 {
