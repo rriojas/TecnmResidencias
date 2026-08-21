@@ -83,31 +83,23 @@
         <form id="proposalForm">
             <div id="adminStudentGroup" class="tecnm-form-group tecnm-hidden">
                 <label for="adminStudentId" class="tecnm-label">Estudiante Destinatario * <span class="tecnm-text-muted">(Administración asigna el anteproyecto a un alumno)</span></label>
-                <div class="tecnm-d-flex tecnm-gap-sm">
-                    <select id="adminStudentId" class="tecnm-form-control">
-                        <option value="">-- Seleccione el estudiante destinatario (Obligatorio) --</option>
-                    </select>
-                    <button type="button" id="searchStudentPickerBtn" class="tecnm-btn tecnm-btn-outline" title="Buscar Alumno en tabla" onclick="window.openGlobalSearch({ initialSource: 'STUDENTS', onSelect: (s) => { const el = document.getElementById('adminStudentId'); if (el) { el.value = s.id; } } })">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-                        </svg>
-                        <span>Buscar</span>
-                    </button>
+                <div id="studentAutocompleteWrapper">
+                    <input type="hidden" id="adminStudentId" name="studentId">
                 </div>
             </div>
 
             <div class="tecnm-form-group">
                 <label for="companyId" class="tecnm-label">Empresa Receptora *</label>
-                <select id="companyId" class="tecnm-form-control" required>
-                    <option value="">-- Seleccione la empresa receptora (Obligatorio) --</option>
-                </select>
+                <div id="companyAutocompleteWrapper">
+                    <input type="hidden" id="companyId" name="companyId" required>
+                </div>
             </div>
 
             <div class="tecnm-form-group">
                 <label for="advisorId" class="tecnm-label">Asesor Interno Asignado * <span class="tecnm-text-muted">(Requerido antes de registrar anteproyecto)</span></label>
-                <select id="advisorId" class="tecnm-form-control" required>
-                    <option value="">-- Seleccione el asesor asignado (Obligatorio) --</option>
-                </select>
+                <div id="advisorAutocompleteWrapper">
+                    <input type="hidden" id="advisorId" name="advisorId" required>
+                </div>
             </div>
 
             <div class="tecnm-form-group">

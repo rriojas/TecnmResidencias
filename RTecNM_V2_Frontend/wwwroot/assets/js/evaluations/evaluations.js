@@ -63,6 +63,12 @@ function selectProjectForGrading(project) {
   loadEvaluations();
 }
 
+let sessionAdvisorAutocomplete = null;
+let editSessionAdvisorAutocomplete = null;
+let gradingProjectAutocomplete = null;
+let gradingEvaluatorAutocomplete = null;
+let editGradingEvaluatorAutocomplete = null;
+
 function initAdvisorySessionsPage() {
   const dateInput = document.getElementById('sessionDate');
   if (dateInput && !dateInput.value) {
@@ -79,7 +85,10 @@ function initAdvisorySessionsPage() {
     } else {
       const modal = document.getElementById('createAdvisoryModal');
       if (modal) {
-        openModalBtn.addEventListener('click', () => modal.classList.add('active'));
+        openModalBtn.addEventListener('click', () => {
+          if (sessionAdvisorAutocomplete) sessionAdvisorAutocomplete.clear();
+          modal.classList.add('active');
+        });
       }
     }
   }
@@ -164,16 +173,38 @@ function initAdvisorySessionsPage() {
     loadInitialProjectForSessions(isAdvisor);
   }
 
-  const advisorSelect = document.getElementById('advisorId');
-  if (advisorSelect) {
-    const group = advisorSelect.closest('.tecnm-form-group');
-    if (isAdvisor) {
-      if (group) group.classList.add('tecnm-hidden');
-      advisorSelect.removeAttribute('required');
-    } else {
-      if (group) group.classList.remove('tecnm-hidden');
-      advisorSelect.setAttribute('required', 'required');
-      loadAdvisorsDropdown('advisorId');
+  const advisorGroup = document.getElementById('advisorFormGroup');
+  if (isAdvisor) {
+    if (advisorGroup) advisorGroup.classList.add('tecnm-hidden');
+    document.getElementById('advisorId')?.removeAttribute('required');
+  } else {
+    if (advisorGroup) advisorGroup.classList.remove('tecnm-hidden');
+    document.getElementById('advisorId')?.setAttribute('required', 'required');
+  }
+
+  if (window.initTecNMAutocomplete) {
+    if (document.getElementById('advisorAutocompleteWrapper')) {
+      sessionAdvisorAutocomplete = window.initTecNMAutocomplete({
+        containerId: 'advisorAutocompleteWrapper',
+        hiddenInputId: 'advisorId',
+        placeholder: 'Buscar asesor responsable...',
+        endpoint: '/api/v1/advisors',
+        globalSearchSource: 'ADVISORS',
+        titleExtractor: (a) => a.fullName || a.name || `Asesor #${a.id}`,
+        subtitleExtractor: (a) => a.departmentName ? `Depto: ${a.departmentName}` : (a.email || '')
+      });
+    }
+
+    if (document.getElementById('editAdvisorAutocompleteWrapper')) {
+      editSessionAdvisorAutocomplete = window.initTecNMAutocomplete({
+        containerId: 'editAdvisorAutocompleteWrapper',
+        hiddenInputId: 'editAdvisorId',
+        placeholder: 'Buscar asesor responsable...',
+        endpoint: '/api/v1/advisors',
+        globalSearchSource: 'ADVISORS',
+        titleExtractor: (a) => a.fullName || a.name || `Asesor #${a.id}`,
+        subtitleExtractor: (a) => a.departmentName ? `Depto: ${a.departmentName}` : (a.email || '')
+      });
     }
   }
 
@@ -539,9 +570,9 @@ window.openEditSessionModal = async function(id) {
   document.getElementById('editTopicsCovered').value = s.topicsCovered || '';
   document.getElementById('editStudentAgreements').value = s.studentAgreements || '';
 
-  await loadAdvisorsDropdown('editAdvisorId');
-  const advisorSelect = document.getElementById('editAdvisorId');
-  if (advisorSelect && s.advisorId) advisorSelect.value = s.advisorId;
+  if (editSessionAdvisorAutocomplete) {
+    editSessionAdvisorAutocomplete.setValue(s.advisorId ? { id: s.advisorId, fullName: s.advisorName || `Asesor #${s.advisorId}` } : null);
+  }
 
   const modal = document.getElementById('editAdvisoryModal');
   if (modal) modal.classList.add('active');
@@ -612,16 +643,52 @@ window.deleteSession = async function(id) {
 // -------------------------------------------------------------
 function initGradingPage() {
   const isAdvisorRole = window.hasRole && window.hasRole('advisor') && !window.hasRole('admin', 'departmenthead');
-  const evaluatorSelect = document.getElementById('evaluatorId');
-  if (evaluatorSelect) {
-    const group = evaluatorSelect.closest('.tecnm-form-group');
+  const evaluatorGroup = document.getElementById('evaluatorFormGroup');
+  if (evaluatorGroup) {
     if (isAdvisorRole) {
-      if (group) group.classList.add('tecnm-hidden');
-      evaluatorSelect.removeAttribute('required');
+      evaluatorGroup.classList.add('tecnm-hidden');
+      document.getElementById('evaluatorId')?.removeAttribute('required');
     } else {
-      if (group) group.classList.remove('tecnm-hidden');
-      evaluatorSelect.setAttribute('required', 'required');
-      loadAdvisorsDropdown('evaluatorId');
+      evaluatorGroup.classList.remove('tecnm-hidden');
+      document.getElementById('evaluatorId')?.setAttribute('required', 'required');
+    }
+  }
+
+  if (window.initTecNMAutocomplete) {
+    if (document.getElementById('gradeProjectAutocompleteWrapper')) {
+      gradingProjectAutocomplete = window.initTecNMAutocomplete({
+        containerId: 'gradeProjectAutocompleteWrapper',
+        hiddenInputId: 'modalGradeProjectId',
+        placeholder: 'Buscar anteproyecto por título o estudiante...',
+        endpoint: '/api/v1/projects',
+        globalSearchSource: 'PROJECTS',
+        titleExtractor: (p) => p.title || `Proyecto #${p.id}`,
+        subtitleExtractor: (p) => p.studentName ? `Alumno: ${p.studentName}${p.studentControlNumber ? ' • ' + p.studentControlNumber : ''}` : ''
+      });
+    }
+
+    if (document.getElementById('evaluatorAutocompleteWrapper')) {
+      gradingEvaluatorAutocomplete = window.initTecNMAutocomplete({
+        containerId: 'evaluatorAutocompleteWrapper',
+        hiddenInputId: 'evaluatorId',
+        placeholder: 'Buscar evaluador / asesor...',
+        endpoint: '/api/v1/advisors',
+        globalSearchSource: 'ADVISORS',
+        titleExtractor: (a) => a.fullName || a.name || `Asesor #${a.id}`,
+        subtitleExtractor: (a) => a.departmentName ? `Depto: ${a.departmentName}` : (a.email || '')
+      });
+    }
+
+    if (document.getElementById('editEvaluatorAutocompleteWrapper')) {
+      editGradingEvaluatorAutocomplete = window.initTecNMAutocomplete({
+        containerId: 'editEvaluatorAutocompleteWrapper',
+        hiddenInputId: 'editEvaluatorId',
+        placeholder: 'Buscar evaluador / asesor...',
+        endpoint: '/api/v1/advisors',
+        globalSearchSource: 'ADVISORS',
+        titleExtractor: (a) => a.fullName || a.name || `Asesor #${a.id}`,
+        subtitleExtractor: (a) => a.departmentName ? `Depto: ${a.departmentName}` : (a.email || '')
+      });
     }
   }
 
@@ -634,7 +701,15 @@ function initGradingPage() {
     if (window.canGrade && !window.canGrade()) {
       openModalBtn.classList.add('tecnm-hidden');
     } else {
-      openModalBtn.addEventListener('click', () => modal.classList.add('active'));
+      openModalBtn.addEventListener('click', () => {
+        if (selectedGradingProjectId && gradingProjectAutocomplete) {
+          const badge = document.getElementById('selectedProjectBadge');
+          const badgeText = badge ? badge.innerText.replace('Proyecto seleccionado: ', '').trim() : `Proyecto #${selectedGradingProjectId}`;
+          gradingProjectAutocomplete.setValue({ id: selectedGradingProjectId, title: badgeText });
+        }
+        if (gradingEvaluatorAutocomplete) gradingEvaluatorAutocomplete.clear();
+        modal.classList.add('active');
+      });
     }
   }
   const hideModal = () => {
@@ -904,9 +979,9 @@ window.openEditEvaluationModal = async function(id) {
   document.getElementById('editScore').value = e.score;
   document.getElementById('editFeedback').value = e.feedback || '';
 
-  await loadAdvisorsDropdown('editEvaluatorId');
-  const evaluatorSelect = document.getElementById('editEvaluatorId');
-  if (evaluatorSelect && e.evaluatorId) evaluatorSelect.value = e.evaluatorId;
+  if (editGradingEvaluatorAutocomplete) {
+    editGradingEvaluatorAutocomplete.setValue(e.evaluatorId ? { id: e.evaluatorId, fullName: `Asesor #${e.evaluatorId}` } : null);
+  }
 
   const modal = document.getElementById('editGradingModal');
   if (modal) modal.classList.add('active');

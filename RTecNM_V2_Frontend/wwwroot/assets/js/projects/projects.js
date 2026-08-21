@@ -27,43 +27,72 @@ window.openProjectAuditModal = (id) => {
   ]);
 };
 
-// -------------------------------------------------------------
-// Proposal Page Logic
-// -------------------------------------------------------------
-async function loadCompaniesOptions() {
-  const companySelect = document.getElementById('companyId');
-  if (!companySelect) return;
-  try {
-    const res = await fetch('/api/v1/companies/options');
-    if (!res.ok) return;
-    const options = await res.json();
-    companySelect.innerHTML = '<option value="">-- Seleccione la empresa receptora (Obligatorio) --</option>' +
-      options.map(c => `<option value="${c.id}">${escapeHtml(c.name)} (${escapeHtml(c.rfc || 'Sin RFC')})</option>`).join('');
-  } catch (err) {
-    console.error('Error al cargar empresas:', err);
-  }
-}
+let proposalCompanyAutocomplete = null;
+let proposalAdvisorAutocomplete = null;
+let proposalStudentAutocomplete = null;
 
-async function loadAdvisorsOptions() {
-  const advisorSelect = document.getElementById('advisorId');
-  if (!advisorSelect) return;
-  try {
-    const res = await fetch('/api/v1/advisors/options');
-    if (!res.ok) return;
-    const options = await res.json();
-    advisorSelect.innerHTML = '<option value="">-- Seleccione el asesor asignado (Obligatorio) --</option>' +
-      (Array.isArray(options) ? options : [])
-        .map(a => `<option value="${a.id}">${escapeHtml(a.fullName || a.name || 'Asesor')}</option>`).join('');
-  } catch (err) {
-    console.error('Error al cargar asesores:', err);
+function initProposalAutocompletes() {
+  if (!window.initTecNMAutocomplete) return;
+
+  if (document.getElementById('companyAutocompleteWrapper')) {
+    proposalCompanyAutocomplete = window.initTecNMAutocomplete({
+      containerId: 'companyAutocompleteWrapper',
+      hiddenInputId: 'companyId',
+      placeholder: 'Buscar empresa por nombre o RFC...',
+      globalSearchSource: 'COMPANIES',
+      searchFn: async (query) => {
+        try {
+          const res = await fetch('/api/v1/companies/options');
+          if (!res.ok) return [];
+          const all = await res.json();
+          const q = (query || '').toLowerCase();
+          return (all || []).filter(c =>
+            (c.name && c.name.toLowerCase().includes(q)) ||
+            (c.rfc && c.rfc.toLowerCase().includes(q))
+          );
+        } catch {
+          return [];
+        }
+      },
+      titleExtractor: (c) => c.name || `Empresa #${c.id}`,
+      subtitleExtractor: (c) => `RFC: ${c.rfc || 'Sin RFC'}`
+    });
+  }
+
+  if (document.getElementById('advisorAutocompleteWrapper')) {
+    proposalAdvisorAutocomplete = window.initTecNMAutocomplete({
+      containerId: 'advisorAutocompleteWrapper',
+      hiddenInputId: 'advisorId',
+      placeholder: 'Buscar asesor por nombre...',
+      endpoint: '/api/v1/advisors',
+      globalSearchSource: 'ADVISORS',
+      titleExtractor: (a) => a.fullName || a.name || `Asesor #${a.id}`,
+      subtitleExtractor: (a) => a.departmentName ? `Depto: ${a.departmentName}` : (a.email || '')
+    });
+  }
+
+  const group = document.getElementById('adminStudentGroup');
+  if (group && window.hasRole && window.hasRole('admin', 'departmenthead')) {
+    group.classList.remove('tecnm-hidden');
+    if (document.getElementById('studentAutocompleteWrapper')) {
+      proposalStudentAutocomplete = window.initTecNMAutocomplete({
+        containerId: 'studentAutocompleteWrapper',
+        hiddenInputId: 'adminStudentId',
+        placeholder: 'Buscar estudiante por nombre o no. control...',
+        endpoint: '/api/v1/students',
+        globalSearchSource: 'STUDENTS',
+        titleExtractor: (s) => s.fullName || `${s.firstName} ${s.lastName}`.trim() || `Estudiante #${s.id}`,
+        subtitleExtractor: (s) => `No. Control: ${s.controlNumber || 'S/N'}${s.career ? ' • ' + s.career : ''}`
+      });
+    }
+  } else if (group) {
+    group.classList.add('tecnm-hidden');
   }
 }
 
 function initProposalPage() {
   setupObjectiveRows();
-  setupAdminStudentSelect();
-  loadCompaniesOptions();
-  loadAdvisorsOptions();
+  initProposalAutocompletes();
   loadStudentProposals();
 
   const openModalBtn = document.getElementById('openProposalModalBtn');
@@ -75,7 +104,10 @@ function initProposalPage() {
     if (window.canCreateProposal && !window.canCreateProposal()) {
       openModalBtn.remove();
     } else {
-      openModalBtn.addEventListener('click', () => modal.classList.add('active'));
+      openModalBtn.addEventListener('click', () => {
+        resetEditingState();
+        modal.classList.add('active');
+      });
     }
   }
   const hideModal = () => {
@@ -348,8 +380,16 @@ async function openProposalEditModal(id) {
 
     editingProposalId = id;
 
-    if (document.getElementById('companyId')) document.getElementById('companyId').value = p.companyId || '';
-    if (document.getElementById('advisorId')) document.getElementById('advisorId').value = p.advisorId || '';
+    if (proposalCompanyAutocomplete) {
+      proposalCompanyAutocomplete.setValue(p.companyId ? { id: p.companyId, name: p.companyName || `Empresa #${p.companyId}` } : null);
+    }
+    if (proposalAdvisorAutocomplete) {
+      proposalAdvisorAutocomplete.setValue(p.advisorId ? { id: p.advisorId, fullName: p.advisorName || `Asesor #${p.advisorId}` } : null);
+    }
+    if (proposalStudentAutocomplete) {
+      proposalStudentAutocomplete.setValue(p.studentId ? { id: p.studentId, fullName: p.studentName || `Estudiante #${p.studentId}`, controlNumber: p.studentControlNumber } : null);
+    }
+
     document.getElementById('title').value = p.title || '';
     document.getElementById('projectType').value = p.projectType || '';
     document.getElementById('problemStatement').value = p.problemStatement || '';
@@ -386,6 +426,9 @@ async function openProposalEditModal(id) {
 
 function resetEditingState() {
   editingProposalId = null;
+  if (proposalCompanyAutocomplete) proposalCompanyAutocomplete.clear();
+  if (proposalAdvisorAutocomplete) proposalAdvisorAutocomplete.clear();
+  if (proposalStudentAutocomplete) proposalStudentAutocomplete.clear();
   const modalTitle = document.getElementById('createProposalModalTitle');
   if (modalTitle) modalTitle.textContent = 'Registrar Nueva Solicitud de Anteproyecto';
   const submitBtn = document.getElementById('submitProposalBtn');

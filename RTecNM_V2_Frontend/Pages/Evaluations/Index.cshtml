@@ -106,11 +106,11 @@
                 </div>
             </div>
 
-            <div class="tecnm-form-group">
+            <div class="tecnm-form-group" id="advisorFormGroup">
                 <label for="advisorId" class="tecnm-label">Asesor Responsable *</label>
-                <select id="advisorId" class="tecnm-form-control" required>
-                    <option value="1">Cargando asesores...</option>
-                </select>
+                <div id="advisorAutocompleteWrapper">
+                    <input type="hidden" id="advisorId" required>
+                </div>
             </div>
 
             <div class="tecnm-form-group">
@@ -147,11 +147,11 @@
         <form id="editAdvisoryForm">
             <input type="hidden" id="editSessionId">
 
-            <div class="tecnm-form-group">
+            <div class="tecnm-form-group" id="editAdvisorFormGroup">
                 <label for="editAdvisorId" class="tecnm-label">Asesor Responsable *</label>
-                <select id="editAdvisorId" class="tecnm-form-control" required>
-                    <option value="">Cargando asesores...</option>
-                </select>
+                <div id="editAdvisorAutocompleteWrapper">
+                    <input type="hidden" id="editAdvisorId" required>
+                </div>
             </div>
 
             <div class="tecnm-form-group">

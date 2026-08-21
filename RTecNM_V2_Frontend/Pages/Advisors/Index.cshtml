@@ -75,11 +75,11 @@
         <form id="advisorForm">
             <input type="hidden" id="advisorId" value="">
             <div class="tecnm-form-grid">
-                <div class="tecnm-form-group">
+                <div class="tecnm-form-group" id="advisorUserFormGroup">
                     <label for="userId" class="tecnm-label">Cuenta de acceso del asesor *</label>
-                    <select id="userId" class="tecnm-form-control" required>
-                        <option value="">Cargando usuarios...</option>
-                    </select>
+                    <div id="advisorUserAutocompleteWrapper">
+                        <input type="hidden" id="userId" required>
+                    </div>
                     <small class="tecnm-form-hint">Vincula una cuenta de usuario existente (correo institucional) con este perfil. Al guardar se le asignará el rol Asesor.</small>
                 </div>
 

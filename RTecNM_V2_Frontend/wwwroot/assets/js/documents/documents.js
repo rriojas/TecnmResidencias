@@ -52,6 +52,8 @@ const statusLabels = {
     'rejected': 'Rechazado'
 };
 
+let uploadProjectAutocomplete = null;
+
 function selectProjectForDocuments(project) {
     if (!project || !project.id) return;
     currentProjectId = project.id;
@@ -68,12 +70,33 @@ function selectProjectForDocuments(project) {
         uploadProjectId.value = currentProjectId;
     }
 
+    if (uploadProjectAutocomplete && project) {
+        const title = project.title || project.titleText || project.name || `Proyecto #${project.id}`;
+        uploadProjectAutocomplete.setValue({
+            id: project.id,
+            title: title,
+            studentName: project.studentName
+        });
+    }
+
     documentsPageNumber = 1;
     loadDocuments(currentProjectId);
 }
 
 function initDocumentsPage() {
     setupEventListeners();
+
+    if (window.initTecNMAutocomplete && document.getElementById('uploadProjectAutocompleteWrapper')) {
+        uploadProjectAutocomplete = window.initTecNMAutocomplete({
+            containerId: 'uploadProjectAutocompleteWrapper',
+            hiddenInputId: 'uploadProjectId',
+            placeholder: 'Buscar anteproyecto por título o estudiante...',
+            endpoint: '/api/v1/projects',
+            globalSearchSource: 'PROJECTS',
+            titleExtractor: (p) => p.title || `Proyecto #${p.id}`,
+            subtitleExtractor: (p) => p.studentName ? `Alumno: ${p.studentName}${p.studentControlNumber ? ' • ' + p.studentControlNumber : ''}` : ''
+        });
+    }
 
     const isStudent = window.hasRole && window.hasRole('student') && !window.hasRole('admin', 'departmenthead', 'advisor');
     const isAdvisor = window.hasRole && window.hasRole('advisor') && !window.hasRole('admin', 'departmenthead');

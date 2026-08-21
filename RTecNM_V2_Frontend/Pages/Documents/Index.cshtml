@@ -90,9 +90,9 @@
         <form id="uploadDocumentForm" enctype="multipart/form-data">
             <div class="tecnm-form-group">
                 <label for="uploadProjectId" class="tecnm-label">Proyecto Destino *</label>
-                <select id="uploadProjectId" class="tecnm-form-control" required>
-                    <option value="">Cargando proyectos...</option>
-                </select>
+                <div id="uploadProjectAutocompleteWrapper">
+                    <input type="hidden" id="uploadProjectId" required>
+                </div>
             </div>
 
             <div class="tecnm-form-group">
