@@ -42,7 +42,7 @@
       extraParams = {},
       minChars = 2,
       debounceMs = 250,
-      titleExtractor = (item) => item.fullName || item.name || item.title || `Item #${item.id}`,
+      titleExtractor = (item) => item.fullName || item.name || item.title || 'Elemento seleccionado',
       subtitleExtractor = (item) => {
         if (item.controlNumber) return `No. Control: ${item.controlNumber}${item.career ? ' • ' + item.career : ''}`;
         if (item.rfc) return `RFC: ${item.rfc}${item.sector ? ' • ' + item.sector : ''}`;
@@ -141,7 +141,7 @@
       const subtitle = subtitleExtractor(item);
 
       hiddenInput.value = val !== undefined && val !== null ? val : '';
-      selectedTitle.textContent = title || `#${val}`;
+      selectedTitle.textContent = title || 'Elemento seleccionado';
       selectedSubtitle.textContent = subtitle || '';
 
       inputGroup.classList.add('has-selected');

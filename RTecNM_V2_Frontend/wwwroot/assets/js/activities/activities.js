@@ -1,16 +1,36 @@
-function selectProjectForSchedule(project) {
+async function selectProjectForSchedule(project) {
   if (!project || !project.id) return;
   currentProjectId = project.id;
 
+  const title = project.title || project.titleText || project.name || 'Anteproyecto';
+  const studentName = project.studentName || project.student_name || project.student || '';
+  const controlNumber = project.studentControlNumber || project.student_control_number || project.controlNumber || '';
+  const studentText = studentName ? ` (Alumno: ${escapeHtml(studentName)}${controlNumber ? ' - ' + escapeHtml(controlNumber) : ''})` : '';
+
   const badge = document.getElementById('selectedProjectBadge');
   if (badge) {
-    const title = project.title || project.titleText || project.name || 'Anteproyecto';
-    const student = project.studentName ? ` (Alumno: ${escapeHtml(project.studentName)}${project.studentControlNumber ? ' - ' + escapeHtml(project.studentControlNumber) : ''})` : '';
-    badge.innerHTML = `#${project.id} — ${escapeHtml(title)}${student}`;
+    badge.innerHTML = `<strong>${escapeHtml(title)}</strong>${studentText}`;
   }
 
   loadSchedule();
+
+  if (!studentName || !controlNumber) {
+    try {
+      const res = await fetch(`/api/v1/projects/${project.id}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const fullProj = await res.json();
+        const fStudent = fullProj.studentName || fullProj.student_name || '';
+        const fCtrl = fullProj.studentControlNumber || fullProj.student_control_number || '';
+        if (fStudent) {
+          const enrichedText = ` (Alumno: ${escapeHtml(fStudent)}${fCtrl ? ' - ' + escapeHtml(fCtrl) : ''})`;
+          if (badge) badge.innerHTML = `<strong>${escapeHtml(fullProj.title || title)}</strong>${enrichedText}`;
+        }
+      }
+    } catch (_) {}
+  }
 }
+
+window.selectProjectForSchedule = selectProjectForSchedule;
 
 async function initSchedulePage() {
   const isStudent = window.hasRole && window.hasRole('student') && !window.hasRole('admin', 'departmenthead', 'advisor');

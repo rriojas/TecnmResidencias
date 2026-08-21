@@ -218,8 +218,8 @@
         ? pendingQueue.map(p => `
             <li class="list-panel-item">
               <div>
-                <div class="list-panel-item-title">#${p.id} · ${escapeHtml(p.title)}</div>
-                <div class="list-panel-item-sub">${escapeHtml(p.studentName || `Estudiante #${p.studentId}`)}</div>
+                <div class="list-panel-item-title">${escapeHtml(p.title)}</div>
+                <div class="list-panel-item-sub">${escapeHtml(p.studentName || 'Estudiante')}</div>
               </div>
             </li>
           `).join('')
@@ -237,7 +237,7 @@
         ? recent.map(p => `
             <tr>
               <td>${escapeHtml(p.title)}</td>
-              <td>${escapeHtml(p.studentName || `Estudiante #${p.studentId}`)}</td>
+              <td>${escapeHtml(p.studentName || 'Estudiante')}</td>
               <td>${fmtDate(p.createdAt)}</td>
               <td>${statusBadge(p.status)}</td>
             </tr>
@@ -488,7 +488,7 @@
         ? assigned.map(p => `
             <tr>
               <td>${escapeHtml(p.title)}</td>
-              <td>${escapeHtml(p.studentName || `Estudiante #${p.studentId}`)}</td>
+              <td>${escapeHtml(p.studentName || 'Estudiante')}</td>
               <td>${statusBadge(p.status)}</td>
             </tr>
           `).join('')
@@ -502,8 +502,8 @@
         ? pendingAdvisorQueue.map(p => `
             <li class="list-panel-item">
               <div>
-                <div class="list-panel-item-title">#${p.id} · ${escapeHtml(p.title)}</div>
-                <div class="list-panel-item-sub">${escapeHtml(p.studentName || `Estudiante #${p.studentId}`)}</div>
+                <div class="list-panel-item-title">${escapeHtml(p.title)}</div>
+                <div class="list-panel-item-sub">${escapeHtml(p.studentName || 'Estudiante')}</div>
               </div>
             </li>
           `).join('')

@@ -17,21 +17,23 @@ function getCurrentUserRole() {
 let selectedAdvisoryProjectId = null;
 let selectedGradingProjectId = null;
 
-function selectProjectForSessions(project) {
+async function selectProjectForSessions(project) {
   if (!project || !project.id) return;
   selectedAdvisoryProjectId = project.id;
 
   const title = project.title || project.titleText || project.name || 'Anteproyecto';
-  const student = project.studentName ? ` (Alumno: ${escapeHtml(project.studentName)}${project.studentControlNumber ? ' - ' + escapeHtml(project.studentControlNumber) : ''})` : '';
+  const studentName = project.studentName || project.student_name || project.student || '';
+  const controlNumber = project.studentControlNumber || project.student_control_number || project.controlNumber || '';
+  const studentText = studentName ? ` (Alumno: ${escapeHtml(studentName)}${controlNumber ? ' - ' + escapeHtml(controlNumber) : ''})` : '';
 
   const badge = document.getElementById('selectedProjectBadge');
   if (badge) {
-    badge.innerHTML = `#${project.id} — ${escapeHtml(title)}${student}`;
+    badge.innerHTML = `<strong>${escapeHtml(title)}</strong>${studentText}`;
   }
 
   const modalBadge = document.getElementById('modalSelectedProjectBadge');
   if (modalBadge) {
-    modalBadge.innerHTML = `#${project.id} — ${escapeHtml(title)}${student}`;
+    modalBadge.innerHTML = `<strong>${escapeHtml(title)}</strong>${studentText}`;
   }
 
   const modalProjectId = document.getElementById('modalProjectId');
@@ -41,17 +43,37 @@ function selectProjectForSessions(project) {
 
   sessionsPageNumber = 1;
   loadAdvisorySessions();
+
+  // If studentName or controlNumber was missing from partial search object, fetch full details
+  if (!studentName || !controlNumber) {
+    try {
+      const res = await fetch(`/api/v1/projects/${project.id}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const fullProj = await res.json();
+        const fStudent = fullProj.studentName || fullProj.student_name || '';
+        const fCtrl = fullProj.studentControlNumber || fullProj.student_control_number || '';
+        if (fStudent) {
+          const enrichedText = ` (Alumno: ${escapeHtml(fStudent)}${fCtrl ? ' - ' + escapeHtml(fCtrl) : ''})`;
+          if (badge) badge.innerHTML = `<strong>${escapeHtml(fullProj.title || title)}</strong>${enrichedText}`;
+          if (modalBadge) modalBadge.innerHTML = `<strong>${escapeHtml(fullProj.title || title)}</strong>${enrichedText}`;
+        }
+      }
+    } catch (_) {}
+  }
 }
 
-function selectProjectForGrading(project) {
+async function selectProjectForGrading(project) {
   if (!project || !project.id) return;
   selectedGradingProjectId = project.id;
 
+  const title = project.title || project.titleText || project.name || 'Anteproyecto';
+  const studentName = project.studentName || project.student_name || project.student || '';
+  const controlNumber = project.studentControlNumber || project.student_control_number || project.controlNumber || '';
+  const studentText = studentName ? ` (Alumno: ${escapeHtml(studentName)}${controlNumber ? ' - ' + escapeHtml(controlNumber) : ''})` : '';
+
   const badge = document.getElementById('selectedProjectBadge');
   if (badge) {
-    const title = project.title || project.titleText || project.name || 'Anteproyecto';
-    const student = project.studentName ? ` (Alumno: ${escapeHtml(project.studentName)}${project.studentControlNumber ? ' - ' + escapeHtml(project.studentControlNumber) : ''})` : '';
-    badge.innerHTML = `#${project.id} — ${escapeHtml(title)}${student}`;
+    badge.innerHTML = `<strong>${escapeHtml(title)}</strong>${studentText}`;
   }
 
   const modalGradeProjectId = document.getElementById('modalGradeProjectId');
@@ -61,7 +83,25 @@ function selectProjectForGrading(project) {
 
   evaluationsPageNumber = 1;
   loadEvaluations();
+
+  if (!studentName || !controlNumber) {
+    try {
+      const res = await fetch(`/api/v1/projects/${project.id}`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const fullProj = await res.json();
+        const fStudent = fullProj.studentName || fullProj.student_name || '';
+        const fCtrl = fullProj.studentControlNumber || fullProj.student_control_number || '';
+        if (fStudent) {
+          const enrichedText = ` (Alumno: ${escapeHtml(fStudent)}${fCtrl ? ' - ' + escapeHtml(fCtrl) : ''})`;
+          if (badge) badge.innerHTML = `<strong>${escapeHtml(fullProj.title || title)}</strong>${enrichedText}`;
+        }
+      }
+    } catch (_) {}
+  }
 }
+
+window.selectProjectForSessions = selectProjectForSessions;
+window.selectProjectForGrading = selectProjectForGrading;
 
 let sessionAdvisorAutocomplete = null;
 let editSessionAdvisorAutocomplete = null;
@@ -482,8 +522,8 @@ async function loadAdvisorySessions() {
       tbody.innerHTML = sessions.map(s => `
         <tr>
           <td>${window.formatTecNMDate(s.sessionDate)}</td>
-          <td>${escapeHtml(s.studentName || `Estudiante #${s.projectId}`)}</td>
-          <td>${escapeHtml(s.advisorName || `Asesor #${s.advisorId}`)}</td>
+          <td>${escapeHtml(s.studentName || 'Estudiante')}</td>
+          <td>${escapeHtml(s.advisorName || 'Asesor')}</td>
           <td>${escapeHtml(s.topicsCovered)}</td>
           <td>${escapeHtml(s.studentAgreements || 'N/A')}</td>
           <td class="tecnm-d-flex tecnm-gap-1" style="flex-wrap:wrap;">
@@ -571,7 +611,7 @@ window.openEditSessionModal = async function(id) {
   document.getElementById('editStudentAgreements').value = s.studentAgreements || '';
 
   if (editSessionAdvisorAutocomplete) {
-    editSessionAdvisorAutocomplete.setValue(s.advisorId ? { id: s.advisorId, fullName: s.advisorName || `Asesor #${s.advisorId}` } : null);
+    editSessionAdvisorAutocomplete.setValue(s.advisorId ? { id: s.advisorId, fullName: s.advisorName || 'Asesor' } : null);
   }
 
   const modal = document.getElementById('editAdvisoryModal');
@@ -853,7 +893,7 @@ async function loadEvaluations() {
         <tr>
           <td><span class="tecnm-badge tecnm-badge-info">${escapeHtml(formatPeriod(e.evaluationPeriod))}</span></td>
           <td><strong>${e.score}</strong> / 100</td>
-          <td>${escapeHtml(e.studentName || `Estudiante #${e.projectId}`)}</td>
+          <td>${escapeHtml(e.studentName || 'Estudiante')}</td>
           <td>${escapeHtml(e.feedback || 'Sin observaciones')}</td>
           <td>${window.formatTecNMDate(e.createdAt)}</td>
           <td class="tecnm-d-flex tecnm-gap-1" style="flex-wrap:wrap;">
@@ -980,7 +1020,7 @@ window.openEditEvaluationModal = async function(id) {
   document.getElementById('editFeedback').value = e.feedback || '';
 
   if (editGradingEvaluatorAutocomplete) {
-    editGradingEvaluatorAutocomplete.setValue(e.evaluatorId ? { id: e.evaluatorId, fullName: `Asesor #${e.evaluatorId}` } : null);
+    editGradingEvaluatorAutocomplete.setValue(e.evaluatorId ? { id: e.evaluatorId, fullName: 'Asesor' } : null);
   }
 
   const modal = document.getElementById('editGradingModal');
