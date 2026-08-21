@@ -65,7 +65,7 @@ if command -v docker >/dev/null 2>&1; then
         echo -e "   ${GREEN}✅ Contenedor PostgreSQL ya se encuentra en ejecución.${NC}"
     fi
 else
-    echo -e "   ${YELLOW}⚠️  Docker no detectado. Asegúrate de tener PostgreSQL corriendo localmente en el puerto 5433.${NC}"
+    echo -e "   ${YELLOW}⚠️  Docker no detectado. Asegúrate de tener PostgreSQL corriendo localmente en el puerto 5432.${NC}"
 fi
 
 # 3. Liberar puerto 5144 si está ocupado

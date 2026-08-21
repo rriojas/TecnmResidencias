@@ -60,7 +60,7 @@ if ($dockerCmd) {
         Write-Host "   ✅ Contenedor PostgreSQL ya se encuentra en ejecución." -ForegroundColor Green
     }
 } else {
-    Write-Host "   ⚠️  Docker no detectado. Asegúrate de tener PostgreSQL corriendo localmente en el puerto 5433." -ForegroundColor Yellow
+    Write-Host "   ⚠️  Docker no detectado. Asegúrate de tener PostgreSQL corriendo localmente en el puerto 5432." -ForegroundColor Yellow
 }
 
 # 3. Verificar y liberar puerto 5144 si está ocupado

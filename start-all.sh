@@ -72,7 +72,7 @@ echo -e "${GREEN}======================================================${NC}"
 echo -e "  🌐 ${WHITE}Frontend UI${NC} : http://localhost:5000/auth/login"
 echo -e "  ⚙️  ${WHITE}Backend API${NC} : http://localhost:5144"
 echo -e "  📖 ${WHITE}Swagger API${NC} : http://localhost:5144/swagger"
-echo -e "  🐘 ${WHITE}PostgreSQL${NC}  : localhost:5433 (residency_v2)"
+echo -e "  🐘 ${WHITE}PostgreSQL${NC}  : localhost:5432 (residency_v2)"
 echo -e "${GREEN}======================================================${NC}"
 echo -e "💡 Presiona ${YELLOW}Ctrl + C${NC} en esta terminal para detener ambos servicios.\n"
 
