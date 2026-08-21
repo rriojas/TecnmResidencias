@@ -9,23 +9,19 @@ $FrontendDir = Join-Path $ScriptDir "RTecNM_V2_Frontend"
 
 # Función para liberar puerto si ya está ocupado
 function Free-Port([int]$port) {
-    try {
-        $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
-        if ($connections) {
-            $pids = $connections | Select-Object -ExpandProperty OwningProcess -Unique
-            foreach ($p in $pids) {
-                if ($p -and $p -ne 0) {
-                    $proc = Get-Process -Id $p -ErrorAction SilentlyContinue
-                    if ($proc) {
-                        Write-Host "   🔄 Liberando puerto $port (cerrando proceso previo PID $($p) - $($proc.ProcessName))..." -ForegroundColor Yellow
-                        Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
-                    }
+    $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
+    if ($connections) {
+        $pids = $connections | Select-Object -ExpandProperty OwningProcess -Unique
+        foreach ($p in $pids) {
+            if ($p -and $p -ne 0) {
+                $proc = Get-Process -Id $p -ErrorAction SilentlyContinue
+                if ($proc) {
+                    Write-Host "   🔄 Liberando puerto $port (cerrando proceso previo PID $($p) - $($proc.ProcessName))..." -ForegroundColor Yellow
+                    Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
                 }
             }
-            Start-Sleep -Milliseconds 500
         }
-    } catch {
-        # Continuar si no se pudo consultar
+        Start-Sleep -Milliseconds 500
     }
 }
 
@@ -35,10 +31,11 @@ Write-Host "======================================================" -ForegroundC
 
 # 1. Verificar .NET SDK
 Write-Host "`n🔍 Verificando .NET SDK..." -ForegroundColor Yellow
-try {
+$dotnetCmd = Get-Command dotnet -ErrorAction SilentlyContinue
+if ($dotnetCmd) {
     $dotnetVersion = dotnet --version
     Write-Host "   ✅ .NET SDK detectado: v$dotnetVersion" -ForegroundColor Green
-} catch {
+} else {
     Write-Host "   ❌ ERROR: .NET SDK no está instalado o no se encuentra en el PATH." -ForegroundColor Red
     exit 1
 }

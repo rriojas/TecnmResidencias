@@ -33,7 +33,8 @@ builder.Services.Configure<JwtSettings>(
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection")));
+        builder.Configuration.GetConnectionString("DefaultConnection"))
+        .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
 builder.Services.AddAuthentication(options =>
 {
@@ -105,6 +106,8 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     try
     {
+        dbContext.Database.Migrate();
+
         // Bootstrap de catálogos RBAC y admin inicial: corre SIEMPRE (producción incluida).
         var adminPassword = app.Configuration["Seed:AdminPassword"];
         if (string.IsNullOrWhiteSpace(adminPassword))

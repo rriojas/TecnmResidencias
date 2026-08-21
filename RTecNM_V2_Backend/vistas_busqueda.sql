@@ -42,7 +42,7 @@ FROM projects p
 LEFT JOIN students s ON p.student_id = s.id
 LEFT JOIN advisors a ON p.advisor_id = a.id
 LEFT JOIN companies c ON p.company_id = c.id
-WHERE p.status <> 'draft';
+WHERE p.status::text <> 'draft';
 
 CREATE OR REPLACE VIEW vw_search_companies AS
 SELECT 
