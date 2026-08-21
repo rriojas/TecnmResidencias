@@ -14,6 +14,7 @@ public interface IRoleRepository
     Task<bool> SoftDeleteRoleAsync(long id, long deletedByUserId);
     Task<List<Module>> GetModulesWithPermissionsAsync();
     Task<PaginatedResult<User>> GetUsersForManagementPagedAsync(PaginationQuery query, string? roleFilter, string? search, bool includeInactive = false);
+    Task<List<User>> GetUsersForManagementListAsync(string? roleFilter, string? search, bool includeInactive = false);
     Task<bool> AssignUserRolesAsync(long userId, List<long> roleIds, long performedByUserId);
     Task<bool> ToggleUserAdminStatusAsync(long userId, bool isAdmin, long updatedByUserId);
     Task<User?> GetUserByIdAsync(long userId);

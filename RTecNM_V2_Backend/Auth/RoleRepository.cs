@@ -154,7 +154,9 @@ public class RoleRepository : IRoleRepository
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim().ToLowerInvariant();
-            q = q.Where(u => u.Email.ToLower().Contains(term));
+            q = q.Where(u => u.Email.ToLower().Contains(term)
+                || _context.Students.Any(s => s.UserId == u.Id && ((s.FirstName + " " + s.LastName + " " + (s.LastName2 ?? "")).ToLower().Contains(term) || s.ControlNumber.ToLower().Contains(term)))
+                || _context.Advisors.Any(a => a.UserId == u.Id && (a.FullName.ToLower().Contains(term) || (a.Phone != null && a.Phone.Contains(term)))));
         }
 
         if (roleFilter == "with_role")
@@ -167,6 +169,31 @@ public class RoleRepository : IRoleRepository
             "Email");
 
         return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+    }
+
+    public async Task<List<User>> GetUsersForManagementListAsync(string? roleFilter, string? search, bool includeInactive = false)
+    {
+        IQueryable<User> q = _context.Users
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role);
+
+        if (!includeInactive)
+            q = q.Where(u => u.IsActive);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLowerInvariant();
+            q = q.Where(u => u.Email.ToLower().Contains(term)
+                || _context.Students.Any(s => s.UserId == u.Id && ((s.FirstName + " " + s.LastName + " " + (s.LastName2 ?? "")).ToLower().Contains(term) || s.ControlNumber.ToLower().Contains(term)))
+                || _context.Advisors.Any(a => a.UserId == u.Id && (a.FullName.ToLower().Contains(term) || (a.Phone != null && a.Phone.Contains(term)))));
+        }
+
+        if (roleFilter == "with_role")
+            q = q.Where(u => u.UserRoles.Any(ur => ur.IsActive));
+        else if (roleFilter == "without_role")
+            q = q.Where(u => !u.UserRoles.Any(ur => ur.IsActive));
+
+        return await q.ToListAsync();
     }
 
     public async Task<bool> AssignUserRolesAsync(long userId, List<long> roleIds, long performedByUserId)

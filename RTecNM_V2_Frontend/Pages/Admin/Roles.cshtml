@@ -18,7 +18,7 @@
             Catálogo de Roles
         </button>
         <button type="button" class="tecnm-btn tecnm-btn-secondary tab-btn" id="tabUsersBtn" onclick="switchTab('users')">
-            Asignación de Usuarios
+            Asignar Rol a Usuario
         </button>
     </div>
 
@@ -70,7 +70,7 @@
     <div id="tabUsers" class="tab-content">
         <div class="tecnm-card">
             <div class="tecnm-card-header">
-                <h3 class="tecnm-card-title">Usuarios del Sistema</h3>
+                <h3 class="tecnm-card-title">Asignación de Roles a Usuarios</h3>
             </div>
             <div class="tecnm-card-toolbar">
                 <select id="userRoleFilter" class="tecnm-form-control tecnm-filter-select" onchange="applyUserFilters()">
@@ -78,7 +78,7 @@
                     <option value="with_role">Con Rol Asignado</option>
                     <option value="without_role">Sin Rol Asignado</option>
                 </select>
-                <input type="text" id="userSearchInput" class="tecnm-form-control tecnm-search-input" placeholder="Buscar correo..." oninput="applyUserFilters()">
+                <input type="text" id="userSearchInput" class="tecnm-form-control tecnm-search-input" placeholder="Buscar por nombre o correo..." oninput="applyUserFilters()">
                 <div class="tecnm-toolbar-actions">
                     <label class="tecnm-switch-label">
                         <span class="tecnm-switch">
@@ -88,7 +88,7 @@
                         Mostrar inactivos
                     </label>
                     <button type="button" id="exportUsersBtn" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm">Exportar PDF</button>
-                    <button type="button" class="tecnm-btn tecnm-btn-primary" onclick="openCreateUserModal()">+ Registrar Usuario</button>
+                    <button type="button" class="tecnm-btn tecnm-btn-primary" onclick="openCreateUserModal()">+ Registrar Usuario / Asignar Rol</button>
                 </div>
             </div>
             <div class="tecnm-card-body">
@@ -96,14 +96,16 @@
                     <table class="tecnm-table" id="usersTable">
                         <thead>
                             <tr>
-                                <th data-sort="Email">Correo Electrónico</th>
-                                <th>Rol Asignado</th>
+                                <th data-sort="FirstName">Usuario / Correo</th>
+                                <th data-sort="ControlNumber">Matrícula</th>
+                                <th data-sort="Phone">Teléfono</th>
+                                <th data-sort="Role">Rol Asignado</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="usersTableBody">
                             <tr>
-                                <td colspan="3" class="tecnm-table-empty">Cargando usuarios...</td>
+                                <td colspan="5" class="tecnm-table-empty">Cargando usuarios...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -156,7 +158,7 @@
 <!-- MODAL CREAR / EDITAR USUARIO -->
 <div id="userRoleModal" class="modal-backdrop">
     <div class="modal-card">
-        <h3 id="userModalTitle" class="tecnm-modal-title">Registrar Nuevo Usuario</h3>
+        <h3 id="userModalTitle" class="tecnm-modal-title">Registrar Usuario y Asignar Rol</h3>
         <form id="userRoleForm" onsubmit="saveUser(event)">
             <input type="hidden" id="assignUserId" value="" />
 
@@ -174,8 +176,13 @@
                 </div>
 
                 <div class="tecnm-form-group">
-                    <label for="userLastNameInput" class="tecnm-label">Apellido Paterno / Materno *</label>
-                    <input type="text" id="userLastNameInput" class="tecnm-form-control" placeholder="Pérez López" />
+                    <label for="userLastNameInput" class="tecnm-label">Apellido Paterno *</label>
+                    <input type="text" id="userLastNameInput" class="tecnm-form-control" placeholder="Pérez" />
+                </div>
+
+                <div class="tecnm-form-group">
+                    <label for="userLastName2Input" class="tecnm-label">Apellido Materno</label>
+                    <input type="text" id="userLastName2Input" class="tecnm-form-control" placeholder="López" />
                 </div>
 
                 <div class="tecnm-form-group">
@@ -213,7 +220,7 @@
 
             <div class="tecnm-modal-footer">
                 <button type="button" class="tecnm-btn tecnm-btn-secondary" onclick="closeUserRoleModal()">Cancelar</button>
-                <button type="submit" class="tecnm-btn tecnm-btn-primary">Guardar Usuario</button>
+                <button type="submit" class="tecnm-btn tecnm-btn-primary">Guardar Usuario y Rol</button>
             </div>
         </form>
     </div>

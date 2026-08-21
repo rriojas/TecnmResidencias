@@ -260,7 +260,7 @@
     } catch (err) {
       console.error(err);
       document.getElementById('usersTableBody').innerHTML = `
-        <tr><td colspan="3" class="tecnm-table-empty tecnm-text-danger">Error al cargar usuarios.</td></tr>
+        <tr><td colspan="5" class="tecnm-table-empty tecnm-text-danger">Error al cargar usuarios.</td></tr>
       `;
     }
   }
@@ -308,11 +308,18 @@
   function renderUsersTable(users) {
     const tbody = document.getElementById('usersTableBody');
     if (!users || users.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="3" class="tecnm-table-empty">No se encontraron usuarios.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" class="tecnm-table-empty">No se encontraron usuarios.</td></tr>`;
       return;
     }
 
     tbody.innerHTML = users.map(u => {
+      let displayName = `${u.firstName || ''} ${u.lastName || ''}`.trim();
+      if (u.lastName2) displayName += ` ${u.lastName2}`;
+      if (!displayName) displayName = u.fullName || 'Usuario';
+
+      const controlNum = u.controlNumber || '—';
+      const phoneNum = u.phone || '—';
+
       const assignedRoleName = u.assignedRoles && u.assignedRoles.length > 0
         ? `<span class="tecnm-badge tecnm-badge-approved">${escapeHtml(u.assignedRoles[0].name)}</span>`
         : (u.isAdmin
@@ -321,7 +328,12 @@
 
       return `
         <tr>
-          <td><strong>${escapeHtml(u.email)}</strong></td>
+          <td>
+            <div><strong>${escapeHtml(displayName)}</strong></div>
+            <div class="tecnm-form-hint">${escapeHtml(u.email)}</div>
+          </td>
+          <td>${escapeHtml(controlNum)}</td>
+          <td>${escapeHtml(phoneNum)}</td>
           <td>${assignedRoleName}</td>
           <td>
             <div class="tecnm-row-actions">
@@ -486,7 +498,7 @@
 
   window.openCreateUserModal = () => {
     const titleEl = document.getElementById('userModalTitle');
-    if (titleEl) titleEl.textContent = 'Registrar Nuevo Usuario';
+    if (titleEl) titleEl.textContent = 'Registrar Usuario y Asignar Rol';
 
     hideUserFormError();
     setVal('assignUserId', '');
@@ -523,7 +535,7 @@
     if (!user) return;
 
     const titleEl = document.getElementById('userModalTitle');
-    if (titleEl) titleEl.textContent = 'Editar Usuario';
+    if (titleEl) titleEl.textContent = 'Editar Usuario y Asignar Rol';
 
     hideUserFormError();
     setVal('assignUserId', user.userId);
@@ -534,12 +546,24 @@
     if (passInput) passInput.required = false;
 
     const passLabel = document.getElementById('userPasswordLabel');
-    if (passLabel) passLabel.textContent = 'Nueva Contraseña (opcional)';
+    if (passLabel) passLabel.textContent = 'Nueva Contraseña (opcional - dejar en blanco para mantener la actual)';
 
     // Load profile fields safely
-    setVal('userFirstNameInput', user.firstName || '');
-    setVal('userLastNameInput', user.lastName || '');
-    setVal('userLastName2Input', user.lastName2 || '');
+    let firstName = user.firstName || '';
+    let lastName = user.lastName || '';
+    let lastName2 = user.lastName2 || '';
+
+    if (!firstName && user.fullName) {
+      const parts = user.fullName.trim().split(/\s+/);
+      firstName = parts[0] || '';
+      if (parts.length > 1) {
+        lastName = parts.slice(1).join(' ');
+      }
+    }
+
+    setVal('userFirstNameInput', firstName);
+    setVal('userLastNameInput', lastName);
+    setVal('userLastName2Input', lastName2);
     setVal('userControlNumberInput', user.controlNumber || '');
     setVal('userCareerSelect', (user.careerId || 4).toString());
     setVal('userPhoneInput', user.phone || '');

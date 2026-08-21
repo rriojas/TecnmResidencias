@@ -108,42 +108,85 @@ public class RoleService : IRoleService
 
     public async Task<Result<PaginatedResult<UserRoleManagementDto>>> GetUsersForManagementPagedAsync(PaginationQuery query, string? roleFilter, string? search, bool includeInactive = false)
     {
-        var paged = await _roleRepository.GetUsersForManagementPagedAsync(query, roleFilter, search, includeInactive);
+        var usersList = await _roleRepository.GetUsersForManagementListAsync(roleFilter, search, includeInactive);
         var dtos = new List<UserRoleManagementDto>();
 
-        foreach (var u in paged.Items)
+        foreach (var u in usersList)
         {
             var dto = MapUserToDto(u);
-            if (u.Role == UserRole.Student)
+
+            var student = await _roleRepository.GetStudentByUserIdAsync(u.Id);
+            if (student != null)
             {
-                var student = await _roleRepository.GetStudentByUserIdAsync(u.Id);
-                if (student != null)
-                {
-                    dto.ControlNumber = student.ControlNumber;
-                    dto.FirstName = student.FirstName;
-                    dto.LastName = student.LastName;
-                    dto.LastName2 = student.LastName2;
-                    dto.Curp = student.Curp;
-                    dto.CareerId = student.CareerId;
-                }
+                dto.ControlNumber = student.ControlNumber;
+                dto.FirstName = student.FirstName;
+                dto.LastName = student.LastName;
+                dto.LastName2 = student.LastName2;
+                dto.Curp = student.Curp;
+                dto.CareerId = student.CareerId;
             }
-            else if (u.Role == UserRole.Advisor)
+
+            var advisor = await _roleRepository.GetAdvisorByUserIdAsync(u.Id);
+            if (advisor != null)
             {
-                var advisor = await _roleRepository.GetAdvisorByUserIdAsync(u.Id);
-                if (advisor != null)
+                dto.FullName = advisor.FullName;
+                dto.Title = advisor.Title;
+                dto.DepartmentId = advisor.DepartmentId;
+                if (!string.IsNullOrWhiteSpace(advisor.Phone))
                 {
-                    dto.FullName = advisor.FullName;
-                    dto.Title = advisor.Title;
-                    dto.DepartmentId = advisor.DepartmentId;
                     dto.Phone = advisor.Phone;
-                    dto.AdvisorType = (int)advisor.AdvisorType;
+                }
+                dto.AdvisorType = (int)advisor.AdvisorType;
+
+                if (string.IsNullOrWhiteSpace(dto.FirstName) && !string.IsNullOrWhiteSpace(advisor.FullName))
+                {
+                    var parts = advisor.FullName.Trim().Split(' ', 2);
+                    dto.FirstName = parts[0];
+                    if (parts.Length > 1) dto.LastName = parts[1];
                 }
             }
+
             dtos.Add(dto);
         }
 
+        var isDesc = (query.SortDir ?? "").Equals("desc", StringComparison.OrdinalIgnoreCase);
+        var sortBy = (query.SortBy ?? "Email").Trim();
+
+        dtos = (sortBy.ToLowerInvariant() switch
+        {
+            "controlnumber" or "matricula" => isDesc
+                ? dtos.OrderByDescending(d => d.ControlNumber ?? "").ThenBy(d => d.Email).ToList()
+                : dtos.OrderBy(d => d.ControlNumber ?? "").ThenBy(d => d.Email).ToList(),
+
+            "phone" or "telefono" => isDesc
+                ? dtos.OrderByDescending(d => d.Phone ?? "").ThenBy(d => d.Email).ToList()
+                : dtos.OrderBy(d => d.Phone ?? "").ThenBy(d => d.Email).ToList(),
+
+            "firstname" or "name" or "nombre" => isDesc
+                ? dtos.OrderByDescending(d => $"{d.FirstName} {d.LastName}".Trim()).ThenBy(d => d.Email).ToList()
+                : dtos.OrderBy(d => $"{d.FirstName} {d.LastName}".Trim()).ThenBy(d => d.Email).ToList(),
+
+            "role" or "rol" => isDesc
+                ? dtos.OrderByDescending(d => d.AssignedRoles.FirstOrDefault()?.Name ?? (d.IsAdmin ? "SuperAdministrador" : "Z")).ThenBy(d => d.Email).ToList()
+                : dtos.OrderBy(d => d.AssignedRoles.FirstOrDefault()?.Name ?? (d.IsAdmin ? "SuperAdministrador" : "Z")).ThenBy(d => d.Email).ToList(),
+
+            "createdat" => isDesc
+                ? dtos.OrderByDescending(d => d.CreatedAt).ToList()
+                : dtos.OrderBy(d => d.CreatedAt).ToList(),
+
+            _ => isDesc
+                ? dtos.OrderByDescending(d => d.Email).ToList()
+                : dtos.OrderBy(d => d.Email).ToList()
+        });
+
+        var totalCount = dtos.Count;
+        var pagedItems = dtos
+            .Skip((query.PageNumber - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .ToList();
+
         var result = PaginatedResult<UserRoleManagementDto>.Create(
-            dtos, paged.TotalCount, paged.PageNumber, paged.PageSize);
+            pagedItems, totalCount, query.PageNumber, query.PageSize);
         return Result<PaginatedResult<UserRoleManagementDto>>.Success(result);
     }
 
@@ -255,16 +298,51 @@ public class RoleService : IRoleService
 
             var created = await _roleRepository.CreateUserAsync(user, new List<long> { dto.RoleId }, _currentUser.UserId);
 
-            if (baseUserRole == UserRole.Student)
+            var advisorFullName = dto.FullName;
+            if (string.IsNullOrWhiteSpace(advisorFullName) && (!string.IsNullOrWhiteSpace(dto.FirstName) || !string.IsNullOrWhiteSpace(dto.LastName)))
+            {
+                advisorFullName = $"{dto.FirstName} {dto.LastName}".Trim();
+            }
+
+            if (baseUserRole == UserRole.Student || !string.IsNullOrWhiteSpace(dto.ControlNumber) || !string.IsNullOrWhiteSpace(dto.FirstName))
             {
                 await _roleRepository.EnsureStudentProfileAsync(created.Id, created.Email, dto.ControlNumber, dto.FirstName, dto.LastName, dto.LastName2, dto.Curp, dto.CareerId, _currentUser.UserId, _currentUser.UserId);
             }
-            else if (baseUserRole == UserRole.Advisor)
+
+            if (baseUserRole == UserRole.Advisor || !string.IsNullOrWhiteSpace(dto.Phone) || !string.IsNullOrWhiteSpace(advisorFullName) || !string.IsNullOrWhiteSpace(dto.Title))
             {
-                await _roleRepository.EnsureAdvisorProfileAsync(created.Id, created.Email, dto.FullName, dto.Title, dto.DepartmentId, dto.Phone, dto.AdvisorType, _currentUser.UserId, _currentUser.UserId);
+                await _roleRepository.EnsureAdvisorProfileAsync(created.Id, created.Email, advisorFullName, dto.Title, dto.DepartmentId, dto.Phone, dto.AdvisorType, _currentUser.UserId, _currentUser.UserId);
             }
 
-            return Result<UserRoleManagementDto>.Success(MapUserToDto(created));
+            var responseDto = MapUserToDto(created);
+            var createdStudent = await _roleRepository.GetStudentByUserIdAsync(created.Id);
+            if (createdStudent != null)
+            {
+                responseDto.ControlNumber = createdStudent.ControlNumber;
+                responseDto.FirstName = createdStudent.FirstName;
+                responseDto.LastName = createdStudent.LastName;
+                responseDto.LastName2 = createdStudent.LastName2;
+                responseDto.Curp = createdStudent.Curp;
+                responseDto.CareerId = createdStudent.CareerId;
+            }
+            var createdAdvisor = await _roleRepository.GetAdvisorByUserIdAsync(created.Id);
+            if (createdAdvisor != null)
+            {
+                responseDto.FullName = createdAdvisor.FullName;
+                responseDto.Title = createdAdvisor.Title;
+                responseDto.DepartmentId = createdAdvisor.DepartmentId;
+                responseDto.Phone = createdAdvisor.Phone;
+                responseDto.AdvisorType = (int)createdAdvisor.AdvisorType;
+
+                if (string.IsNullOrWhiteSpace(responseDto.FirstName) && !string.IsNullOrWhiteSpace(createdAdvisor.FullName))
+                {
+                    var parts = createdAdvisor.FullName.Trim().Split(' ', 2);
+                    responseDto.FirstName = parts[0];
+                    if (parts.Length > 1) responseDto.LastName = parts[1];
+                }
+            }
+
+            return Result<UserRoleManagementDto>.Success(responseDto);
         }
         catch (Exception ex)
         {
@@ -318,16 +396,51 @@ public class RoleService : IRoleService
             var roleIdsList = dto.RoleId > 0 ? new List<long> { dto.RoleId } : null;
             var updated = await _roleRepository.UpdateUserAsync(user, roleIdsList!, _currentUser.UserId);
 
-            if (updated.Role == UserRole.Student)
+            var advisorFullName = dto.FullName;
+            if (string.IsNullOrWhiteSpace(advisorFullName) && (!string.IsNullOrWhiteSpace(dto.FirstName) || !string.IsNullOrWhiteSpace(dto.LastName)))
+            {
+                advisorFullName = $"{dto.FirstName} {dto.LastName}".Trim();
+            }
+
+            if (updated.Role == UserRole.Student || !string.IsNullOrWhiteSpace(dto.ControlNumber) || !string.IsNullOrWhiteSpace(dto.FirstName))
             {
                 await _roleRepository.EnsureStudentProfileAsync(updated.Id, updated.Email, dto.ControlNumber, dto.FirstName, dto.LastName, dto.LastName2, dto.Curp, dto.CareerId, _currentUser.UserId, _currentUser.UserId);
             }
-            else if (updated.Role == UserRole.Advisor)
+
+            if (updated.Role == UserRole.Advisor || !string.IsNullOrWhiteSpace(dto.Phone) || !string.IsNullOrWhiteSpace(advisorFullName) || !string.IsNullOrWhiteSpace(dto.Title))
             {
-                await _roleRepository.EnsureAdvisorProfileAsync(updated.Id, updated.Email, dto.FullName, dto.Title, dto.DepartmentId, dto.Phone, dto.AdvisorType, _currentUser.UserId, _currentUser.UserId);
+                await _roleRepository.EnsureAdvisorProfileAsync(updated.Id, updated.Email, advisorFullName, dto.Title, dto.DepartmentId, dto.Phone, dto.AdvisorType, _currentUser.UserId, _currentUser.UserId);
             }
 
-            return Result<UserRoleManagementDto>.Success(MapUserToDto(updated));
+            var responseDto = MapUserToDto(updated);
+            var updatedStudent = await _roleRepository.GetStudentByUserIdAsync(updated.Id);
+            if (updatedStudent != null)
+            {
+                responseDto.ControlNumber = updatedStudent.ControlNumber;
+                responseDto.FirstName = updatedStudent.FirstName;
+                responseDto.LastName = updatedStudent.LastName;
+                responseDto.LastName2 = updatedStudent.LastName2;
+                responseDto.Curp = updatedStudent.Curp;
+                responseDto.CareerId = updatedStudent.CareerId;
+            }
+            var updatedAdvisor = await _roleRepository.GetAdvisorByUserIdAsync(updated.Id);
+            if (updatedAdvisor != null)
+            {
+                responseDto.FullName = updatedAdvisor.FullName;
+                responseDto.Title = updatedAdvisor.Title;
+                responseDto.DepartmentId = updatedAdvisor.DepartmentId;
+                responseDto.Phone = updatedAdvisor.Phone;
+                responseDto.AdvisorType = (int)updatedAdvisor.AdvisorType;
+
+                if (string.IsNullOrWhiteSpace(responseDto.FirstName) && !string.IsNullOrWhiteSpace(updatedAdvisor.FullName))
+                {
+                    var parts = updatedAdvisor.FullName.Trim().Split(' ', 2);
+                    responseDto.FirstName = parts[0];
+                    if (parts.Length > 1) responseDto.LastName = parts[1];
+                }
+            }
+
+            return Result<UserRoleManagementDto>.Success(responseDto);
         }
         catch (Exception ex)
         {
