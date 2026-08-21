@@ -256,6 +256,9 @@ public class RoleService : IRoleService
         if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
             return Result<UserRoleManagementDto>.Failure("El correo y la contraseña son obligatorios", 400);
 
+        if (string.IsNullOrWhiteSpace(dto.FirstName) || string.IsNullOrWhiteSpace(dto.LastName) || string.IsNullOrWhiteSpace(dto.LastName2) || string.IsNullOrWhiteSpace(dto.ControlNumber) || string.IsNullOrWhiteSpace(dto.Phone))
+            return Result<UserRoleManagementDto>.Failure("Todos los campos (Nombre, Apellido Paterno, Apellido Materno, Matrícula y Teléfono) son obligatorios para registrar un nuevo usuario", 400);
+
         if (!InstitutionalEmail.IsValid(dto.Email))
             return Result<UserRoleManagementDto>.Failure(InstitutionalEmail.ErrorMessage, 400);
 

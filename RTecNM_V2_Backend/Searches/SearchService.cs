@@ -34,12 +34,18 @@ public class SearchService : ISearchService
         var all = _registry.GetAllMetadata();
         if (_currentUser.IsInRole(UserRole.Student) &&
             !_currentUser.IsInRole(UserRole.Admin) &&
+            !_currentUser.IsInRole(UserRole.Director) &&
+            !_currentUser.IsInRole(UserRole.Academic) &&
+            !_currentUser.IsInRole(UserRole.Vinculacion) &&
             !_currentUser.IsInRole(UserRole.DepartmentHead))
         {
             return all.Where(s => s.Key.Equals("COMPANIES", StringComparison.OrdinalIgnoreCase)).ToList();
         }
         if (_currentUser.IsInRole(UserRole.Advisor) &&
             !_currentUser.IsInRole(UserRole.Admin) &&
+            !_currentUser.IsInRole(UserRole.Director) &&
+            !_currentUser.IsInRole(UserRole.Academic) &&
+            !_currentUser.IsInRole(UserRole.Vinculacion) &&
             !_currentUser.IsInRole(UserRole.DepartmentHead))
         {
             return all.Where(s => s.Key.Equals("PROJECTS", StringComparison.OrdinalIgnoreCase) ||
@@ -105,6 +111,9 @@ public class SearchService : ISearchService
         // Seguridad RBAC: Si el usuario es Estudiante, limitar búsquedas a catálogo público de empresas.
         if (_currentUser.IsInRole(UserRole.Student) &&
             !_currentUser.IsInRole(UserRole.Admin) &&
+            !_currentUser.IsInRole(UserRole.Director) &&
+            !_currentUser.IsInRole(UserRole.Academic) &&
+            !_currentUser.IsInRole(UserRole.Vinculacion) &&
             !_currentUser.IsInRole(UserRole.DepartmentHead))
         {
             if (!request.SourceKey.Equals("COMPANIES", StringComparison.OrdinalIgnoreCase))
@@ -121,6 +130,9 @@ public class SearchService : ISearchService
         // Seguridad RBAC: Si el usuario es Asesor, limitar estrictamente sus búsquedas a sus anteproyectos asignados o empresas.
         if (_currentUser.IsInRole(UserRole.Advisor) &&
             !_currentUser.IsInRole(UserRole.Admin) &&
+            !_currentUser.IsInRole(UserRole.Director) &&
+            !_currentUser.IsInRole(UserRole.Academic) &&
+            !_currentUser.IsInRole(UserRole.Vinculacion) &&
             !_currentUser.IsInRole(UserRole.DepartmentHead))
         {
             var advisorProfile = await _advisorRepository.GetByUserIdAsync(_currentUser.UserId);

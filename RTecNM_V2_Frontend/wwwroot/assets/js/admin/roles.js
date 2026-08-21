@@ -84,9 +84,22 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    loadRolesData();
-    loadRoleOptions();
-    loadModulesData();
+    const isReadOnly = window.isReadOnlyUser && window.isReadOnlyUser();
+
+    if (isReadOnly) {
+      const rolesBtn = document.getElementById('tabRolesBtn');
+      if (rolesBtn) rolesBtn.style.display = 'none';
+
+      // Hide creation buttons for read-only roles (Director)
+      document.querySelectorAll('button[onclick="openCreateUserModal()"]').forEach(btn => btn.style.display = 'none');
+      document.querySelectorAll('button[onclick="openCreateRoleModal()"]').forEach(btn => btn.style.display = 'none');
+
+      switchTab('users');
+    } else {
+      loadRolesData();
+      loadRoleOptions();
+      loadModulesData();
+    }
 
     document.getElementById('userEmailInput')?.addEventListener('input', hideUserFormError);
 
@@ -312,6 +325,8 @@
       return;
     }
 
+    const isReadOnly = window.isReadOnlyUser && window.isReadOnlyUser();
+
     tbody.innerHTML = users.map(u => {
       let displayName = `${u.firstName || ''} ${u.lastName || ''}`.trim();
       if (u.lastName2) displayName += ` ${u.lastName2}`;
@@ -326,6 +341,9 @@
           ? `<span class="tecnm-badge tecnm-badge-approved">SuperAdministrador</span>`
           : `<span class="tecnm-badge tecnm-badge-pending">Sin Rol Asignado</span>`);
 
+      const editBtn = isReadOnly ? '' : `<button type="button" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" onclick="openEditUserModal(${u.userId})">Editar Usuario</button>`;
+      const auditBtn = `<button type="button" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" onclick="openUserAuditModal(${u.userId})">Auditoría</button>`;
+
       return `
         <tr>
           <td>
@@ -337,8 +355,8 @@
           <td>${assignedRoleName}</td>
           <td>
             <div class="tecnm-row-actions">
-              <button type="button" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" onclick="openEditUserModal(${u.userId})">Editar Usuario</button>
-              <button type="button" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" onclick="openUserAuditModal(${u.userId})">Auditoría</button>
+              ${editBtn}
+              ${auditBtn}
             </div>
           </td>
         </tr>
@@ -497,6 +515,7 @@
   }
 
   window.openCreateUserModal = () => {
+    if (window.isReadOnlyUser && window.isReadOnlyUser()) return;
     const titleEl = document.getElementById('userModalTitle');
     if (titleEl) titleEl.textContent = 'Registrar Usuario y Asignar Rol';
 
@@ -531,6 +550,7 @@
   };
 
   window.openEditUserModal = (userId) => {
+    if (window.isReadOnlyUser && window.isReadOnlyUser()) return;
     const user = allUsers.find(u => u.userId === userId);
     if (!user) return;
 
@@ -610,9 +630,16 @@
 
     const firstName = document.getElementById('userFirstNameInput')?.value.trim() || null;
     const lastName = document.getElementById('userLastNameInput')?.value.trim() || null;
-    const fullName = firstName ? (lastName ? `${firstName} ${lastName}` : firstName) : null;
-
+    const lastName2 = document.getElementById('userLastName2Input')?.value.trim() || null;
     const controlNumRaw = document.getElementById('userControlNumberInput')?.value.trim() || null;
+    const phone = document.getElementById('userPhoneInput')?.value.trim() || null;
+
+    if (!isEdit && (!firstName || !lastName || !lastName2 || !controlNumRaw || !phone || !password)) {
+      showUserFormError('Todos los campos son obligatorios para registrar un nuevo usuario (Nombre, Apellidos, Matrícula, Teléfono, Correo y Contraseña).');
+      return;
+    }
+
+    const fullName = firstName ? (lastName ? `${firstName} ${lastName}` : firstName) : null;
     const controlNumber = controlNumRaw ? controlNumRaw.toUpperCase() : null;
 
     const payload = {

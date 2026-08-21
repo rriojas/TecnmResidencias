@@ -35,6 +35,7 @@ public class EvaluationService : IEvaluationService
         _currentUser.IsInRole(UserRole.Admin) ||
         _currentUser.IsInRole(UserRole.Academic) ||
         _currentUser.IsInRole(UserRole.Vinculacion) ||
+        _currentUser.IsInRole(UserRole.Director) ||
         _currentUser.IsInRole(UserRole.DepartmentHead);
 
     public async Task<Result<EvaluationResponseDto>> GradeEvaluationAsync(GradeEvaluationDto dto)

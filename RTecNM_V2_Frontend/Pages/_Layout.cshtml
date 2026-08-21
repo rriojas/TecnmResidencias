@@ -119,15 +119,15 @@
                                 </ul>
                             </li>
 
-                            <li class="tecnm-nav-group" data-group="administracion" data-permission="admin.reports" data-roles="admin,departmenthead">
+                            <li class="tecnm-nav-group" data-group="administracion" data-roles="admin,departmenthead,director">
                                 <button type="button" class="tecnm-nav-group-btn" aria-expanded="false" aria-controls="navg-administracion">
                                     <span class="tecnm-nav-group-icon" data-nav-group-icon="chart" aria-hidden="true"></span>
                                     <span class="tecnm-nav-group-label">Administración</span>
                                     <span class="tecnm-nav-group-chevron" aria-hidden="true"></span>
                                 </button>
                                 <ul id="navg-administracion" class="tecnm-nav-sublist">
-                                    <li data-permission="admin.reports"><a class="tecnm-nav-item @(navActive == "reports" ? "active" : "")" href="/admin/reports" data-nav-icon="chart">Reportes y Liberación</a></li>
-                                    <li data-permission="admin.roles"><a class="tecnm-nav-item @(navActive == "roles" ? "active" : "")" href="/admin/roles" data-nav-icon="user-group">Roles y Permisos</a></li>
+                                    <li data-permission="admin.reports" data-roles="admin,departmenthead,director"><a class="tecnm-nav-item @(navActive == "reports" ? "active" : "")" href="/admin/reports" data-nav-icon="chart">Reportes y Liberación</a></li>
+                                    <li data-permission="admin.roles" data-roles="admin,departmenthead,director"><a class="tecnm-nav-item @(navActive == "roles" ? "active" : "")" href="/admin/roles" data-nav-icon="user-group">Usuarios y Roles</a></li>
                                 </ul>
                             </li>
                         </ul>

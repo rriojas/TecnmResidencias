@@ -26,7 +26,7 @@ public class AdvisorsController : ControllerBase
     }
 
     [HttpGet("export")]
-    [Authorize(Roles = "admin,departmenthead")]
+    [Authorize(Roles = "admin,departmenthead,director")]
     public async Task<IActionResult> ExportPdf([FromQuery] string? search, [FromQuery] string? sortBy, [FromQuery] string? sortDir, [FromQuery] bool includeInactive = false)
     {
         var result = await _advisorService.ExportPdfAsync(search, sortBy, sortDir, includeInactive);

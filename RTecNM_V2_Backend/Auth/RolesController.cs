@@ -11,10 +11,12 @@ namespace TecNM.Residency.Auth;
 public class RolesController : ControllerBase
 {
     private readonly IRoleService _roleService;
+    private readonly ICurrentUserService _currentUser;
 
-    public RolesController(IRoleService roleService)
+    public RolesController(IRoleService roleService, ICurrentUserService currentUser)
     {
         _roleService = roleService;
+        _currentUser = currentUser;
     }
 
     [HttpGet]
@@ -40,6 +42,9 @@ public class RolesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateRole([FromBody] CreateRoleDto dto)
     {
+        if (_currentUser.IsInRole(UserRole.Director))
+            return StatusCode(403, new { message = "El rol Director no tiene permisos para crear o modificar roles." });
+
         var result = await _roleService.CreateRoleAsync(dto);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
@@ -50,6 +55,9 @@ public class RolesController : ControllerBase
     [HttpPut("{id:long}")]
     public async Task<IActionResult> UpdateRole(long id, [FromBody] UpdateRoleDto dto)
     {
+        if (_currentUser.IsInRole(UserRole.Director))
+            return StatusCode(403, new { message = "El rol Director no tiene permisos para crear o modificar roles." });
+
         var result = await _roleService.UpdateRoleAsync(id, dto);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
@@ -60,6 +68,9 @@ public class RolesController : ControllerBase
     [HttpDelete("{id:long}")]
     public async Task<IActionResult> SoftDeleteRole(long id)
     {
+        if (_currentUser.IsInRole(UserRole.Director))
+            return StatusCode(403, new { message = "El rol Director no tiene permisos para eliminar roles." });
+
         var result = await _roleService.SoftDeleteRoleAsync(id);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
@@ -117,6 +128,9 @@ public class RolesController : ControllerBase
     [HttpPost("users")]
     public async Task<IActionResult> CreateUser([FromBody] CreateUserManagementDto dto)
     {
+        if (_currentUser.IsInRole(UserRole.Director))
+            return StatusCode(403, new { message = "El rol Director no tiene permisos para crear usuarios." });
+
         var result = await _roleService.CreateUserAsync(dto);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
@@ -127,6 +141,9 @@ public class RolesController : ControllerBase
     [HttpPut("users/{userId:long}")]
     public async Task<IActionResult> UpdateUser(long userId, [FromBody] UpdateUserManagementDto dto)
     {
+        if (_currentUser.IsInRole(UserRole.Director))
+            return StatusCode(403, new { message = "El rol Director no tiene permisos para modificar usuarios." });
+
         var result = await _roleService.UpdateUserAsync(userId, dto);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
@@ -137,6 +154,9 @@ public class RolesController : ControllerBase
     [HttpPost("users/{userId:long}/assign")]
     public async Task<IActionResult> AssignUserRoles(long userId, [FromBody] AssignUserRolesDto dto)
     {
+        if (_currentUser.IsInRole(UserRole.Director))
+            return StatusCode(403, new { message = "El rol Director no tiene permisos para asignar roles a usuarios." });
+
         var result = await _roleService.AssignUserRolesAsync(userId, dto);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
@@ -147,6 +167,9 @@ public class RolesController : ControllerBase
     [HttpPatch("users/{userId:long}/toggle-admin")]
     public async Task<IActionResult> ToggleUserAdminStatus(long userId, [FromBody] ToggleAdminDto dto)
     {
+        if (_currentUser.IsInRole(UserRole.Director))
+            return StatusCode(403, new { message = "El rol Director no tiene permisos para modificar permisos de administrador." });
+
         var result = await _roleService.ToggleUserAdminStatusAsync(userId, dto);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });

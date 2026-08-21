@@ -193,7 +193,7 @@ public static class DbSeeder
         {
             "students.profile.view", "advisors.manage", "projects.proposals", "activities.schedule",
             "advisories.session.view", "evaluations.summary.view", "documents.digital", "companies.view",
-            "admin.reports", "reports.export.excel"
+            "admin.reports", "reports.export.excel", "admin.roles"
         };
 
         var advisorSlugs = new HashSet<string>
