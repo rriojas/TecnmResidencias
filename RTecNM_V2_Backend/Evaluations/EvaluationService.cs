@@ -102,6 +102,18 @@ public class EvaluationService : IEvaluationService
         return Result<EvaluationResponseDto>.Success(MapEvaluationToDto(saved));
     }
 
+    public async Task<Result<bool>> DeleteEvaluationAsync(long id)
+    {
+        if (!IsStaff())
+            return Result<bool>.Failure("No tiene permisos para eliminar calificaciones.", 403);
+
+        var deleted = await _repository.SoftDeleteEvaluationAsync(id, _currentUser.UserId);
+        if (!deleted)
+            return Result<bool>.Failure("Calificación no encontrada o ya fue eliminada.", 404);
+
+        return Result<bool>.Success(true);
+    }
+
     public async Task<Result<PaginatedResult<EvaluationResponseDto>>> GetEvaluationsByProjectIdPagedAsync(long projectId, PaginationQuery query)
     {
         var paged = await _repository.GetEvaluationsByProjectIdPagedAsync(projectId, query);
@@ -157,6 +169,41 @@ public class EvaluationService : IEvaluationService
 
         var created = await _repository.CreateAdvisorySessionAsync(session);
         return Result<AdvisorySessionResponseDto>.Success(MapSessionToDto(created));
+    }
+
+    public async Task<Result<AdvisorySessionResponseDto>> UpdateAdvisorySessionAsync(long id, UpdateAdvisorySessionDto dto)
+    {
+        if (!IsStaff())
+            return Result<AdvisorySessionResponseDto>.Failure("No tiene permisos para editar sesiones de asesoría.", 403);
+
+        if (string.IsNullOrWhiteSpace(dto.TopicsCovered))
+            return Result<AdvisorySessionResponseDto>.Failure("Debe especificar los temas o avances abordados en la asesoría.");
+
+        var session = await _repository.GetSessionByIdAsync(id);
+        if (session == null || !session.IsActive)
+            return Result<AdvisorySessionResponseDto>.Failure("Sesión de asesoría no encontrada.", 404);
+
+        session.AdvisorId = dto.AdvisorId;
+        session.SessionDate = dto.SessionDate ?? session.SessionDate;
+        session.TopicsCovered = dto.TopicsCovered.Trim();
+        session.StudentAgreements = dto.StudentAgreements?.Trim();
+        session.UpdatedAt = DateTime.UtcNow;
+        session.UpdatedBy = _currentUser.UserId;
+
+        await _repository.UpdateSessionAsync(session);
+        return Result<AdvisorySessionResponseDto>.Success(MapSessionToDto(session));
+    }
+
+    public async Task<Result<bool>> DeleteAdvisorySessionAsync(long id)
+    {
+        if (!IsStaff())
+            return Result<bool>.Failure("No tiene permisos para eliminar sesiones de asesoría.", 403);
+
+        var deleted = await _repository.SoftDeleteSessionAsync(id, _currentUser.UserId);
+        if (!deleted)
+            return Result<bool>.Failure("Sesión de asesoría no encontrada o ya fue eliminada.", 404);
+
+        return Result<bool>.Success(true);
     }
 
     public async Task<Result<PaginatedResult<AdvisorySessionResponseDto>>> GetAdvisorySessionsByProjectIdPagedAsync(long projectId, PaginationQuery query, bool includeInactive = false)

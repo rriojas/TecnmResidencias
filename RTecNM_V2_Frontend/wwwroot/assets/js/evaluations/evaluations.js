@@ -197,6 +197,17 @@ function initAdvisorySessionsPage() {
   if (form) {
     form.addEventListener('submit', handleAdvisorySubmit);
   }
+
+  // Edit modal wiring
+  const editModal = document.getElementById('editAdvisoryModal');
+  const closeEditBtn = document.getElementById('closeEditAdvisoryModalBtn');
+  const cancelEditBtn = document.getElementById('cancelEditAdvisoryModalBtn');
+  const hideEditModal = () => { if (editModal) editModal.classList.remove('active'); };
+  if (closeEditBtn) closeEditBtn.addEventListener('click', hideEditModal);
+  if (cancelEditBtn) cancelEditBtn.addEventListener('click', hideEditModal);
+
+  const editForm = document.getElementById('editAdvisoryForm');
+  if (editForm) editForm.addEventListener('submit', handleEditSessionSubmit);
 }
 
 async function resolveCurrentStudentProjectForSessions() {
@@ -436,6 +447,7 @@ async function loadAdvisorySessions() {
         : 'No hay sesiones de asesoría registradas en la base de datos para este proyecto.';
       tbody.innerHTML = `<tr><td colspan="6" class="tecnm-table-empty">${emptyMessage}</td></tr>`;
     } else {
+      const isStaffUser = window.hasRole && window.hasRole('admin', 'departmenthead');
       tbody.innerHTML = sessions.map(s => `
         <tr>
           <td>${window.formatTecNMDate(s.sessionDate)}</td>
@@ -443,7 +455,12 @@ async function loadAdvisorySessions() {
           <td>${escapeHtml(s.advisorName || `Asesor #${s.advisorId}`)}</td>
           <td>${escapeHtml(s.topicsCovered)}</td>
           <td>${escapeHtml(s.studentAgreements || 'N/A')}</td>
-          <td>${canSeeAudit ? `<button class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" onclick="openSessionAuditModal(${s.id})">Auditoría</button>` : '—'}</td>
+          <td class="tecnm-d-flex tecnm-gap-1" style="flex-wrap:wrap;">
+            ${isStaffUser ? `<button class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" onclick="openEditSessionModal(${s.id})">Editar</button>` : ''}
+            ${canSeeAudit ? `<button class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" onclick="openSessionAuditModal(${s.id})">Auditoría</button>` : ''}
+            ${isStaffUser ? `<button class="tecnm-btn tecnm-btn-danger tecnm-btn-sm" onclick="deleteSession(${s.id})">Eliminar</button>` : ''}
+            ${!isStaffUser && !canSeeAudit ? '—' : ''}
+          </td>
         </tr>
       `).join('');
     }
@@ -511,6 +528,85 @@ async function handleAdvisorySubmit(e) {
   }
 }
 
+window.openEditSessionModal = async function(id) {
+  const s = sessionsCache.find(item => item.id === id);
+  if (!s) return;
+
+  document.getElementById('editSessionId').value = s.id;
+  document.getElementById('editSessionDate').value = s.sessionDate
+    ? new Date(s.sessionDate).toISOString().split('T')[0]
+    : '';
+  document.getElementById('editTopicsCovered').value = s.topicsCovered || '';
+  document.getElementById('editStudentAgreements').value = s.studentAgreements || '';
+
+  await loadAdvisorsDropdown('editAdvisorId');
+  const advisorSelect = document.getElementById('editAdvisorId');
+  if (advisorSelect && s.advisorId) advisorSelect.value = s.advisorId;
+
+  const modal = document.getElementById('editAdvisoryModal');
+  if (modal) modal.classList.add('active');
+};
+
+async function handleEditSessionSubmit(e) {
+  e.preventDefault();
+  const id = parseInt(document.getElementById('editSessionId').value, 10);
+  const advisorId = parseInt(document.getElementById('editAdvisorId').value, 10);
+  const sessionDate = document.getElementById('editSessionDate').value;
+  const topicsCovered = document.getElementById('editTopicsCovered').value.trim();
+  const studentAgreements = document.getElementById('editStudentAgreements').value.trim();
+
+  if (!topicsCovered) {
+    showAlert('Debe especificar los temas abordados.', 'warning');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_EVAL_BASE}/sessions/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        advisorId,
+        sessionDate: sessionDate ? new Date(sessionDate).toISOString() : null,
+        topicsCovered,
+        studentAgreements
+      })
+    });
+
+    if (res.ok) {
+      showAlert('Sesión de asesoría actualizada correctamente.', 'success');
+      const modal = document.getElementById('editAdvisoryModal');
+      if (modal) modal.classList.remove('active');
+      loadAdvisorySessions();
+    } else {
+      const err = await res.json();
+      showAlert(err.message || 'Error al actualizar la sesión.', 'danger');
+    }
+  } catch {
+    showAlert('Error de conexión con el servidor.', 'danger');
+  }
+}
+
+window.deleteSession = async function(id) {
+  if (!confirm('¿Está seguro de que desea eliminar esta sesión de asesoría? Esta acción no se puede deshacer.')) return;
+
+  try {
+    const res = await fetch(`${API_EVAL_BASE}/sessions/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+
+    if (res.ok) {
+      showAlert('Sesión de asesoría eliminada correctamente.', 'success');
+      loadAdvisorySessions();
+    } else {
+      const err = await res.json();
+      showAlert(err.message || 'Error al eliminar la sesión.', 'danger');
+    }
+  } catch {
+    showAlert('Error de conexión con el servidor.', 'danger');
+  }
+};
+
 // -------------------------------------------------------------
 // Grading Page Logic
 // -------------------------------------------------------------
@@ -577,6 +673,16 @@ function initGradingPage() {
   if (form) {
     form.addEventListener('submit', handleGradingSubmit);
   }
+
+  // Edit modal wiring
+  const editModal = document.getElementById('editGradingModal');
+  const hideEditModal = () => { if (editModal) editModal.classList.remove('active'); };
+  const closeEditBtn = document.getElementById('closeEditGradingModalBtn');
+  const cancelEditBtn = document.getElementById('cancelEditGradingModalBtn');
+  if (closeEditBtn) closeEditBtn.addEventListener('click', hideEditModal);
+  if (cancelEditBtn) cancelEditBtn.addEventListener('click', hideEditModal);
+  const editForm = document.getElementById('editGradingForm');
+  if (editForm) editForm.addEventListener('submit', handleEditEvaluationSubmit);
 }
 
 async function resolveCurrentStudentProjectForGrading() {
@@ -662,10 +768,12 @@ async function loadEvaluations() {
     }
 
     const canSeeAudit = window.canSeeAudit ? window.canSeeAudit() : false;
+    const isStaffUser = window.hasRole && window.hasRole('admin', 'departmenthead');
 
     if (evaluations.length === 0) {
       tbody.innerHTML = `<tr><td colspan="6" class="tecnm-table-empty">No hay calificaciones registradas en la base de datos para este proyecto.</td></tr>`;
     } else {
+
       tbody.innerHTML = evaluations.map(e => `
         <tr>
           <td><span class="tecnm-badge tecnm-badge-info">${escapeHtml(formatPeriod(e.evaluationPeriod))}</span></td>
@@ -673,7 +781,12 @@ async function loadEvaluations() {
           <td>${escapeHtml(e.studentName || `Estudiante #${e.projectId}`)}</td>
           <td>${escapeHtml(e.feedback || 'Sin observaciones')}</td>
           <td>${window.formatTecNMDate(e.createdAt)}</td>
-          <td>${canSeeAudit ? `<button class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" onclick="openEvaluationAuditModal(${e.id})">Auditoría</button>` : '—'}</td>
+          <td class="tecnm-d-flex tecnm-gap-1" style="flex-wrap:wrap;">
+            ${isStaffUser ? `<button class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" onclick="openEditEvaluationModal(${e.id})">Editar</button>` : ''}
+            ${canSeeAudit ? `<button class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" onclick="openEvaluationAuditModal(${e.id})">Auditoría</button>` : ''}
+            ${isStaffUser ? `<button class="tecnm-btn tecnm-btn-danger tecnm-btn-sm" onclick="deleteEvaluation(${e.id})">Eliminar</button>` : ''}
+            ${!isStaffUser && !canSeeAudit ? '—' : ''}
+          </td>
         </tr>
       `).join('');
     }
@@ -777,6 +890,81 @@ window.displaySingleEvaluation = (row) => {
         <td class="tecnm-text-center">—</td>
       </tr>
     `;
+  }
+}
+
+window.openEditEvaluationModal = async function(id) {
+  const e = evaluationsCache.find(item => item.id === id);
+  if (!e) return;
+
+  document.getElementById('editEvaluationId').value = e.id;
+  document.getElementById('editEvaluationProjectId').value = e.projectId;
+  document.getElementById('editEvaluationPeriodHidden').value = e.evaluationPeriod;
+  document.getElementById('editEvaluationPeriodDisplay').value = formatPeriod(e.evaluationPeriod);
+  document.getElementById('editScore').value = e.score;
+  document.getElementById('editFeedback').value = e.feedback || '';
+
+  await loadAdvisorsDropdown('editEvaluatorId');
+  const evaluatorSelect = document.getElementById('editEvaluatorId');
+  if (evaluatorSelect && e.evaluatorId) evaluatorSelect.value = e.evaluatorId;
+
+  const modal = document.getElementById('editGradingModal');
+  if (modal) modal.classList.add('active');
+};
+
+async function handleEditEvaluationSubmit(evt) {
+  evt.preventDefault();
+  const projectId = parseInt(document.getElementById('editEvaluationProjectId').value, 10);
+  const evaluatorId = parseInt(document.getElementById('editEvaluatorId').value, 10);
+  const evaluationPeriod = document.getElementById('editEvaluationPeriodHidden').value;
+  const score = parseFloat(document.getElementById('editScore').value);
+  const feedback = document.getElementById('editFeedback').value.trim();
+
+  if (isNaN(score) || score < 0 || score > 100) {
+    showAlert('La calificación debe ser un valor entre 0 y 100.', 'warning');
+    return;
+  }
+
+  try {
+    // Reuses the POST endpoint which does upsert by period
+    const res = await fetch(API_EVAL_BASE, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ projectId, evaluatorId, evaluationPeriod, score, feedback })
+    });
+
+    if (res.ok) {
+      showAlert('Calificación actualizada correctamente.', 'success');
+      const modal = document.getElementById('editGradingModal');
+      if (modal) modal.classList.remove('active');
+      loadEvaluations();
+    } else {
+      const err = await res.json();
+      showAlert(err.message || 'Error al actualizar la calificación.', 'danger');
+    }
+  } catch {
+    showAlert('Error de conexión con el servidor.', 'danger');
+  }
+}
+
+window.deleteEvaluation = async function(id) {
+  if (!confirm('¿Está seguro de que desea eliminar esta calificación? Esta acción no se puede deshacer.')) return;
+
+  try {
+    const res = await fetch(`${API_EVAL_BASE}/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+
+    if (res.ok) {
+      showAlert('Calificación eliminada correctamente.', 'success');
+      loadEvaluations();
+    } else {
+      const err = await res.json();
+      showAlert(err.message || 'Error al eliminar la calificación.', 'danger');
+    }
+  } catch {
+    showAlert('Error de conexión con el servidor.', 'danger');
   }
 };
 
