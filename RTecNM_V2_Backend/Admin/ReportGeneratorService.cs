@@ -80,6 +80,11 @@ public class ReportGeneratorService : IReportGeneratorService
         if (avgScore < 70m)
             return Result<DocumentDto>.Failure($"La residencia no cumple con el puntaje mínimo de liberación (Promedio: {avgScore:F2} / 100, Mínimo: 70.00).");
 
+        project.Status = TecNM.Residency.Projects.ProjectStatus.Completed;
+        project.UpdatedAt = DateTime.UtcNow;
+        _context.Projects.Update(project);
+        await _context.SaveChangesAsync();
+
         var doc = new DocumentDto(
             DateTime.UtcNow.Ticks,
             projectId,
