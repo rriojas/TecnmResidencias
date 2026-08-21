@@ -36,6 +36,30 @@ public class EvaluationRepository : IEvaluationRepository
         return evaluation;
     }
 
+    public async Task<Evaluation?> GetEvaluationByIdAsync(long id)
+    {
+        return await _context.Evaluations
+            .Include(e => e.Project)
+                .ThenInclude(p => p!.Student)
+                .ThenInclude(s => s!.User)
+            .FirstOrDefaultAsync(e => e.Id == id);
+    }
+
+    public async Task<bool> SoftDeleteEvaluationAsync(long id, long? deletedBy)
+    {
+        var eval = await _context.Evaluations.FirstOrDefaultAsync(e => e.Id == id);
+        if (eval == null || !eval.IsActive) return false;
+
+        eval.IsActive = false;
+        eval.DeletedAt = DateTime.UtcNow;
+        eval.DeletedBy = deletedBy;
+        eval.UpdatedAt = DateTime.UtcNow;
+        eval.UpdatedBy = deletedBy;
+        _context.Evaluations.Update(eval);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     public async Task<PaginatedResult<Evaluation>> GetEvaluationsByProjectIdPagedAsync(long projectId, PaginationQuery query)
     {
         var q = _context.Evaluations
@@ -53,6 +77,37 @@ public class EvaluationRepository : IEvaluationRepository
         _context.AdvisorySessions.Add(session);
         await _context.SaveChangesAsync();
         return session;
+    }
+
+    public async Task<AdvisorySession?> GetSessionByIdAsync(long id)
+    {
+        return await _context.AdvisorySessions
+            .Include(s => s.Project)
+                .ThenInclude(p => p!.Student)
+                .ThenInclude(s => s!.User)
+            .Include(s => s.Advisor)
+            .FirstOrDefaultAsync(s => s.Id == id);
+    }
+
+    public async Task UpdateSessionAsync(AdvisorySession session)
+    {
+        _context.AdvisorySessions.Update(session);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<bool> SoftDeleteSessionAsync(long id, long? deletedBy)
+    {
+        var session = await _context.AdvisorySessions.FirstOrDefaultAsync(s => s.Id == id);
+        if (session == null || !session.IsActive) return false;
+
+        session.IsActive = false;
+        session.DeletedAt = DateTime.UtcNow;
+        session.DeletedBy = deletedBy;
+        session.UpdatedAt = DateTime.UtcNow;
+        session.UpdatedBy = deletedBy;
+        _context.AdvisorySessions.Update(session);
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     public async Task<PaginatedResult<AdvisorySession>> GetAdvisorySessionsByProjectIdPagedAsync(long projectId, PaginationQuery query, bool includeInactive = false)

@@ -135,3 +135,44 @@
         </form>
     </div>
 </div>
+
+<!-- Modal Editar Sesión de Asesoría -->
+<div id="editAdvisoryModal" class="modal-backdrop">
+    <div class="modal-card">
+        <div class="tecnm-modal-header">
+            <h3 class="tecnm-modal-title">Editar Sesión de Asesoría</h3>
+            <button type="button" id="closeEditAdvisoryModalBtn" class="tecnm-modal-close" aria-label="Cerrar">&times;</button>
+        </div>
+
+        <form id="editAdvisoryForm">
+            <input type="hidden" id="editSessionId">
+
+            <div class="tecnm-form-group">
+                <label for="editAdvisorId" class="tecnm-label">Asesor Responsable *</label>
+                <select id="editAdvisorId" class="tecnm-form-control" required>
+                    <option value="">Cargando asesores...</option>
+                </select>
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="editSessionDate" class="tecnm-label">Fecha de Sesión *</label>
+                <input type="date" id="editSessionDate" class="tecnm-form-control" required>
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="editTopicsCovered" class="tecnm-label">Temas o Avances Abordados *</label>
+                <textarea id="editTopicsCovered" class="tecnm-form-control" rows="3" required></textarea>
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="editStudentAgreements" class="tecnm-label">Acuerdos y Compromisos del Estudiante</label>
+                <textarea id="editStudentAgreements" class="tecnm-form-control" rows="2"></textarea>
+            </div>
+
+            <div class="tecnm-modal-footer">
+                <button type="button" id="cancelEditAdvisoryModalBtn" class="tecnm-btn tecnm-btn-secondary">Cancelar</button>
+                <button type="submit" class="tecnm-btn tecnm-btn-primary">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>

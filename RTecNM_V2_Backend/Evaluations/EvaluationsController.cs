@@ -35,6 +35,17 @@ public class EvaluationsController : ControllerBase
         return Ok(result.Data);
     }
 
+    [HttpDelete("{id:long}")]
+    [Authorize(Roles = "admin,departmenthead")]
+    public async Task<IActionResult> DeleteEvaluation(long id)
+    {
+        var result = await _evaluationService.DeleteEvaluationAsync(id);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(new { message = "Calificación eliminada correctamente." });
+    }
+
     [HttpGet("project/{projectId:long}")]
     public async Task<IActionResult> GetByProject(long projectId, [FromQuery] PaginationQuery query)
     {
@@ -63,6 +74,28 @@ public class EvaluationsController : ControllerBase
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 
         return Ok(result.Data);
+    }
+
+    [HttpPut("sessions/{id:long}")]
+    [Authorize(Roles = "admin,departmenthead")]
+    public async Task<IActionResult> UpdateSession(long id, [FromBody] UpdateAdvisorySessionDto dto)
+    {
+        var result = await _evaluationService.UpdateAdvisorySessionAsync(id, dto);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
+
+    [HttpDelete("sessions/{id:long}")]
+    [Authorize(Roles = "admin,departmenthead")]
+    public async Task<IActionResult> DeleteSession(long id)
+    {
+        var result = await _evaluationService.DeleteAdvisorySessionAsync(id);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(new { message = "Sesión de asesoría eliminada correctamente." });
     }
 
     [HttpGet("sessions")]
