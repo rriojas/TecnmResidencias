@@ -54,7 +54,7 @@ function initProposalAutocompletes() {
           return [];
         }
       },
-      titleExtractor: (c) => c.name || `Empresa #${c.id}`,
+      titleExtractor: (c) => c.name || 'Empresa',
       subtitleExtractor: (c) => `RFC: ${c.rfc || 'Sin RFC'}`
     });
   }
@@ -66,7 +66,7 @@ function initProposalAutocompletes() {
       placeholder: 'Buscar asesor por nombre...',
       endpoint: '/api/v1/advisors',
       globalSearchSource: 'ADVISORS',
-      titleExtractor: (a) => a.fullName || a.name || `Asesor #${a.id}`,
+      titleExtractor: (a) => a.fullName || a.name || 'Asesor',
       subtitleExtractor: (a) => a.departmentName ? `Depto: ${a.departmentName}` : (a.email || '')
     });
   }
@@ -81,7 +81,7 @@ function initProposalAutocompletes() {
         placeholder: 'Buscar estudiante por nombre o no. control...',
         endpoint: '/api/v1/students',
         globalSearchSource: 'STUDENTS',
-        titleExtractor: (s) => s.fullName || `${s.firstName} ${s.lastName}`.trim() || `Estudiante #${s.id}`,
+        titleExtractor: (s) => s.fullName || `${s.firstName} ${s.lastName}`.trim() || 'Estudiante',
         subtitleExtractor: (s) => `No. Control: ${s.controlNumber || 'S/N'}${s.career ? ' • ' + s.career : ''}`
       });
     }
@@ -381,13 +381,13 @@ async function openProposalEditModal(id) {
     editingProposalId = id;
 
     if (proposalCompanyAutocomplete) {
-      proposalCompanyAutocomplete.setValue(p.companyId ? { id: p.companyId, name: p.companyName || `Empresa #${p.companyId}` } : null);
+      proposalCompanyAutocomplete.setValue(p.companyId ? { id: p.companyId, name: p.companyName || 'Empresa' } : null);
     }
     if (proposalAdvisorAutocomplete) {
-      proposalAdvisorAutocomplete.setValue(p.advisorId ? { id: p.advisorId, fullName: p.advisorName || `Asesor #${p.advisorId}` } : null);
+      proposalAdvisorAutocomplete.setValue(p.advisorId ? { id: p.advisorId, fullName: p.advisorName || 'Asesor' } : null);
     }
     if (proposalStudentAutocomplete) {
-      proposalStudentAutocomplete.setValue(p.studentId ? { id: p.studentId, fullName: p.studentName || `Estudiante #${p.studentId}`, controlNumber: p.studentControlNumber } : null);
+      proposalStudentAutocomplete.setValue(p.studentId ? { id: p.studentId, fullName: p.studentName || 'Estudiante', controlNumber: p.studentControlNumber } : null);
     }
 
     document.getElementById('title').value = p.title || '';
@@ -742,7 +742,7 @@ function renderProjectsTable(projects) {
   tbody.innerHTML = projects.map(p => `
     <tr>
       <td>${escapeHtml(p.title)}</td>
-      <td>${escapeHtml(p.studentName || `Estudiante #${p.studentId}`)}</td>
+      <td>${escapeHtml(p.studentName || 'Estudiante')}</td>
       <td>${window.formatTecNMDate(p.createdAt)}</td>
       <td>${getBadgeHtml(p.status)}</td>
       <td>
@@ -767,7 +767,7 @@ async function openReviewModal(projectId) {
     document.getElementById('modalProjectId').innerText = p.id;
     document.getElementById('modalProjectTitle').innerText = p.title;
     const studentEl = document.getElementById('modalStudentName');
-    if (studentEl) studentEl.innerText = p.studentName || `Estudiante #${p.studentId}`;
+    if (studentEl) studentEl.innerText = p.studentName || 'Estudiante';
     document.getElementById('modalProblemStatement').innerText = p.problemStatement;
     document.getElementById('modalJustification').innerText = p.justification;
     document.getElementById('modalGeneralObjective').innerText = p.generalObjective;

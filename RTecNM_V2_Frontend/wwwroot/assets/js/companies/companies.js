@@ -186,7 +186,7 @@ function openCompanyEditModal(id) {
   if (!company) return;
 
   editingCompanyId = id;
-  document.getElementById('companyModalTitle').textContent = `Editar Empresa #${company.id}`;
+  document.getElementById('companyModalTitle').textContent = 'Editar Empresa';
   document.getElementById('companyNameInput').value = company.name || '';
   document.getElementById('companyRfcInput').value = company.rfc || '';
   document.getElementById('companySectorInput').value = company.sector || '';
