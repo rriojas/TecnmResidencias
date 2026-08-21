@@ -530,6 +530,8 @@
     loadAdminDashboard(false);
   } else if (roleLower === 'departmenthead' || roleLower === 'department_head') {
     loadAdminDashboard(true);
+  } else if (roleLower === 'vinculacion') {
+    loadAdminDashboard(false);
   } else if (roleLower === 'student') {
     loadStudentDashboard();
   } else if (roleLower === 'advisor') {

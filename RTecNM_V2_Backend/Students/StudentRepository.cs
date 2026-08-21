@@ -14,7 +14,7 @@ public class StudentRepository : IStudentRepository
 
     public async Task<PaginatedResult<Student>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
     {
-        IQueryable<Student> q = _context.Students.Include(s => s.User);
+        IQueryable<Student> q = _context.Students.Include(s => s.User).Include(s => s.Advisor);
 
         if (status == "active")
             q = q.Where(s => s.IsActive);
@@ -75,6 +75,7 @@ public class StudentRepository : IStudentRepository
     {
         return await _context.Students
             .Include(s => s.User)
+            .Include(s => s.Advisor)
             .FirstOrDefaultAsync(s => s.Id == id);
     }
 
@@ -90,6 +91,7 @@ public class StudentRepository : IStudentRepository
     {
         return await _context.Students
             .Include(s => s.User)
+            .Include(s => s.Advisor)
             .FirstOrDefaultAsync(s => s.UserId == userId);
     }
 

@@ -1,3 +1,4 @@
+using TecNM.Residency.Advisors;
 using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
 
@@ -13,7 +14,9 @@ public class Student : BaseEntity
     public string? Curp { get; set; }                    // Maps to curp
     public long CareerId { get; set; }
     public int? AcademicPeriodId { get; set; }           // Maps to academic_period_id
+    public long? AdvisorId { get; set; }
     public decimal Gpa { get; set; }
 
     public User? User { get; set; }
+    public Advisor? Advisor { get; set; }
 }

@@ -8,6 +8,8 @@ public class StudentResponseDto
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public long CareerId { get; set; }
+    public long? AdvisorId { get; set; }
+    public string? AdvisorName { get; set; }
     public string Email { get; set; } = string.Empty;
     public decimal Gpa { get; set; }
     public bool IsActive { get; set; }

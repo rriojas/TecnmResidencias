@@ -89,6 +89,7 @@
                                 <ul id="navg-academica" class="tecnm-nav-sublist">
                                     <li data-permission="students.manage" data-roles="admin,departmenthead"><a class="tecnm-nav-item @(navActive == "students" ? "active" : "")" href="/students" data-nav-icon="users">Estudiantes</a></li>
                                     <li data-permission="advisors.manage" data-roles="admin,departmenthead"><a class="tecnm-nav-item @(navActive == "advisors" ? "active" : "")" href="/advisors" data-nav-icon="user-group">Asesores</a></li>
+                                    <li data-permission="projects.advisor.assign" data-roles="admin,departmenthead"><a class="tecnm-nav-item @(navActive == "assign_advisor" ? "active" : "")" href="/advisors/assign" data-nav-icon="user-check">Asignación de Asesores</a></li>
                                     <li data-permission="companies.view" data-roles="admin,vinculacion,departmenthead,academic,director,student"><a class="tecnm-nav-item @(navActive == "companies" ? "active" : "")" href="/companies" data-nav-icon="building">Empresas Receptoras</a></li>
                                 </ul>
                             </li>
@@ -101,7 +102,7 @@
                                 </button>
                                 <ul id="navg-residencia" class="tecnm-nav-sublist">
                                     <li data-permission="projects.proposals"><a class="tecnm-nav-item @(navActive == "proposal" ? "active" : "")" href="/projects/proposal" data-nav-icon="pencil">Solicitud de Anteproyecto</a></li>
-                                    <li data-permission="projects.review" data-roles="admin,departmenthead,advisor"><a class="tecnm-nav-item @(navActive == "review" ? "active" : "")" href="/projects/review" data-nav-icon="clipboard">Dictamen de División</a></li>
+                                    <li data-permission="projects.review" data-roles="admin,vinculacion,departmenthead,advisor"><a class="tecnm-nav-item @(navActive == "review" ? "active" : "")" href="/projects/review" data-nav-icon="clipboard">Dictamen de División</a></li>
                                     <li data-permission="activities.schedule"><a class="tecnm-nav-item @(navActive == "schedule" ? "active" : "")" href="/activities/schedule" data-nav-icon="calendar">Cronograma de Actividades</a></li>
                                 </ul>
                             </li>

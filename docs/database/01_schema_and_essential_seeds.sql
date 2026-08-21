@@ -186,7 +186,8 @@ CREATE TABLE students (
     curp VARCHAR(20) NULL,
     career_id BIGINT NOT NULL,
     academic_period_id INT NULL,
-    gpa NUMERIC(5,2) NOT NULL DEFAULT 0.00,
+    advisor_id BIGINT NULL,
+    gpa NUMERIC(5, 2) NOT NULL DEFAULT 0.00,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     is_visible BOOLEAN NOT NULL DEFAULT TRUE,
     display_order INT NOT NULL DEFAULT 0,
@@ -594,8 +595,7 @@ WHERE p.slug IN (
     'students.profile.view', 'students.profile.update', 'students.eligibility.verify', 'students.manage', 'advisors.manage',
     'projects.proposals', 'projects.proposal.update', 'projects.review', 'projects.delete', 'projects.advisor.assign', 'projects.manage',
     'activities.schedule', 'activities.progress.validate',
-    'evaluations.advisories', 'advisories.session.view',
-    'evaluations.grading', 'evaluations.summary.view',
+    'evaluations.advisories', 'advisories.session.view', 'evaluations.summary.view',
     'documents.digital', 'documents.upload', 'documents.verify',
     'companies.view'
 )
@@ -608,7 +608,7 @@ FROM permissions p
 WHERE p.slug IN (
     'companies.view', 'companies.create', 'companies.manage',
     'documents.digital', 'documents.verify', 'documents.letters.generate',
-    'students.profile.view', 'advisors.manage', 'projects.proposals',
+    'students.profile.view', 'advisors.manage', 'projects.proposals', 'projects.review',
     'admin.reports', 'reports.export.excel'
 )
 ON CONFLICT (role_id, permission_id) DO NOTHING;

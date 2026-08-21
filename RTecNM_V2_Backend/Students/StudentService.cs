@@ -1,18 +1,30 @@
+using TecNM.Residency.Advisors;
 using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
+using TecNM.Residency.Projects;
 
 namespace TecNM.Residency.Students;
 
 public class StudentService : IStudentService
 {
     private readonly IStudentRepository _studentRepository;
+    private readonly IAdvisorRepository _advisorRepository;
+    private readonly IProjectRepository _projectRepository;
     private readonly IAuthRepository _authRepository;
     private readonly IRoleRepository _roleRepository;
     private readonly ICurrentUserService _currentUser;
 
-    public StudentService(IStudentRepository studentRepository, IAuthRepository authRepository, IRoleRepository roleRepository, ICurrentUserService currentUser)
+    public StudentService(
+        IStudentRepository studentRepository,
+        IAdvisorRepository advisorRepository,
+        IProjectRepository projectRepository,
+        IAuthRepository authRepository,
+        IRoleRepository roleRepository,
+        ICurrentUserService currentUser)
     {
         _studentRepository = studentRepository;
+        _advisorRepository = advisorRepository;
+        _projectRepository = projectRepository;
         _authRepository = authRepository;
         _roleRepository = roleRepository;
         _currentUser = currentUser;
@@ -191,6 +203,35 @@ public class StudentService : IStudentService
         return Result<bool>.Success(true);
     }
 
+    public async Task<Result<StudentResponseDto>> AssignAdvisorAsync(long studentId, long advisorId)
+    {
+        var student = await _studentRepository.GetByIdAsync(studentId);
+        if (student is null)
+            return Result<StudentResponseDto>.Failure("Estudiante no encontrado.", 404);
+
+        var advisor = await _advisorRepository.GetByIdAsync(advisorId);
+        if (advisor is null)
+            return Result<StudentResponseDto>.Failure("Asesor no encontrado.", 404);
+
+        student.AdvisorId = advisor.Id;
+        student.Advisor = advisor;
+        student.UpdatedAt = DateTime.UtcNow;
+        student.UpdatedBy = _currentUser.UserId;
+
+        await _studentRepository.UpdateAsync(student);
+
+        var project = await _projectRepository.GetByStudentIdAsync(studentId);
+        if (project is not null)
+        {
+            project.AdvisorId = advisor.Id;
+            project.UpdatedAt = DateTime.UtcNow;
+            project.UpdatedBy = _currentUser.UserId;
+            await _projectRepository.UpdateAsync(project);
+        }
+
+        return Result<StudentResponseDto>.Success(MapToResponseDto(student));
+    }
+
     private static StudentResponseDto MapToResponseDto(Student student)
     {
         return new StudentResponseDto
@@ -201,6 +242,8 @@ public class StudentService : IStudentService
             FirstName = student.FirstName,
             LastName = student.LastName,
             CareerId = student.CareerId,
+            AdvisorId = student.AdvisorId,
+            AdvisorName = student.Advisor?.FullName,
             Email = student.User?.Email ?? string.Empty,
             Gpa = student.Gpa,
             IsActive = student.IsActive,

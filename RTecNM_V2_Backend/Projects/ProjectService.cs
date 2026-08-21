@@ -74,21 +74,22 @@ public class ProjectService : IProjectService
         // Resolver la atribución del anteproyecto desde la sesión activa.
         long studentId;
         long? advisorId = null;
+        Student? targetStudent = null;
 
         if (_currentUser.IsInRole(UserRole.Student))
         {
-            var student = await _studentRepository.GetByUserIdAsync(_currentUser.UserId);
-            if (student is null)
+            targetStudent = await _studentRepository.GetByUserIdAsync(_currentUser.UserId);
+            if (targetStudent is null)
                 return Result<ProjectResponseDto>.Failure("No se encontró un perfil de estudiante asociado a tu cuenta.", 403);
 
-            studentId = student.Id;
+            studentId = targetStudent.Id;
         }
         else if (_currentUser.IsInRole(UserRole.Admin))
         {
             if (!dto.StudentId.HasValue || dto.StudentId.Value <= 0)
                 return Result<ProjectResponseDto>.Failure("Los administradores no pueden registrar anteproyectos a nombre propio. Debe seleccionar obligatoriamente al estudiante destinatario.");
 
-            var targetStudent = await _studentRepository.GetByIdAsync(dto.StudentId.Value);
+            targetStudent = await _studentRepository.GetByIdAsync(dto.StudentId.Value);
             if (targetStudent is null)
                 return Result<ProjectResponseDto>.Failure("El estudiante especificado no existe o no está registrado en el sistema.", 404);
 
@@ -99,13 +100,14 @@ public class ProjectService : IProjectService
             return Result<ProjectResponseDto>.Failure("No tiene permisos para registrar anteproyectos. Esta acción solo la realizan los estudiantes o el Administrador asignado a un residente.", 403);
         }
 
-        // Regla de negocio: El anteproyecto requiere obligatoriamente un asesor asignado previamente.
-        if (!dto.AdvisorId.HasValue || dto.AdvisorId.Value <= 0)
-            return Result<ProjectResponseDto>.Failure("No se puede registrar un anteproyecto sin un asesor asignado previamente. Todo anteproyecto requiere un asesor asignado al estudiante.");
+        // Regla de negocio: El anteproyecto requiere obligatoriamente un asesor asignado previamente al alumno.
+        long? targetAdvisorId = dto.AdvisorId > 0 ? dto.AdvisorId : (targetStudent?.AdvisorId ?? (await _studentRepository.GetByUserIdAsync(_currentUser.UserId))?.AdvisorId);
+        if (!targetAdvisorId.HasValue || targetAdvisorId.Value <= 0)
+            return Result<ProjectResponseDto>.Failure("No puedes registrar una solicitud de anteproyecto sin tener un asesor asignado por la academia.", 400);
 
-        var assignedAdvisor = await _advisorRepository.GetByIdAsync(dto.AdvisorId.Value);
+        var assignedAdvisor = await _advisorRepository.GetByIdAsync(targetAdvisorId.Value);
         if (assignedAdvisor is null)
-            return Result<ProjectResponseDto>.Failure("El asesor asignado especificado no existe o no está registrado.");
+            return Result<ProjectResponseDto>.Failure("El asesor asignado especificado no existe o no está registrado.", 404);
 
         advisorId = assignedAdvisor.Id;
 
@@ -169,6 +171,10 @@ public class ProjectService : IProjectService
         var project = await _repository.GetByIdAsync(id);
         if (project is null)
             return Result<ProjectResponseDto>.Failure("Anteproyecto no encontrado.", 404);
+
+        // Los anteproyectos aprobados, en progreso, completados o cancelados no se pueden modificar.
+        if (project.Status is ProjectStatus.Approved or ProjectStatus.InProgress or ProjectStatus.Completed or ProjectStatus.Cancelled)
+            return Result<ProjectResponseDto>.Failure("No se pueden modificar anteproyectos aprobados, en progreso, completados o cancelados.", 400);
 
         // Los estudiantes solo pueden editar mientras el anteproyecto es borrador o fue devuelto con correcciones.
         if (!IsStaff() && project.Status is not (ProjectStatus.Draft or ProjectStatus.Rejected))
@@ -470,6 +476,12 @@ public class ProjectService : IProjectService
                 return Result<ProjectResponseDto>.Failure("No tiene permisos para dictaminar este anteproyecto.", 403);
         }
 
+        if (project.Status == ProjectStatus.Completed)
+            return Result<ProjectResponseDto>.Failure("El proyecto ya se encuentra completado y no se puede modificar su dictamen.", 400);
+
+        if (project.Status == ProjectStatus.Cancelled)
+            return Result<ProjectResponseDto>.Failure("El proyecto está cancelado y no se puede modificar su dictamen.", 400);
+
         // La División no puede dictaminar un anteproyecto que sigue en borrador (no enviado a revisión).
         if (project.Status == ProjectStatus.Draft)
             return Result<ProjectResponseDto>.Failure("El anteproyecto está en borrador. Debe enviarse a revisión antes de ser dictaminado.", 400);
@@ -495,6 +507,21 @@ public class ProjectService : IProjectService
                 return Result<ProjectResponseDto>.Failure($"Estado '{dto.Status}' no es válido.");
         }
 
+        if (project.Status == ProjectStatus.Approved && newStatus == ProjectStatus.Rejected)
+        {
+            return Result<ProjectResponseDto>.Failure("No se pueden solicitar correcciones a un anteproyecto que ya fue Aprobado.", 400);
+        }
+
+        if (project.Status == ProjectStatus.InProgress && newStatus is ProjectStatus.Draft or ProjectStatus.Pending or ProjectStatus.UnderReview or ProjectStatus.Rejected or ProjectStatus.Approved)
+        {
+            return Result<ProjectResponseDto>.Failure("Un proyecto en progreso no puede ser dictaminado ni retornado a revisión.", 400);
+        }
+
+        if (newStatus == ProjectStatus.Approved && !_currentUser.IsInRole(UserRole.Admin) && !_currentUser.IsInRole(UserRole.Vinculacion))
+        {
+            return Result<ProjectResponseDto>.Failure("Solo el Administrador y el personal de Vinculación tienen permiso para aprobar anteproyectos.", 403);
+        }
+
         project.Status = newStatus;
         project.UpdatedAt = DateTime.UtcNow;
         project.UpdatedBy = _currentUser.UserId;
@@ -516,18 +543,24 @@ public class ProjectService : IProjectService
         if (project is null)
             return Result<ProjectResponseDto>.Failure("Anteproyecto no encontrado.", 404);
 
+        if (_currentUser.IsInRole(UserRole.Student))
+        {
+            var student = await _studentRepository.GetByUserIdAsync(_currentUser.UserId);
+            if (student is null || (student.AdvisorId == null && project.AdvisorId == null))
+                return Result<ProjectResponseDto>.Failure("No puede cancelar la solicitud de anteproyecto sin tener un asesor asignado.", 400);
+        }
+
         var cancellableStatuses = new[]
         {
             ProjectStatus.Draft,
             ProjectStatus.Pending,
             ProjectStatus.Proposed,
             ProjectStatus.UnderReview,
-            ProjectStatus.Approved,
-            ProjectStatus.InProgress
+            ProjectStatus.Rejected
         };
 
         if (!cancellableStatuses.Contains(project.Status))
-            return Result<ProjectResponseDto>.Failure("Solo se pueden cancelar anteproyectos vigentes.", 400);
+            return Result<ProjectResponseDto>.Failure("No se puede cancelar un proyecto que ya ha sido aprobado, en progreso, completado o cancelado.", 400);
 
         project.Status = ProjectStatus.Cancelled;
         project.UpdatedAt = DateTime.UtcNow;
@@ -558,6 +591,9 @@ public class ProjectService : IProjectService
         var project = await _repository.GetByIdAsync(id);
         if (project == null)
             return Result<bool>.Failure("Anteproyecto no encontrado.", 404);
+
+        if (project.Student is not null && project.Student.AdvisorId == null && project.AdvisorId == null)
+            return Result<bool>.Failure("No puede reactivar la solicitud sin tener un asesor asignado al estudiante.", 400);
 
         project.IsActive = true;
         project.DeletedAt = null;

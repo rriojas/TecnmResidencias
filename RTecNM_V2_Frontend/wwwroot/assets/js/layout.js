@@ -66,7 +66,7 @@
   };
   window.canSeeAudit = () => !window.isReadOnlyUser() && (userIsAdmin || window.hasPermission('admin.reports') || window.hasRole('admin', 'departmenthead'));
   window.canManageRegistry = () => !window.isReadOnlyUser() && (userIsAdmin || window.hasPermission('projects.delete') || window.hasPermission('students.manage') || window.hasRole('admin', 'departmenthead'));
-  window.canGrade = () => !window.isReadOnlyUser() && (userIsAdmin || window.hasPermission('evaluations.grading') || window.hasRole('admin', 'departmenthead', 'advisor'));
+  window.canGrade = () => !window.isReadOnlyUser() && (userIsAdmin || window.hasPermission('evaluations.grading') || window.hasRole('admin', 'advisor'));
   window.canCreateProposal = () => !window.isReadOnlyUser() && (userIsAdmin || currentRole === 'student');
 
   // ---------- Custom Modal Confirmation (Spec 08 UI Compliance) ----------
@@ -375,6 +375,7 @@
   const PERMISSION_GUARDS = {
     '/students': 'students.manage',
     '/advisors': 'advisors.manage',
+    '/advisors/assign': 'projects.advisor.assign',
     '/projects/review': 'projects.review',
     '/evaluations/grading': 'evaluations.grading',
     '/admin/reports': 'admin.reports'
@@ -383,7 +384,8 @@
   const ROLE_GUARDS = {
     '/students': ['admin', 'departmenthead'],
     '/advisors': ['admin', 'departmenthead'],
-    '/projects/review': ['admin', 'departmenthead', 'advisor'],
+    '/advisors/assign': ['admin', 'departmenthead'],
+    '/projects/review': ['admin', 'vinculacion', 'departmenthead', 'advisor'],
     '/evaluations/grading': ['admin', 'departmenthead', 'advisor'],
     '/admin/reports': ['admin', 'departmenthead']
   };

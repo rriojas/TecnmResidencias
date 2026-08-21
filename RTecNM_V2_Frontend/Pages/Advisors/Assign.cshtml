@@ -1,0 +1,83 @@
+@page
+@{
+    ViewData["Title"] = "Asignación de Asesores a Alumnos - TecNM";
+    ViewData["NavActive"] = "assign_advisor";
+}
+@section Scripts {
+    <script src="~/assets/js/ui.js"></script>
+    <script src="~/assets/js/advisors/assign.js"></script>
+}
+
+<div id="alertContainer"></div>
+
+<div class="tecnm-actions-bar">
+    <div>
+        <h1 class="tecnm-page-title">Asignación de Asesores Académicos</h1>
+        <p class="tecnm-page-subtitle">Asigna y gestiona los asesores docentes designados a los alumnos residentes</p>
+    </div>
+</div>
+
+<div class="tecnm-card">
+    <div class="tecnm-card-header">
+        <h3 class="tecnm-card-title">Listado de Estudiantes Residentes</h3>
+    </div>
+    <div class="tecnm-card-toolbar">
+        <div class="tecnm-toolbar-search">
+            <input type="text" id="assignSearchInput" class="tecnm-form-control" placeholder="Buscar por no. control, nombre o correo...">
+        </div>
+        <div class="tecnm-toolbar-actions">
+            <button id="reloadAssignBtn" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm">Recargar Listado</button>
+        </div>
+    </div>
+    <div class="tecnm-card-body">
+        <div class="tecnm-table-responsive">
+            <table class="tecnm-table tecnm-table-striped" id="assignTable">
+                <thead>
+                    <tr>
+                        <th data-sort="ControlNumber">No. Control</th>
+                        <th data-sort="FirstName">Estudiante</th>
+                        <th>Correo Institucional</th>
+                        <th>Asesor Asignado</th>
+                        <th>Estado de Asignación</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="assignTableBody">
+                    <tr><td colspan="6" class="tecnm-table-empty">Cargando estudiantes...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="assignPagination"></div>
+    </div>
+</div>
+
+<!-- Modal Asignar / Cambiar Asesor -->
+<div id="assignAdvisorModal" class="modal-backdrop">
+    <div class="modal-card">
+        <div class="tecnm-modal-header">
+            <h3 class="tecnm-modal-title">Designar Asesor Académico</h3>
+            <button type="button" id="closeAssignModalBtn" class="tecnm-modal-close" aria-label="Cerrar">&times;</button>
+        </div>
+
+        <form id="assignAdvisorForm">
+            <input type="hidden" id="modalStudentId" value="">
+            <div class="tecnm-form-group">
+                <label class="tecnm-field-label">Estudiante</label>
+                <p id="modalStudentName" class="tecnm-field-value tecnm-field-value-emphasis"></p>
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="modalAdvisorSelect" class="tecnm-label">Seleccionar Asesor Docente *</label>
+                <select id="modalAdvisorSelect" class="tecnm-form-control" required>
+                    <option value="">Selecciona un asesor...</option>
+                </select>
+                <small class="tecnm-form-hint">Selecciona el docente de la academia que dará seguimiento al residente.</small>
+            </div>
+
+            <div class="tecnm-modal-footer">
+                <button type="button" id="cancelAssignModalBtn" class="tecnm-btn tecnm-btn-secondary">Cancelar</button>
+                <button type="submit" class="tecnm-btn tecnm-btn-primary">Guardar Asignación</button>
+            </div>
+        </form>
+    </div>
+</div>

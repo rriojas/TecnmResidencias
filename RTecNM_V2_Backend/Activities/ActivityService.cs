@@ -1,14 +1,17 @@
 using TecNM.Residency.Common;
+using TecNM.Residency.Projects;
 
 namespace TecNM.Residency.Activities;
 
 public class ActivityService : IActivityService
 {
     private readonly IActivityRepository _repository;
+    private readonly IProjectRepository _projectRepository;
 
-    public ActivityService(IActivityRepository repository)
+    public ActivityService(IActivityRepository repository, IProjectRepository projectRepository)
     {
         _repository = repository;
+        _projectRepository = projectRepository;
     }
 
     public async Task<Result<List<WeeklyActivityDto>>> GetScheduleByProjectIdAsync(long projectId)
@@ -59,6 +62,14 @@ public class ActivityService : IActivityService
         var activity = await _repository.GetByIdAsync(dto.ActivityId);
         if (activity == null)
             return Result<bool>.Failure("Actividad no encontrada.", 404);
+
+        var project = await _projectRepository.GetByIdAsync(activity.ProjectId);
+        if (project != null)
+        {
+            var hasAdvisor = project.AdvisorId.HasValue || (project.Student != null && project.Student.AdvisorId.HasValue);
+            if (!hasAdvisor)
+                return Result<bool>.Failure("No puede modificar el cronograma de actividades sin tener un asesor asignado.", 400);
+        }
 
         var validStatuses = new[] { "pending", "in_progress", "completed", "pendiente", "en_proceso", "completado" };
         if (!validStatuses.Contains(dto.Status.ToLowerInvariant()))

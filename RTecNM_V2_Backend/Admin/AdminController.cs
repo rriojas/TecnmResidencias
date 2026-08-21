@@ -5,7 +5,7 @@ using TecNM.Residency.Common;
 namespace TecNM.Residency.Admin;
 
 [ApiController]
-[Authorize(Roles = "admin,departmenthead,director")]
+[Authorize(Roles = "admin,vinculacion,departmenthead,director")]
 [Route("api/v1/[controller]")]
 public class AdminController : ControllerBase
 {

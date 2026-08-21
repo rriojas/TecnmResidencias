@@ -11,6 +11,7 @@ public interface IStudentService
     Task<Result<StudentResponseDto>> GetMeAsync(long userId);
     Task<Result<StudentResponseDto>> CreateAsync(CreateStudentDto dto);
     Task<Result<StudentResponseDto>> UpdateAsync(long id, UpdateStudentDto dto);
+    Task<Result<StudentResponseDto>> AssignAdvisorAsync(long studentId, long advisorId);
     Task<Result<bool>> SoftDeleteAsync(long id, long deletedByUserId);
     Task<Result<bool>> ReactivateAsync(long id);
 }

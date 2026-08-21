@@ -744,7 +744,12 @@ async function openReviewModal(projectId) {
     const st = (p.status || '').toLowerCase();
     const isDraft = st === 'draft' || st === 'borrador';
     const isApproved = st === 'approved' || st === 'aprobado';
+    const isInProgress = st === 'in_progress' || st === 'inprogress' || st === 'en_progreso' || st === 'en progreso';
+    const isCompleted = st === 'completed' || st === 'completado';
+    const isCancelled = st === 'cancelled' || st === 'cancelado';
     const isReadOnly = window.isReadOnlyUser ? window.isReadOnlyUser() : false;
+    const canApprove = window.hasRole ? window.hasRole('admin', 'vinculacion') : true;
+    const deleteBtn = document.getElementById('modalSoftDeleteBtn');
 
     if (isReadOnly) {
       if (reviewNotice) {
@@ -764,7 +769,32 @@ async function openReviewModal(projectId) {
       if (commentsGroup) commentsGroup.classList.add('tecnm-hidden');
     } else if (isApproved) {
       if (reviewNotice) {
-        reviewNotice.innerHTML = 'Este anteproyecto ya ha sido <strong>APROBADO</strong>. El dictamen final no se puede modificar, pero el registro puede ser eliminado lógicamente.';
+        reviewNotice.innerHTML = 'Este anteproyecto ya ha sido <strong>APROBADO</strong>. No se pueden realizar modificaciones al dictamen ni solicitar correcciones.';
+        reviewNotice.classList.remove('tecnm-hidden');
+      }
+      if (approveBtn) approveBtn.classList.add('tecnm-hidden');
+      if (rejectBtn) rejectBtn.classList.add('tecnm-hidden');
+      if (commentsGroup) commentsGroup.classList.add('tecnm-hidden');
+    } else if (isInProgress) {
+      if (reviewNotice) {
+        reviewNotice.innerHTML = 'Este proyecto está <strong>EN PROGRESO</strong> (en desarrollo). No admite revisiones ni cambios de anteproyecto.';
+        reviewNotice.classList.remove('tecnm-hidden');
+      }
+      if (approveBtn) approveBtn.classList.add('tecnm-hidden');
+      if (rejectBtn) rejectBtn.classList.add('tecnm-hidden');
+      if (commentsGroup) commentsGroup.classList.add('tecnm-hidden');
+    } else if (isCompleted) {
+      if (reviewNotice) {
+        reviewNotice.innerHTML = 'Este proyecto ya se encuentra <strong>COMPLETADO</strong>. No admite modificaciones ni cambios de estado.';
+        reviewNotice.classList.remove('tecnm-hidden');
+      }
+      if (approveBtn) approveBtn.classList.add('tecnm-hidden');
+      if (rejectBtn) rejectBtn.classList.add('tecnm-hidden');
+      if (commentsGroup) commentsGroup.classList.add('tecnm-hidden');
+      if (deleteBtn) deleteBtn.classList.add('tecnm-hidden');
+    } else if (isCancelled) {
+      if (reviewNotice) {
+        reviewNotice.innerHTML = 'Este anteproyecto ha sido <strong>CANCELADO</strong>.';
         reviewNotice.classList.remove('tecnm-hidden');
       }
       if (approveBtn) approveBtn.classList.add('tecnm-hidden');
@@ -772,9 +802,13 @@ async function openReviewModal(projectId) {
       if (commentsGroup) commentsGroup.classList.add('tecnm-hidden');
     } else {
       if (reviewNotice) reviewNotice.classList.add('tecnm-hidden');
-      if (approveBtn) approveBtn.classList.remove('tecnm-hidden');
+      if (approveBtn) {
+        if (canApprove) approveBtn.classList.remove('tecnm-hidden');
+        else approveBtn.classList.add('tecnm-hidden');
+      }
       if (rejectBtn) rejectBtn.classList.remove('tecnm-hidden');
       if (commentsGroup) commentsGroup.classList.remove('tecnm-hidden');
+      if (deleteBtn) deleteBtn.classList.remove('tecnm-hidden');
     }
 
     document.getElementById('reviewComments').value = '';

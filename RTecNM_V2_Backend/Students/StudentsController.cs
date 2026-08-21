@@ -94,6 +94,17 @@ public class StudentsController : ControllerBase
         return Ok(result.Data);
     }
 
+    [HttpPut("{id}/advisor")]
+    [Authorize(Roles = "admin,departmenthead")]
+    public async Task<IActionResult> AssignAdvisor(long id, [FromBody] AssignAdvisorDto dto)
+    {
+        var result = await _studentService.AssignAdvisorAsync(id, dto.AdvisorId);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "admin,departmenthead,director")]
     public async Task<IActionResult> SoftDelete(long id)

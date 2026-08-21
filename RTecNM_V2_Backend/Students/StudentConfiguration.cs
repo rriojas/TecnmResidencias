@@ -55,6 +55,9 @@ public class StudentConfiguration : IEntityTypeConfiguration<Student>
         builder.Property(s => s.AcademicPeriodId)
             .HasColumnName("academic_period_id");
 
+        builder.Property(s => s.AdvisorId)
+            .HasColumnName("advisor_id");
+
         builder.Property(s => s.Gpa)
             .HasColumnName("gpa")
             .HasColumnType("numeric(5,2)")
@@ -99,5 +102,10 @@ public class StudentConfiguration : IEntityTypeConfiguration<Student>
             .WithMany()
             .HasForeignKey(s => s.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(s => s.Advisor)
+            .WithMany()
+            .HasForeignKey(s => s.AdvisorId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

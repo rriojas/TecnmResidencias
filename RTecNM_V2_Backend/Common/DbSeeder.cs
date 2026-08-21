@@ -175,8 +175,7 @@ public static class DbSeeder
             "students.profile.view", "students.profile.update", "students.eligibility.verify", "students.manage", "advisors.manage",
             "projects.proposals", "projects.proposal.update", "projects.review", "projects.delete", "projects.advisor.assign", "projects.manage",
             "activities.schedule", "activities.progress.validate",
-            "evaluations.advisories", "advisories.session.view",
-            "evaluations.grading", "evaluations.summary.view",
+            "evaluations.advisories", "advisories.session.view", "evaluations.summary.view",
             "documents.digital", "documents.upload", "documents.verify",
             "companies.view"
         };
@@ -185,7 +184,7 @@ public static class DbSeeder
         {
             "companies.view", "companies.create", "companies.manage",
             "documents.digital", "documents.verify", "documents.letters.generate",
-            "students.profile.view", "advisors.manage", "projects.proposals",
+            "students.profile.view", "advisors.manage", "projects.proposals", "projects.review",
             "admin.reports", "reports.export.excel"
         };
 
@@ -329,6 +328,12 @@ public static class DbSeeder
                 DROP VIEW IF EXISTS vw_search_advisors CASCADE;
                 DROP VIEW IF EXISTS vw_search_projects CASCADE;
                 DROP VIEW IF EXISTS vw_search_companies CASCADE;
+
+                IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='students') THEN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='advisor_id') THEN
+                        ALTER TABLE students ADD COLUMN advisor_id bigint NULL;
+                    END IF;
+                END IF;
 
                 IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='companies') THEN
                     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='name') THEN
