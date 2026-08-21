@@ -73,16 +73,16 @@
         <form id="gradingForm">
             <div class="tecnm-form-group">
                 <label for="modalGradeProjectId" class="tecnm-label">Proyecto Seleccionado *</label>
-                <select id="modalGradeProjectId" class="tecnm-form-control" required>
-                    <option value="">Cargando proyectos...</option>
-                </select>
+                <div id="gradeProjectAutocompleteWrapper">
+                    <input type="hidden" id="modalGradeProjectId" required>
+                </div>
             </div>
 
-            <div class="tecnm-form-group">
+            <div class="tecnm-form-group" id="evaluatorFormGroup">
                 <label for="evaluatorId" class="tecnm-label">Evaluador / Asesor *</label>
-                <select id="evaluatorId" class="tecnm-form-control" required>
-                    <option value="">Cargando asesores...</option>
-                </select>
+                <div id="evaluatorAutocompleteWrapper">
+                    <input type="hidden" id="evaluatorId" required>
+                </div>
             </div>
 
             <div class="tecnm-form-group">
@@ -130,11 +130,11 @@
                 <input type="text" id="editEvaluationPeriodDisplay" class="tecnm-form-control" disabled>
             </div>
 
-            <div class="tecnm-form-group">
+            <div class="tecnm-form-group" id="editEvaluatorFormGroup">
                 <label for="editEvaluatorId" class="tecnm-label">Evaluador / Asesor *</label>
-                <select id="editEvaluatorId" class="tecnm-form-control" required>
-                    <option value="">Cargando asesores...</option>
-                </select>
+                <div id="editEvaluatorAutocompleteWrapper">
+                    <input type="hidden" id="editEvaluatorId" required>
+                </div>
             </div>
 
             <div class="tecnm-form-group">

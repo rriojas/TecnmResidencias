@@ -91,12 +91,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingRow = tableBody.querySelector('tr');
     if (loadingRow) loadingRow.colSpan = colCount;
 
+    let advisorUserAutocomplete = null;
+    if (window.initTecNMAutocomplete && document.getElementById('advisorUserAutocompleteWrapper')) {
+        advisorUserAutocomplete = window.initTecNMAutocomplete({
+            containerId: 'advisorUserAutocompleteWrapper',
+            hiddenInputId: 'userId',
+            placeholder: 'Buscar cuenta de usuario por correo o nombre...',
+            searchFn: async (query) => {
+                try {
+                    const res = await fetch('/api/v1/roles/users/options');
+                    if (!res.ok) return [];
+                    const all = await res.json();
+                    const q = (query || '').toLowerCase();
+                    return (all || []).filter(u =>
+                        (u.email && u.email.toLowerCase().includes(q)) ||
+                        (u.name && u.name.toLowerCase().includes(q))
+                    );
+                } catch {
+                    return [];
+                }
+            },
+            titleExtractor: (u) => u.email || `Usuario #${u.id}`,
+            subtitleExtractor: (u) => u.name ? `Nombre: ${u.name}` : ''
+        });
+    }
+
     const hideModal = () => {
         if (modal) modal.classList.remove('active');
         if (form) form.reset();
         if (advisorIdInput) advisorIdInput.value = '';
-        const userSelect = document.getElementById('userId');
-        if (userSelect) userSelect.disabled = false;
+        if (advisorUserAutocomplete) advisorUserAutocomplete.clear();
+        const userGroup = document.getElementById('advisorUserFormGroup');
+        if (userGroup) userGroup.classList.remove('tecnm-hidden');
         const modalTitle = document.getElementById('advisorModalTitle');
         if (modalTitle) modalTitle.textContent = 'Registrar Nuevo Asesor';
     };
@@ -106,13 +132,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const modalTitle = document.getElementById('advisorModalTitle');
         if (modalTitle) modalTitle.textContent = 'Registrar Nuevo Asesor';
 
-        const userSelect = document.getElementById('userId');
-        if (userSelect) {
-            userSelect.disabled = false;
-            userSelect.required = true;
-        }
+        if (advisorUserAutocomplete) advisorUserAutocomplete.clear();
+        const userGroup = document.getElementById('advisorUserFormGroup');
+        if (userGroup) userGroup.classList.remove('tecnm-hidden');
+        document.getElementById('userId')?.setAttribute('required', 'required');
 
-        loadUserOptions();
         if (modal) modal.classList.add('active');
     }
 
@@ -132,12 +156,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('departmentId').value = String(advisor.departmentId);
             document.getElementById('advisorType').value = advisor.advisorType === 'internal' ? '1' : '2';
 
-            const userSelect = document.getElementById('userId');
-            if (userSelect) {
-                userSelect.disabled = true;
-                userSelect.required = false;
-                userSelect.innerHTML = `<option value="${advisor.userId}">${escapeHtml(`Usuario #${advisor.userId} (vinculado)`)}</option>`;
-            }
+            const userGroup = document.getElementById('advisorUserFormGroup');
+            if (userGroup) userGroup.classList.add('tecnm-hidden');
+            document.getElementById('userId')?.removeAttribute('required');
 
             if (modal) modal.classList.add('active');
         } catch (err) {
