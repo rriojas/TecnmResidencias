@@ -13,8 +13,8 @@ services:
       - "5433:5432"
     volumes:
       - postgres_v2_data:/var/lib/postgresql/data
-      - ./docs/database/schema_pg18.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./docs/database/seed_v2.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - ./docs/database/01_schema_and_essential_seeds.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./docs/database/02_demo_data.sql:/docker-entrypoint-initdb.d/02-demo.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U residency_user -d residency_v2"]
       interval: 5s
