@@ -1,0 +1,103 @@
+/* ============================================================
+   TecNM 2024 - Design Tokens (Spec 08 - UI Design System)
+   Manual de Identidad Gráfica TecNM 2024
+   ============================================================ */
+
+:root {
+  /* ---- Institutional Brand Colors (Spec 08 §2) ----
+     UN SINGLE SOURCE OF TRUTH: --tecnm-blue-primary es el azul institucional
+     (Pantone 288 C). --tecnm-blue-dark y --tecnm-blue-hover son la misma
+     familia derivada de él (mayor/menor luminosidad); NO se introducen
+     otros azules. */
+  --tecnm-blue-primary: #1B396A;      /* Pantone 288 C - Dominant Header/Navbar */
+  --tecnm-blue-dark: #0F2548;         /* Dark variant for footers & active states */
+  --tecnm-blue-hover: #244B88;        /* Interactive hover state */
+
+  /* ---- Semantic Surface Tokens (jerarquía azul institucional) ----
+     Header primario + Footer oscuro = misma familia, intencional. */
+  --tecnm-header-bg: var(--tecnm-blue-primary);   /* Header institucional */
+  --tecnm-footer-bg: var(--tecnm-blue-dark);      /* Footer institucional (pie jerárquico) */
+  --tecnm-gold-accent: #C5A059;       /* Pantone 117 C - Institutional Accent/Borders */
+  --tecnm-gold-light: #F7F3E9;        /* Soft gold container fill */
+
+  /* ---- Neutral Background & Surface Palette (Spec 08 §2) ---- */
+  --tecnm-bg-main: #F4F6F9;           /* App background tint */
+  --tecnm-surface-white: #FFFFFF;     /* Cards, Modals, Form Containers */
+  --tecnm-border-color: #E2E8F0;      /* Standard card and table borders */
+  --tecnm-border-focus: #1B396A;      /* Input focus indicator */
+  --tecnm-white: #FFFFFF;             /* Pure white (spinner accents) */
+  --tecnm-gray-100: #F1F5F9;          /* Subtle neutral fill (neutral badges, empty cells) */
+  --tecnm-gray-200: #CBD5E1;          /* Neutral borders & secondary button hover */
+  --tecnm-blue-tint-50: #EBF3FF;      /* Light blue tint (table row hover) */
+  --tecnm-blue-tint-hero: #E8EDF5;    /* Light blue-gray (landing hero gradient) */
+
+  /* ---- Typography Colors (Spec 08 §2) ---- */
+  --tecnm-text-primary: #1E293B;     /* Body & Headline text (High contrast) */
+  --tecnm-text-secondary: #64748B;   /* Subtitles, hints & captions */
+  --tecnm-text-muted: #94A3B8;       /* Placeholders & disabled captions */
+  --tecnm-text-on-blue: #FFFFFF;     /* White text over TecNM blue background */
+
+  /* ---- Functional / Semantic Status Palette (Spec 08 §2) ---- */
+  --tecnm-status-approved-bg: #D1FAE5;
+  --tecnm-status-approved-text: #065F46;
+  --tecnm-status-pending-bg: #FEF3C7;
+  --tecnm-status-pending-text: #92400E;
+  --tecnm-status-rejected-bg: #FEE2E2;
+  --tecnm-status-rejected-text: #991B1B;
+  --tecnm-status-info-bg: #E0F2FE;
+  --tecnm-status-info-text: #075985;
+
+  /* ---- Status Colors (legacy functional aliases) ---- */
+  --tecnm-success: #22C55E;
+  --tecnm-success-bg: #F0FDF4;
+  --tecnm-success-strong: #15803D;         /* Acción positiva aprobar/calificar (relleno, texto blanco) */
+  --tecnm-success-strong-hover: #166534;   /* Acción positiva (hover) */
+  --tecnm-warning: #F59E0B;
+  --tecnm-warning-bg: #FFFBEB;
+  --tecnm-danger: #EF4444;
+  --tecnm-danger-bg: #FEF2F2;
+  --tecnm-danger-strong: #DC2626;         /* Botón de peligro (relleno, texto blanco) */
+  --tecnm-danger-strong-hover: #B91C1C;   /* Botón de peligro (hover) */
+  --tecnm-info: #3B82F6;
+  --tecnm-info-bg: #EFF6FF;
+
+  /* ---- Typography (Spec 08 §3) ---- */
+  --tecnm-font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --tecnm-font-size-xs: 0.75rem;
+  --tecnm-font-size-sm: 0.875rem;
+  --tecnm-font-size-base: 1rem;
+  --tecnm-font-size-lg: 1.125rem;
+  --tecnm-font-size-xl: 1.25rem;
+  --tecnm-font-size-2xl: 1.5rem;
+  --tecnm-font-size-3xl: 1.875rem;
+  --tecnm-font-size-4xl: 2.25rem;
+  --tecnm-font-weight-normal: 400;
+  --tecnm-font-weight-medium: 500;
+  --tecnm-font-weight-semibold: 600;
+  --tecnm-font-weight-bold: 700;
+
+  /* ---- Spacing ---- */
+  --tecnm-spacing-xs: 0.25rem;
+  --tecnm-spacing-sm: 0.5rem;
+  --tecnm-spacing-md: 1rem;
+  --tecnm-spacing-lg: 1.5rem;
+  --tecnm-spacing-xl: 2rem;
+  --tecnm-spacing-2xl: 3rem;
+
+  /* ---- Border Radius (Spec 08 §4.3/4.6) ---- */
+  --tecnm-radius-sm: 0.25rem;
+  --tecnm-radius-md: 0.375rem;
+  --tecnm-radius-lg: 0.5rem;
+  --tecnm-radius-xl: 0.75rem;
+  --tecnm-radius-full: 9999px;
+
+  /* ---- Shadows (Spec 08 §4.4) ---- */
+  --tecnm-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --tecnm-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --tecnm-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+  /* ---- Transitions ---- */
+  --tecnm-transition-fast: 150ms ease;
+  --tecnm-transition-normal: 200ms ease;
+  --tecnm-transition-slow: 300ms ease;
+}

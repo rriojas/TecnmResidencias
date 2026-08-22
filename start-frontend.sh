@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script: start-frontend.sh
-# Descripción: Inicia el Frontend Razor Pages (.NET 10)
+# Descripción: Inicia el Frontend Vite + Vue 3 (pnpm dev)
 # ==============================================================================
 
 set -e
@@ -34,24 +34,24 @@ free_port() {
 }
 
 echo -e "${CYAN}======================================================${NC}"
-echo -e "${CYAN}  🏛️  TecNM Residencias - Iniciando Frontend UI${NC}"
+echo -e "${CYAN}  🏛️  TecNM Residencias - Iniciando Frontend (Vite + Vue 3)${NC}"
 echo -e "${CYAN}======================================================${NC}"
 
-# 1. Verificar .NET SDK
-echo -e "\n${YELLOW}🔍 Verificando .NET SDK...${NC}"
-if command -v dotnet >/dev/null 2>&1; then
-    DOTNET_VERSION=$(dotnet --version)
-    echo -e "   ${GREEN}✅ .NET SDK detectado: v${DOTNET_VERSION}${NC}"
+# 1. Verificar pnpm
+echo -e "\n${YELLOW}🔍 Verificando pnpm...${NC}"
+if command -v pnpm >/dev/null 2>&1; then
+    PNPM_VERSION=$(pnpm -v)
+    echo -e "   ${GREEN}✅ pnpm detectado: v${PNPM_VERSION}${NC}"
 else
-    echo -e "   ${RED}❌ ERROR: .NET SDK no está instalado o no se encuentra en el PATH.${NC}"
+    echo -e "   ${RED}❌ ERROR: pnpm no está instalado o no se encuentra en el PATH.${NC}"
     exit 1
 fi
 
 # 2. Liberar puerto 5000 si está ocupado
 free_port 5000
 
-# 3. Iniciar Frontend
-echo -e "\n${GREEN}🚀 Iniciando Frontend Razor Pages en http://localhost:5000...${NC}"
+# 3. Iniciar Frontend Vite
+echo -e "\n${GREEN}🚀 Iniciando Frontend Vite en http://localhost:5000...${NC}"
 echo -e "   ${DARKCYAN}🌐 Acceso al sistema: http://localhost:5000/auth/login${NC}"
 echo -e "   ${DARKGRAY}🔗 Conectado a Backend: http://localhost:5144${NC}\n"
 
@@ -61,4 +61,4 @@ if [ ! -d "$FRONTEND_DIR" ]; then
 fi
 
 cd "$FRONTEND_DIR"
-dotnet run --launch-profile http
+pnpm dev
