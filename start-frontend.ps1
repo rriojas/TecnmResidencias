@@ -1,6 +1,6 @@
 # ==============================================================================
 # Script: start-frontend.ps1
-# Descripción: Inicia el Frontend Razor Pages (.NET 10)
+# Descripción: Inicia el Frontend Vite + Vue 3 (pnpm dev)
 # ==============================================================================
 
 $ErrorActionPreference = "Stop"
@@ -26,25 +26,25 @@ function Free-Port([int]$port) {
 }
 
 Write-Host "======================================================" -ForegroundColor Cyan
-Write-Host "  🏛️  TecNM Residencias - Iniciando Frontend UI" -ForegroundColor Cyan
+Write-Host "  🏛️  TecNM Residencias - Iniciando Frontend (Vite + Vue 3)" -ForegroundColor Cyan
 Write-Host "======================================================" -ForegroundColor Cyan
 
-# 1. Verificar .NET SDK
-Write-Host "`n🔍 Verificando .NET SDK..." -ForegroundColor Yellow
-$dotnetCmd = Get-Command dotnet -ErrorAction SilentlyContinue
-if ($dotnetCmd) {
-    $dotnetVersion = dotnet --version
-    Write-Host "   ✅ .NET SDK detectado: v$dotnetVersion" -ForegroundColor Green
+# 1. Verificar Node y pnpm
+Write-Host "`n🔍 Verificando Node y pnpm..." -ForegroundColor Yellow
+$pnpmCmd = Get-Command pnpm -ErrorAction SilentlyContinue
+if ($pnpmCmd) {
+    $pnpmVersion = pnpm -v
+    Write-Host "   ✅ pnpm detectado: v$pnpmVersion" -ForegroundColor Green
 } else {
-    Write-Host "   ❌ ERROR: .NET SDK no está instalado o no se encuentra en el PATH." -ForegroundColor Red
+    Write-Host "   ❌ ERROR: pnpm no está instalado o no se encuentra en el PATH." -ForegroundColor Red
     exit 1
 }
 
 # 2. Verificar y liberar puerto 5000 si está ocupado
 Free-Port 5000
 
-# 3. Iniciar Frontend
-Write-Host "`n🚀 Iniciando Frontend Razor Pages en http://localhost:5000..." -ForegroundColor Green
+# 3. Iniciar Frontend Vite
+Write-Host "`n🚀 Iniciando Frontend Vite en http://localhost:5000..." -ForegroundColor Green
 Write-Host "   🌐 Acceso al sistema: http://localhost:5000/auth/login" -ForegroundColor DarkCyan
 Write-Host "   🔗 Conectado a Backend: http://localhost:5144`n" -ForegroundColor DarkGray
 
@@ -54,4 +54,4 @@ if (-not (Test-Path $FrontendDir)) {
 }
 
 Set-Location $FrontendDir
-dotnet run --launch-profile http
+pnpm dev
