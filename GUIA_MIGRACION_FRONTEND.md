@@ -1,140 +1,94 @@
-# 🚀 Guía de Continuación de Migración de Frontend
-## Sistema de Residencias Profesionales TecNM - Campus Monclova (`RTecNM_V2`)
+# 📘 Guía Integral y Hoja de Ruta: Migración Frontend RTecNM V2
 
-Este documento sirve como hoja de ruta técnica detallada para dar continuidad al proceso de migración del frontend de la plataforma institucional.
-
----
-
-## 📌 1. Objetivo General del Proyecto
-
-Migrar la interfaz de usuario desde **ASP.NET Core Razor Pages (Monolítico Legacy)** a una arquitectura de **Single Page Application (SPA)** moderna construida con **Vite + Vue 3 (Composition API) + Pinia + Vue Router + pnpm 11**.
-
-> [!IMPORTANT]
-> **REGLA DE ORO DE FIDELIDAD VISUAL Y FUNCIONAL:**
-> El nuevo frontend en Vue 3 **debe replicar al 100% el diseño, las clases CSS institucionales y el comportamiento interactivo** que ya existían en la versión legacy (`RTecNM_V2_Frontend_Legacy`). No inventar clases CSS ad-hoc; toda la estilización debe provenir estrictamente de `main.css` y `tecnm-theme.css`.
+> **Documento de Control y Traspaso de Proyecto**  
+> **Proyecto:** Sistema de Gestión de Residencias Profesionales — TecNM Campus Monclova  
+> **Arquitectura:** Vue 3 (Composition API + `<script setup>`) + Vite + Pinia + Vue Router  
+> **Estado:** **100% Migrado y Verificado (Sprints 1, 2, 3 y 4 Completados)**  
 
 ---
 
-## 📂 2. Estructura de Directorios del Repositorio
+## 🎯 1. Objetivo General de la Migración
 
-* `c:\Dev\TecnmResidencias\RTecNM_V2_Frontend_Legacy\`
-  * **Copia de Respaldo Original (Razor Pages).** Contiene todos los archivos `.cshtml`, scripts `.js` originales (`wwwroot/assets/js/`), estilos CSS e imágenes. **Usar exclusivamente como referencia de lectura y código.**
-* `c:\Dev\TecnmResidencias\RTecNM_V2_Frontend\`
-  * **Nuevo Frontend Oficial (Vite + Vue 3).** Aquí se encuentra todo el desarrollo en Vue 3. Se ejecuta en `http://localhost:5000` mediante `pnpm dev`.
-* `c:\Dev\TecnmResidencias\RTecNM_V2_Backend\`
-  * **Backend en .NET 8 / PostgreSQL.** Se ejecuta en `http://localhost:5001`. **No requiere cambios.**
+Reemplazar de manera íntegra y transparente el frontend legacy monolítico en ASP.NET Core Razor Pages (`RTecNM_V2_Frontend_Legacy`) por una aplicación Single Page Application (SPA) moderna, desacoplada y de alto rendimiento en Vue 3 (`RTecNM_V2_Frontend`), consumiendo la API REST institucional en ASP.NET Core / PostgreSQL (`RTecNM_V2_Backend`).
 
 ---
 
-## 🛠️ 3. Componentes Base y Arquitectura Implementada
+## 🏛️ 2. Arquitectura y Estructura del Proyecto Moderno
 
-Se han creado e integrado componentes reutilizables en `src/components/` que debes utilizar en las vistas pendientes:
-
-| Componente | Ruta | Descripción / Clases CSS Relevantes |
-|---|---|---|
-| **`AppHeader.vue`** | `src/components/layout/` | Encabezado institucional con Isologo, campus, perfil y atajo `Buscar (Ctrl+K)`. |
-| **`AppNavbar.vue`** | `src/components/layout/` | Navegación por rol. Los acordeones despliegan con `.open`, chevrons rotan 180° e ilumina con `.is-active`. |
-| **`GlobalSearchModal.vue`** | `src/components/search/` | Modal universal de búsqueda (`Ctrl + K`). Utiliza `POST /api/v1/searches/filter-paged` con el parámetro `matchOption`. |
-| **`TecnmAutocomplete.vue`** | `src/components/common/` | Campo de búsqueda reactivo con spinner, resaltado coincidente (`.tecnm-autocomplete-highlight`) y botón picker que abre la búsqueda universal. |
-| **`TecnmPagination.vue`** | `src/components/common/` | Paginador oficial (`.tecnm-pagination`, `.tecnm-pagination-btn`, `.tecnm-pagination-info`). |
-| **`AuditModal.vue`** | `src/components/common/` | Modal de auditoría con los **10 campos estándar** (`ID`, `Estado`, `Visible`, `Orden`, `Creado el/por`, `Actualizado el/por`, `Eliminado el/por`). |
-| **`ConfirmModal.vue`** | `src/components/common/` | Diálogo de confirmación reactivo que reemplaza al `confirm()` nativo. |
-| **`TecnmBadge.vue`** | `src/components/common/` | Pastillas de estado semánticas (`.tecnm-badge-approved`, `.tecnm-badge-rejected`, etc.). |
-
----
-
-## 📊 4. Estado Actual del Avance (60% Completado)
-
-### ✅ Módulos Listos y Verificados (Cero Errores):
-1. **Infraestructura & Auth:** Login (`/auth/login`), Pinia Auth Store (`src/stores/auth.js`), Guards de Vue Router con RBAC.
-2. **Dashboard Principal (`/dashboard`):** 6 KPIs semánticos, cola de dictamen, tabla de solicitudes recientes y avance de 26 semanas para estudiantes.
-3. **Módulo de Estudiantes (`/students` y `/students/profile`):** Catálogo, paginación, filtros de inactivos, exportación PDF, modal de edición con validaciones y expediente del alumno.
-4. **Módulo de Anteproyectos (`/projects/proposal`):** Solicitud con objetivos dinámicos, autocompletes (`STUDENTS`, `COMPANIES`, `ADVISORS`), envío a revisión y descarga PDF.
-5. **Dictamen de División (`/projects/review`):** Filtro por estado (Pendientes, Aprobados, Rechazados), modal de dictamen técnico y observaciones.
-6. **Catálogo de Asesores (`/advisors`):** Directorio docente, vinculación con cuentas `USERS`, exportación PDF y auditoría.
-7. **Empresas Receptoras (`/companies`):** Directorio con RFC en mayúsculas y gestión de estatus.
-
----
-
-## 📋 5. Tareas Pendientes por Realizar (40% Restante)
-
-Te corresponde continuar con la migración de las **6 vistas restantes** divididas en el Sprint 3 y Sprint 4:
-
-### 🔹 SPRINT 3: Evaluación y Seguimiento de Residencias
-
-#### 1. Cronograma de Actividades (`/activities/schedule`)
-* **Vista en Vue:** [`src/views/activities/ScheduleView.vue`](file:///c:/Dev/TecnmResidencias/RTecNM_V2_Frontend/src/views/activities/ScheduleView.vue)
-* **Referencia Legacy:** `RTecNM_V2_Frontend_Legacy/Pages/Activities/Schedule.cshtml` y `wwwroot/assets/js/activities/schedule.js`
-* **Lógica a implementar:**
-  * Selector de anteproyecto del residente.
-  * Tabla con la **matriz interactiva de las 26 semanas** del semestre.
-  * Captura y edición de actividades del cronograma con semanas planificadas vs semanas realizadas.
-  * Indicadores de estado (`pending`, `in_progress`, `completed`).
-
-#### 2. Bitácora de Asesorías (`/evaluations`)
-* **Vista en Vue:** [`src/views/evaluations/AdvisorySessionsView.vue`](file:///c:/Dev/TecnmResidencias/RTecNM_V2_Frontend/src/views/evaluations/AdvisorySessionsView.vue)
-* **Referencia Legacy:** `RTecNM_V2_Frontend_Legacy/Pages/Evaluations/Index.cshtml` y `wwwroot/assets/js/evaluations/evaluations.js`
-* **Lógica a implementar:**
-  * Registro de sesiones de asesoría técnica entre docente y alumno.
-  * Formulario de captura: Fecha, temas abordados, compromisos/acuerdos, horas acumuladas.
-  * Estatus de firma de conformidad por ambas partes.
-
-#### 3. Evaluación y Calificaciones (`/evaluations/grading`)
-* **Vista en Vue:** [`src/views/evaluations/GradingView.vue`](file:///c:/Dev/TecnmResidencias/RTecNM_V2_Frontend/src/views/evaluations/GradingView.vue)
-* **Referencia Legacy:** `RTecNM_V2_Frontend_Legacy/Pages/Evaluations/Grading.cshtml` y `wwwroot/assets/js/evaluations/evaluations.js`
-* **Lógica a implementar:**
-  * Formulario de capturas de rúbricas para el **Asesor Interno** y **Asesor Externo**.
-  * Calificación de Reportes Parciales (1 y 2) y Reporte Final.
-  * Cálculo ponderado automático de la calificación final del residente.
-
-#### 4. Expediente Digital del Residente (`/documents`)
-* **Vista en Vue:** [`src/views/documents/DocumentsView.vue`](file:///c:/Dev/TecnmResidencias/RTecNM_V2_Frontend/src/views/documents/DocumentsView.vue)
-* **Referencia Legacy:** `RTecNM_V2_Frontend_Legacy/Pages/Documents/Index.cshtml` y `wwwroot/assets/js/documents/documents.js`
-* **Lógica a implementar:**
-  * Lista de documentos oficiales requeridos (Carta de Presentación, Aceptación, Dictamen, Reportes Bimestrales, Carta de Liberación).
-  * Componente de carga de archivos (upload) con restricción de PDF y tamaño máximo.
-  * Previsualizador modal de PDFs y estado de aprobación/rechazo por control escolar.
-
----
-
-### 🔹 SPRINT 4: Reportes, Liberación y Administración
-
-#### 5. Reportes Ejecutivo y Liberación (`/admin/reports`)
-* **Vista en Vue:** [`src/views/admin/ReportsView.vue`](file:///c:/Dev/TecnmResidencias/RTecNM_V2_Frontend/src/views/admin/ReportsView.vue)
-* **Referencia Legacy:** `RTecNM_V2_Frontend_Legacy/Pages/Admin/Reports.cshtml` y `wwwroot/assets/js/admin/admin.js`
-* **Lógica a implementar:**
-  * Filtros por periodo escolar, carrera y estatus de residencia.
-  * Generación y exportación de estadísticos institucionales.
-  * Emisión e impresión oficial de la **Carta de Liberación de Residencia Profesional**.
-
-#### 6. Administración de Usuarios y Roles (`/admin/roles`)
-* **Vista en Vue:** [`src/views/admin/RolesView.vue`](file:///c:/Dev/TecnmResidencias/RTecNM_V2_Frontend/src/views/admin/RolesView.vue)
-* **Referencia Legacy:** `RTecNM_V2_Frontend_Legacy/Pages/Admin/Roles.cshtml` y `wwwroot/assets/js/admin/roles.js`
-* **Lógica a implementar:**
-  * Tabla de usuarios del sistema con su rol asignado (`student`, `advisor`, `departmenthead`, `vinculacion`, `director`, `admin`).
-  * Modal para cambiar roles de usuario y restablecer accesos.
-
----
-
-## ⚡ 6. Comandos Útiles para Desarrollo
-
-```bash
-# 1. Posicionarse en la carpeta del frontend oficial
-cd c:\Dev\TecnmResidencias\RTecNM_V2_Frontend
-
-# 2. Levantar servidor de desarrollo en puerto 5000
-pnpm dev
-
-# 3. Compilar para producción y verificar que no existan errores de sintaxis/imports
-pnpm build
+```
+c:\Dev\TecnmResidencias\RTecNM_V2_Frontend\
+├── src\
+│   ├── assets\
+│   │   ├── css\
+│   │   │   └── main.css             <-- Design System institucional TecNM (100% fiel al original)
+│   │   └── tecnm-isologo.svg        <-- Isologotipo oficial TecNM
+│   ├── components\
+│   │   ├── common\
+│   │   │   ├── AuditModal.vue        <-- Modal de Auditoría de 10 campos institucionales
+│   │   │   ├── ConfirmModal.vue      <-- Diálogos de confirmación reactivos
+│   │   │   ├── TecnmAutocomplete.vue <-- Autocompletes asíncronos para Estudiantes, Asesores y Proyectos
+│   │   │   ├── TecnmBadge.vue        <-- Badges homologados con getBadgeHtml()
+│   │   │   └── TecnmPagination.vue   <-- Paginador oficial TecNM
+│   │   ├── layout\
+│   │   │   ├── TecnmFooter.vue       <-- Pie de página institucional
+│   │   │   ├── TecnmHeader.vue       <-- Encabezado y perfil de usuario
+│   │   │   └── TecnmNavbar.vue       <-- Barra de navegación por roles
+│   │   └── search\
+│   │       └── GlobalSearchModal.vue <-- Búsqueda universal global (Ctrl + K)
+│   ├── composables\
+│   │   ├── useAudit.js               <-- Composable para apertura y carga de datos de auditoría
+│   │   ├── useConfirm.js             <-- Composable para confirmaciones
+│   │   └── useGlobalSearch.js        <-- Composable del modal de búsqueda global
+│   ├── router\
+│   │   └── index.js                  <-- Definición de rutas y Guards de seguridad (RBAC)
+│   ├── services\
+│   │   └── api.js                    <-- Cliente Axios centralizado con interceptores JWT
+│   ├── stores\
+│   │   └── auth.js                   <-- Pinia Store de Autenticación y Permisos
+│   └── views\
+│       ├── activities\
+│       │   └── ScheduleView.vue      <-- Matriz de 26 semanas del cronograma
+│       ├── admin\
+│       │   ├── ReportsView.vue       <-- Métricas y emisión de cartas de liberación
+│       │   └── RolesView.vue         <-- Gestión de roles, permisos y asignación de usuarios
+│       ├── advisors\
+│       │   └── AdvisorsView.vue      <-- Directorio docente y vinculación de asesores
+│       ├── auth\
+│       │   └── LoginView.vue         <-- Inicio de sesión institucional
+│       ├── companies\
+│       │   └── CompaniesView.vue     <-- Directorio de empresas receptoras
+│       ├── dashboard\
+│       │   └── DashboardView.vue     <-- Panel principal por roles
+│       ├── documents\
+│       │   └── DocumentsView.vue     <-- Expediente digital y visor de documentos
+│       ├── evaluations\
+│       │   ├── AdvisorySessionsView.vue <-- Bitácora de asesorías técnicas
+│       │   └── GradingView.vue       <-- Evaluación y calificaciones parciales/final
+│       ├── projects\
+│       │   ├── ProposalView.vue      <-- Registro de anteproyectos con objetivos dinámicos
+│       │   └── ReviewView.vue        <-- Dictamen de división académica
+│       └── students\
+│           ├── StudentProfileView.vue<-- Perfil y expediente del estudiante
+│           └── StudentsView.vue      <-- Directorio y catálogo de estudiantes
 ```
 
 ---
 
-## 💡 7. Recomendaciones Finales para el Desarrollador
+## 📊 3. Resumen del Avance (100% Completado)
 
-1. **Revisar primero el archivo `.cshtml` y `.js` equivalente en `RTecNM_V2_Frontend_Legacy`** antes de escribir código en la vista Vue.
-2. **Utilizar `TecnmAutocomplete`** para cualquier campo donde se requiera seleccionar un Estudiante, Empresa o Asesor.
-3. **Utilizar `useAudit()` y `<AuditModal />`** para el botón de auditoría de cada tabla.
-4. **Utilizar `useConfirm()` y `<ConfirmModal />`** para diálogos de eliminación o aprobación.
-5. Ejecutar `pnpm build` al finalizar cada vista para garantizar una compilación limpia.
+| Módulo | Vista / Ruta | Descripción | Estado |
+| :--- | :--- | :--- | :---: |
+| **Auth & RBAC** | `/auth/login` | Login institucional, interceptores JWT y guardias de ruta por rol | ✅ Listo |
+| **Dashboard** | `/dashboard` | 6 KPIs semánticos, cola de dictamen y avance de 26 semanas | ✅ Listo |
+| **Estudiantes** | `/students` | Directorio, paginación, filtros de inactivos y exportación PDF | ✅ Listo |
+| **Perfil Alumno** | `/students/profile` | Expediente y edición con validación estricta | ✅ Listo |
+| **Anteproyectos** | `/projects/proposal` | Solicitud con objetivos dinámicos y autocompletes asistidos | ✅ Listo |
+| **Dictamen** | `/projects/review` | Revisión académica, filtros de estado y retroalimentación | ✅ Listo |
+| **Asesores** | `/advisors` | Directorio docente, vinculación USERS y auditoría | ✅ Listo |
+| **Empresas** | `/companies` | Empresas receptoras, RFC en mayúsculas y gestión de estatus | ✅ Listo |
+| **Cronograma** | `/activities/schedule` | Matriz interactiva de 26 semanas y alta de actividades | ✅ Listo |
+| **Bitácora Asesorías** | `/evaluations` | Sesiones de asesoría técnica, compromisos y autocompletes | ✅ Listo |
+| **Calificaciones** | `/evaluations/grading` | Reportes parciales 1, 2 y final con ponderación institucional | ✅ Listo |
+| **Expediente Digital**| `/documents` | Subida multipart, visor de PDF/imágenes y evaluación | ✅ Listo |
+| **Reportes** | `/admin/reports` | 4 KPIs, tabla de elegibilidad y emisión de libranzas | ✅ Listo |
+| **Usuarios & Roles** | `/admin/roles` | Catálogo de roles con permisos por módulo y asignación de usuarios | ✅ Listo |

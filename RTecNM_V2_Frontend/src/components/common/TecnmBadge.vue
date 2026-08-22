@@ -4,39 +4,94 @@ import { computed } from 'vue'
 const props = defineProps({
   type: {
     type: String,
-    default: 'neutral', // success | danger | warning | info | primary | neutral
+    default: '', // approved | pending | rejected | neutral | info | warning
   },
   status: {
     type: [String, Boolean, Number],
     default: '',
   },
+  label: {
+    type: String,
+    default: '',
+  },
 })
 
-const badgeClass = computed(() => {
-  if (props.type && props.type !== 'neutral') {
-    return `tecnm-badge-${props.type}`
+const parsed = computed(() => {
+  if (props.status === true || props.status === 1) {
+    return {
+      cssClass: props.type ? `tecnm-badge-${props.type}` : 'tecnm-badge-approved',
+      text: props.label || 'Activo',
+    }
+  }
+  if (props.status === false || props.status === 0) {
+    return {
+      cssClass: props.type ? `tecnm-badge-${props.type}` : 'tecnm-badge-rejected',
+      text: props.label || 'Inactivo',
+    }
   }
 
-  // Mapeo automático de estados comunes
-  const s = String(props.status).toLowerCase()
-  if (s === 'active' || s === 'true' || s === 'aprobado' || s === 'vigente' || s === 'completado' || s === 'autorizado') {
-    return 'tecnm-badge-success'
+  const s = String(props.status || '').trim().toLowerCase()
+
+  // Mapeo 100% fiel a getBadgeHtml de ui.js en el frontend legacy
+  if (s === 'draft' || s === 'borrador') {
+    return {
+      cssClass: props.type ? `tecnm-badge-${props.type}` : 'tecnm-badge-neutral',
+      text: props.label || 'Borrador',
+    }
   }
-  if (s === 'inactive' || s === 'false' || s === 'rechazado' || s === 'cancelado' || s === 'no_aprobado') {
-    return 'tecnm-badge-danger'
+  if (s === 'approved' || s === 'aprobado' || s === 'autorizado' || s === 'vigente') {
+    return {
+      cssClass: props.type ? `tecnm-badge-${props.type}` : 'tecnm-badge-approved',
+      text: props.label || 'Aprobado',
+    }
   }
-  if (s === 'pending' || s === 'en_revision' || s === 'en_evaluacion' || s === 'correcciones' || s === 'pendiente') {
-    return 'tecnm-badge-warning'
+  if (s === 'in_progress' || s === 'inprogress' || s === 'en_progreso' || s === 'en progreso') {
+    return {
+      cssClass: props.type ? `tecnm-badge-${props.type}` : 'tecnm-badge-approved',
+      text: props.label || 'En Progreso',
+    }
   }
-  if (s === 'draft' || s === 'borrador' || s === 'registrado') {
-    return 'tecnm-badge-info'
+  if (s === 'completed' || s === 'completado' || s === 'finalizado') {
+    return {
+      cssClass: props.type ? `tecnm-badge-${props.type}` : 'tecnm-badge-approved',
+      text: props.label || 'Completado',
+    }
   }
-  return 'tecnm-badge-neutral'
+  if (s === 'rejected' || s === 'rechazado' || s === 'correcciones' || s === 'correcciones requeridas') {
+    return {
+      cssClass: props.type ? `tecnm-badge-${props.type}` : 'tecnm-badge-rejected',
+      text: props.label || 'Correcciones Requeridas',
+    }
+  }
+  if (s === 'cancelled' || s === 'cancelado' || s === 'baja' || s === 'eliminado') {
+    return {
+      cssClass: props.type ? `tecnm-badge-${props.type}` : 'tecnm-badge-rejected',
+      text: props.label || 'Cancelado',
+    }
+  }
+  if (s === 'active' || s === 'activo') {
+    return {
+      cssClass: props.type ? `tecnm-badge-${props.type}` : 'tecnm-badge-approved',
+      text: props.label || 'Activo',
+    }
+  }
+  if (s === 'inactive' || s === 'inactivo') {
+    return {
+      cssClass: props.type ? `tecnm-badge-${props.type}` : 'tecnm-badge-rejected',
+      text: props.label || 'Inactivo',
+    }
+  }
+
+  // Por defecto (pending, en_revision, etc.)
+  return {
+    cssClass: props.type ? `tecnm-badge-${props.type}` : 'tecnm-badge-pending',
+    text: props.label || 'En Revisión',
+  }
 })
 </script>
 
 <template>
-  <span class="tecnm-badge" :class="badgeClass">
-    <slot>{{ status }}</slot>
+  <span class="tecnm-badge" :class="parsed.cssClass">
+    <slot>{{ parsed.text }}</slot>
   </span>
 </template>
