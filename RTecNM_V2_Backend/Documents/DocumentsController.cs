@@ -50,6 +50,16 @@ public class DocumentsController : ControllerBase
         var denied = await EnsureProjectAccessAsync(dto.ProjectId);
         if (denied is not null) return denied;
 
+        var projectResult = await _projectService.GetProjectByIdAsync(dto.ProjectId);
+        if (projectResult.IsSuccess && projectResult.Data != null)
+        {
+            var isStaff = User.IsInRole("admin") || User.IsInRole("departmenthead") || User.IsInRole("director") || User.IsInRole("academic") || User.IsInRole("vinculacion");
+            if (projectResult.Data.IsCompleted && !isStaff)
+                return StatusCode(400, new { message = "El proyecto de residencia se encuentra concluido. No se permiten nuevas cargas al expediente digital." });
+            if (!projectResult.Data.CanUploadDocuments && !isStaff)
+                return StatusCode(400, new { message = "El anteproyecto aún no ha sido aprobado para cargar documentos oficiales." });
+        }
+
         try
         {
             var result = await _documentService.UploadDocumentAsync(dto, UploadsRootPath);

@@ -69,7 +69,8 @@ const form = ref({
 // Estados de anteproyectos
 const DRAFT_STATUSES = ['draft', 'borrador', 'rejected', 'correcciones requeridas']
 const PRINTABLE_STATUSES = ['approved', 'aprobado', 'in_progress', 'inprogress', 'en_progreso', 'completed', 'completado']
-const ACTIVE_STATUSES = ['draft', 'borrador', 'in_review', 'en revision', 'revision', 'approved', 'aprobado', 'in_progress', 'inprogress', 'en_progreso']
+const ACTIVE_STATUSES = ['draft', 'borrador', 'pending', 'pendiente', 'proposed', 'under_review', 'in_review', 'en revision', 'revision', 'approved', 'aprobado', 'in_progress', 'inprogress', 'en_progreso']
+const CANCELLABLE_STUDENT_STATUSES = ['draft', 'borrador', 'pending', 'pendiente', 'proposed', 'under_review', 'in_review', 'en revision', 'revision', 'rejected', 'correcciones requeridas']
 
 const isStaff = computed(() => {
   return (
@@ -77,6 +78,15 @@ const isStaff = computed(() => {
     authStore.hasRole('departmenthead', 'advisor', 'vinculacion', 'director')
   )
 })
+
+function canCancelProposal(proposal) {
+  if (!proposal) return false
+  const st = String(proposal.status || '').toLowerCase()
+  if (!proposal.isActive || st === 'cancelled' || st === 'completed') return false
+  if (isStaff.value) return true
+  // Si es estudiante: NO puede cancelar una vez que ya fue aprobado o está en curso
+  return CANCELLABLE_STUDENT_STATUSES.includes(st)
+}
 
 // Si es estudiante, verificar si ya tiene un anteproyecto activo
 const canCreateProposal = computed(() => {
@@ -299,8 +309,8 @@ async function cancelProposal(proposal) {
   if (!confirmed) return
 
   try {
-    await apiClient.delete(`/v1/projects/${proposal.id}`)
-    showAlert('Solicitud de anteproyecto cancelada.', 'success')
+    await apiClient.patch(`/v1/projects/${proposal.id}/cancel`)
+    showAlert('Solicitud de anteproyecto cancelada correctamente.', 'success')
     loadStudentProposals()
   } catch (err) {
     showAlert(err.response?.data?.message || 'Error al cancelar anteproyecto.', 'danger')
@@ -511,7 +521,7 @@ onMounted(() => {
                       Auditoría
                     </button>
                     <button
-                      v-if="ACTIVE_STATUSES.includes((p.status||'').toLowerCase())"
+                      v-if="canCancelProposal(p)"
                       type="button"
                       class="tecnm-btn tecnm-btn-danger tecnm-btn-sm"
                       @click="cancelProposal(p)"

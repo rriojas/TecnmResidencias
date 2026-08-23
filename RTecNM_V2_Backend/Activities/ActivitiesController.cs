@@ -41,6 +41,13 @@ public class ActivitiesController : ControllerBase
         var denied = await EnsureProjectAccessAsync(projectId);
         if (denied is not null) return denied;
 
+        var projectResult = await _projectService.GetProjectByIdAsync(projectId);
+        if (projectResult.IsSuccess && projectResult.Data != null)
+        {
+            if (projectResult.Data.IsCompleted || projectResult.Data.IsReadOnly)
+                return StatusCode(400, new { message = "No se pueden agregar actividades a un proyecto concluido o no aprobado." });
+        }
+
         var payload = dto with { ProjectId = projectId };
         var result = await _activityService.CreateActivityAsync(payload);
         if (!result.IsSuccess)
@@ -55,6 +62,13 @@ public class ActivitiesController : ControllerBase
     {
         var denied = await EnsureProjectAccessAsync(projectId);
         if (denied is not null) return denied;
+
+        var projectResult = await _projectService.GetProjectByIdAsync(projectId);
+        if (projectResult.IsSuccess && projectResult.Data != null)
+        {
+            if (projectResult.Data.IsCompleted || projectResult.Data.IsReadOnly)
+                return StatusCode(400, new { message = "No se puede modificar el avance semanal de un proyecto concluido o archivado." });
+        }
 
         var result = await _activityService.SaveWeeklyProgressAsync(dto);
         if (!result.IsSuccess)

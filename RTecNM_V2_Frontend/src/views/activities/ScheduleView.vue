@@ -13,10 +13,6 @@ const isStudent = computed(() =>
 const isAdvisor = computed(() =>
   authStore.hasRole('advisor') && !authStore.hasRole('admin', 'departmenthead')
 )
-const canAddActivity = computed(() => {
-  if (isAdvisor.value) return false
-  return !!currentProject.value?.id
-})
 
 const currentProject = ref(null)
 const activities = ref([])
@@ -24,6 +20,38 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const alertMessage = ref('')
 const alertType = ref('info')
+
+const isProjectCompleted = computed(() => {
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return st === 'completed' || currentProject.value?.isCompleted === true
+})
+
+const isProjectPending = computed(() => {
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return ['pending', 'proposed', 'under_review'].includes(st)
+})
+
+const isProjectDraft = computed(() => {
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return st === 'draft'
+})
+
+const isProjectRejected = computed(() => {
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return st === 'rejected'
+})
+
+const isProjectReadOnly = computed(() => {
+  if (!currentProject.value) return true
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return isProjectCompleted.value || ['cancelled', 'rejected', 'pending', 'under_review', 'proposed', 'draft'].includes(st)
+})
+
+const canAddActivity = computed(() => {
+  if (isAdvisor.value) return false
+  if (!currentProject.value?.id) return false
+  return !isProjectReadOnly.value
+})
 
 // Modal de agregar actividad
 const isModalOpen = ref(false)
@@ -52,6 +80,30 @@ const selectedProjectText = computed(() => {
   return `${title}${studentInfo}`
 })
 
+const projectStatusBadgeClass = computed(() => {
+  if (!currentProject.value) return 'tecnm-badge-neutral'
+  const st = String(currentProject.value.status || '').toLowerCase()
+  if (st === 'completed') return 'tecnm-badge-approved'
+  if (st === 'in_progress') return 'tecnm-badge-pending'
+  if (st === 'approved') return 'tecnm-badge-approved'
+  if (st === 'pending' || st === 'under_review' || st === 'proposed') return 'tecnm-badge-pending'
+  if (st === 'rejected' || st === 'cancelled') return 'tecnm-badge-rejected'
+  return 'tecnm-badge-neutral'
+})
+
+const projectStatusLabel = computed(() => {
+  if (!currentProject.value) return isStudent.value ? 'Sin anteproyecto' : 'No seleccionado'
+  const st = String(currentProject.value.status || '').toLowerCase()
+  if (st === 'completed') return 'Concluido / Acreditado'
+  if (st === 'in_progress') return 'En Desarrollo'
+  if (st === 'approved') return 'Aprobado'
+  if (st === 'pending' || st === 'under_review' || st === 'proposed') return 'En Revisión'
+  if (st === 'draft') return 'Borrador'
+  if (st === 'rejected') return 'Con Observaciones'
+  if (st === 'cancelled') return 'Cancelado'
+  return st
+})
+
 async function initSchedule() {
   if (isStudent.value) {
     await resolveStudentProject()
@@ -69,16 +121,16 @@ async function resolveStudentProject() {
       currentProject.value = res.data
       await loadSchedule(res.data.id)
     } else {
-      errorMessage.value =
-        'No tienes un proyecto aprobado o en curso. Registra tu solicitud de anteproyecto para generar tu cronograma de actividades.'
+      currentProject.value = null
+      activities.value = []
     }
   } catch (err) {
+    currentProject.value = null
+    activities.value = []
     if (err.response?.status === 404) {
-      errorMessage.value =
-        'No tienes un proyecto aprobado o en curso. Registra tu solicitud de anteproyecto para generar tu cronograma de actividades.'
+      // Sin anteproyecto activo o registrado
     } else if (err.response?.status === 403) {
-      errorMessage.value =
-        'El cronograma personal es exclusivo para estudiantes con un proyecto vigente.'
+      errorMessage.value = 'El cronograma personal es exclusivo para estudiantes.'
     } else {
       errorMessage.value = 'Error al cargar el cronograma de actividades desde el servidor.'
     }
@@ -191,6 +243,15 @@ function getStatusLabelSpanish(status) {
 async function cycleWeekStatus(act, weekNum) {
   if (!currentProject.value?.id) return
 
+  if (isProjectReadOnly.value) {
+    if (isProjectCompleted.value) {
+      showAlert('Este proyecto se encuentra concluido. El cronograma está en modo solo lectura.', 'info')
+    } else {
+      showAlert('No se puede modificar el avance del cronograma en el estado actual del anteproyecto.', 'warning')
+    }
+    return
+  }
+
   const currentProg = getWeekProgress(act, weekNum)
   const currentStatus = currentProg.status || 'pending'
 
@@ -235,6 +296,10 @@ async function cycleWeekStatus(act, weekNum) {
 function openAddModal() {
   if (!currentProject.value?.id) {
     showAlert('Debe seleccionar o registrar un anteproyecto activo primero.', 'warning')
+    return
+  }
+  if (isProjectReadOnly.value) {
+    showAlert('No se pueden agregar actividades a un proyecto concluido o en revisión.', 'warning')
     return
   }
   activityTitle.value = ''
@@ -301,10 +366,31 @@ onMounted(() => {
         type="button"
         class="tecnm-btn tecnm-btn-primary"
         :disabled="!canAddActivity"
+        :title="isProjectReadOnly ? 'El cronograma está en modo solo lectura' : ''"
         @click="openAddModal"
       >
         + Nueva Actividad
       </button>
+    </div>
+
+    <!-- Banner Contextual según Estado del Proyecto -->
+    <div v-if="isProjectCompleted" class="tecnm-alert tecnm-alert-success" role="alert" style="margin-bottom: 1rem;">
+      <span><strong>✓ Residencia Profesional Concluida y Acreditada:</strong> El cronograma se encuentra en modo histórico de solo lectura.</span>
+    </div>
+    <div v-else-if="isProjectPending" class="tecnm-alert tecnm-alert-warning" role="alert" style="margin-bottom: 1rem;">
+      <span><strong>⏳ Anteproyecto en Dictamen:</strong> Tu solicitud se encuentra en revisión por la Academia/División. Una vez dictaminada favorablemente, podrás capturar actividades.</span>
+    </div>
+    <div v-else-if="isProjectDraft" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
+      <span><strong>📝 Anteproyecto en Borrador:</strong> Envía tu solicitud a revisión en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link> para habilitar tu cronograma.</span>
+    </div>
+    <div v-else-if="isProjectRejected" class="tecnm-alert tecnm-alert-danger" role="alert" style="margin-bottom: 1rem;">
+      <span><strong>⚠️ Anteproyecto con Observaciones:</strong> Realiza las correcciones solicitadas en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
+    </div>
+    <div v-else-if="!currentProject && !isLoading && isStudent" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+      <span><strong>ℹ️ Sin Anteproyecto Registrado:</strong> Aún no cuentas con un anteproyecto registrado en el sistema.</span>
+      <router-link to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm">
+        + Registrar Solicitud de Anteproyecto
+      </router-link>
     </div>
 
     <!-- Alert de Notificación Flotante Institucional -->
@@ -344,8 +430,8 @@ onMounted(() => {
               </svg>
               <span>Buscar Anteproyecto</span>
             </button>
-            <span id="selectedProjectBadge" class="tecnm-badge tecnm-badge-info">
-              {{ selectedProjectText }}
+            <span id="selectedProjectBadge" class="tecnm-badge" :class="projectStatusBadgeClass">
+              {{ selectedProjectText }} — [{{ projectStatusLabel }}]
             </span>
           </div>
         </div>
@@ -386,9 +472,19 @@ onMounted(() => {
                   {{ errorMessage }}
                 </td>
               </tr>
+              <tr v-else-if="!currentProject">
+                <td colspan="28" class="tecnm-table-empty">
+                  <p style="margin-bottom: 0.5rem;">No tienes un anteproyecto registrado para consultar el cronograma.</p>
+                  <router-link v-if="isStudent" to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm">
+                    Registrar Solicitud de Anteproyecto
+                  </router-link>
+                </td>
+              </tr>
               <tr v-else-if="activities.length === 0">
                 <td colspan="28" class="tecnm-table-empty">
-                  No hay actividades registradas en el cronograma. Haga clic en "+ Nueva Actividad".
+                  <span v-if="isProjectCompleted">No se registraron actividades en este proyecto concluido.</span>
+                  <span v-else-if="isProjectPending">El cronograma se habilitará una vez dictaminado favorablemente el anteproyecto.</span>
+                  <span v-else>No hay actividades registradas en el cronograma. Haga clic en "+ Nueva Actividad".</span>
                 </td>
               </tr>
               <tr
@@ -406,7 +502,7 @@ onMounted(() => {
                   :data-activity-id="act.id"
                   :data-week="w"
                   :data-status="getWeekProgress(act, w).status"
-                  :title="`Actividad: ${act.title} - Semana ${w} (${getStatusLabelSpanish(getWeekProgress(act, w).status)})`"
+                  :title="isProjectReadOnly ? `Actividad: ${act.title} - Semana ${w} (${getStatusLabelSpanish(getWeekProgress(act, w).status)})` : `Actividad: ${act.title} - Semana ${w} (${getStatusLabelSpanish(getWeekProgress(act, w).status)}) - Haga clic para cambiar`"
                   @click="cycleWeekStatus(act, w)"
                 >
                   {{ getStatusSymbol(getWeekProgress(act, w).status) }}

@@ -54,6 +54,19 @@ public class ProjectRepository : IProjectRepository
             .FirstOrDefaultAsync();
     }
 
+    public async Task<Project?> GetPrimaryProjectByStudentIdAsync(long studentId)
+    {
+        return await QueryWithDetails()
+            .Where(p => p.StudentId == studentId && p.IsActive)
+            .OrderByDescending(p => p.Status == ProjectStatus.InProgress)
+            .ThenByDescending(p => p.Status == ProjectStatus.Approved)
+            .ThenByDescending(p => p.Status == ProjectStatus.UnderReview || p.Status == ProjectStatus.Pending || p.Status == ProjectStatus.Proposed)
+            .ThenByDescending(p => p.Status == ProjectStatus.Draft)
+            .ThenByDescending(p => p.Status == ProjectStatus.Completed)
+            .ThenByDescending(p => p.CreatedAt)
+            .FirstOrDefaultAsync();
+    }
+
     public async Task<PaginatedResult<Project>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
     {
         IQueryable<Project> q = QueryWithDetails();

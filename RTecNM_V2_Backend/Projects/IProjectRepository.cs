@@ -7,6 +7,7 @@ public interface IProjectRepository
     Task<Project?> GetByIdAsync(long id);
     Task<Project?> GetByStudentIdAsync(long studentId);
     Task<Project?> GetActiveByStudentIdAsync(long studentId, bool excludeDraft = false);
+    Task<Project?> GetPrimaryProjectByStudentIdAsync(long studentId);
     Task<PaginatedResult<Project>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false);
     Task<List<Project>> GetAllForExportAsync(string? status, string? search, string? sortBy, string? sortDir, bool includeInactive = false);
     Task<PaginatedResult<Project>> GetPagedByStudentIdAsync(long studentId, PaginationQuery query, bool includeInactive = false);
