@@ -270,6 +270,7 @@ CREATE TABLE projects (
     status VARCHAR(30) NOT NULL DEFAULT 'draft',
     start_date TIMESTAMP WITH TIME ZONE NULL,
     end_date TIMESTAMP WITH TIME ZONE NULL,
+    review_comments TEXT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     is_visible BOOLEAN NOT NULL DEFAULT TRUE,
     display_order INT NOT NULL DEFAULT 0,

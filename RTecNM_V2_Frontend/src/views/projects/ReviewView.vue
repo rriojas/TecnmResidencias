@@ -47,6 +47,26 @@ function formatTecNMDate(iso) {
   return `${String(d.getDate()).padStart(2, '0')}/${MONTHS[d.getMonth()]}/${d.getFullYear()}`
 }
 
+// Helpers de ciclo de vida
+const DICTAMINABLE_STATUSES = ['pending', 'pendiente', 'under_review', 'underreview', 'proposed', 'propuesto']
+const PRINTABLE_STATUSES = ['approved', 'aprobado', 'in_progress', 'inprogress', 'en_progreso', 'completed', 'completado']
+
+function isDictaminable(status) {
+  return DICTAMINABLE_STATUSES.includes((status || '').toLowerCase())
+}
+
+function getActionLabel(project) {
+  if (!project) return 'Ver Detalle'
+  const st = (project.status || '').toLowerCase()
+  if (!authStore.isReadOnly && isDictaminable(st)) {
+    return 'Revisar y Dictaminar'
+  }
+  if (st === 'rejected' || st === 'rechazado') {
+    return 'Ver Observaciones'
+  }
+  return 'Ver Detalle'
+}
+
 // Modal de Revisión y Dictamen
 const isReviewModalOpen = ref(false)
 const selectedProject = ref(null)
@@ -187,6 +207,26 @@ async function handleSoftDelete() {
   }
 }
 
+async function downloadProjectPdf(project) {
+  if (!project) return
+  try {
+    const res = await apiClient.get(`/v1/projects/${project.id}/pdf`, {
+      responseType: 'blob',
+    })
+    const blob = new Blob([res.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `anteproyecto_${project.id}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch {
+    showAlert('Error al descargar el PDF del anteproyecto.', 'danger')
+  }
+}
+
 function handleAudit(project) {
   showAudit({
     title: `Auditoría — Anteproyecto #${project.id}`,
@@ -242,6 +282,7 @@ onMounted(() => {
     <div class="tecnm-actions-bar">
       <div>
         <h1 class="tecnm-page-title">Revisión y Dictamen de Anteproyectos</h1>
+        <p class="tecnm-page-subtitle">Evaluación técnica y emisión de dictamen de anteproyectos de residencia profesional</p>
       </div>
       <div class="tecnm-page-actions">
         <button
@@ -272,9 +313,12 @@ onMounted(() => {
             @change="loadProjects"
           >
             <option value="all">Todos los Estatus</option>
-            <option value="pending">Pendientes / En Revisión</option>
+            <option value="pending">Pendientes de Dictamen</option>
             <option value="approved">Aprobados</option>
-            <option value="rejected">Devueltos / Rechazados</option>
+            <option value="in_progress">En Residencia / En Curso</option>
+            <option value="rejected">Devueltos / Correcciones</option>
+            <option value="completed">Concluidos</option>
+            <option value="cancelled">Cancelados</option>
           </select>
         </div>
 
@@ -376,7 +420,16 @@ onMounted(() => {
                       class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                       @click="openReviewModal(p)"
                     >
-                      {{ (p.status || '').toLowerCase() === 'approved' ? 'Ver Detalle' : 'Revisar y Dictaminar' }}
+                      {{ getActionLabel(p) }}
+                    </button>
+                    <button
+                      v-if="PRINTABLE_STATUSES.includes((p.status||'').toLowerCase())"
+                      type="button"
+                      class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                      title="Descargar Anteproyecto PDF"
+                      @click="downloadProjectPdf(p)"
+                    >
+                      PDF
                     </button>
                     <button
                       v-if="authStore.canSeeAudit"
@@ -432,15 +485,34 @@ onMounted(() => {
         </div>
 
         <div>
-          <h4 class="tecnm-field-label">Estudiante Residente</h4>
-          <p id="modalStudentName" class="tecnm-field-value tecnm-field-value-emphasis">
-            {{ selectedProject.studentName || '—' }}
-          </p>
+          <!-- Estado y Datos Generales -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--tecnm-spacing-md);">
+            <div>
+              <h4 class="tecnm-field-label" style="margin-bottom: 0.25rem;">Estudiante Residente</h4>
+              <p id="modalStudentName" class="tecnm-field-value tecnm-field-value-emphasis" style="margin-bottom: 0;">
+                {{ selectedProject.studentName || '—' }} <span v-if="selectedProject.studentControlNumber" class="tecnm-text-muted">({{ selectedProject.studentControlNumber }})</span>
+              </p>
+            </div>
+            <div>
+              <TecnmBadge :status="selectedProject.status" />
+            </div>
+          </div>
 
           <h4 class="tecnm-field-label">Título del Proyecto</h4>
           <p id="modalProjectTitle" class="tecnm-field-value tecnm-field-value-emphasis">
             {{ selectedProject.title }}
           </p>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: var(--tecnm-spacing-md);">
+            <div>
+              <h4 class="tecnm-field-label">Empresa Receptora</h4>
+              <p class="tecnm-field-value">{{ selectedProject.companyName || '—' }}</p>
+            </div>
+            <div>
+              <h4 class="tecnm-field-label">Asesor Interno Asignado</h4>
+              <p class="tecnm-field-value">{{ selectedProject.advisorName || '—' }}</p>
+            </div>
+          </div>
 
           <h4 class="tecnm-field-label">Planteamiento del Problema</h4>
           <p id="modalProblemStatement" class="tecnm-field-value tecnm-field-value-box">
@@ -471,33 +543,73 @@ onMounted(() => {
             </li>
           </ul>
 
-          <div
-            v-if="(selectedProject.status || '').toLowerCase() === 'approved'"
-            id="reviewNotice"
-            class="tecnm-alert tecnm-alert-info"
-          >
-            Este anteproyecto ya ha sido <strong>APROBADO</strong>. El dictamen final no se puede modificar, pero el registro puede ser eliminado lógicamente.
-          </div>
+          <!-- Bloque de Avisos e Información según el Estado -->
 
-          <div
-            v-if="(selectedProject.status || '').toLowerCase() !== 'approved'"
-            id="reviewCommentsGroup"
-            class="tecnm-form-group"
-          >
-            <label for="reviewComments" class="tecnm-label">Comentarios u Observaciones del Dictamen</label>
-            <textarea
-              id="reviewComments"
-              v-model="reviewComments"
-              class="tecnm-form-control"
-              rows="3"
-              placeholder="Ingrese observaciones técnicas o motivo del dictamen..."
-              :disabled="isSubmitting"
-            ></textarea>
-          </div>
+          <!-- 1. Proyecto Aprobado / En Progreso / Concluido -->
+          <template v-if="['approved', 'aprobado', 'in_progress', 'inprogress', 'completed', 'completado'].includes((selectedProject.status || '').toLowerCase())">
+            <div id="reviewNoticeApproved" class="tecnm-alert tecnm-alert-info">
+              Este anteproyecto cuenta con dictamen <strong>APROBADO</strong>. El dictamen técnico es definitivo y el proyecto se encuentra registrado en el expediente institucional de residencias.
+            </div>
+
+            <div v-if="selectedProject.reviewComments" class="tecnm-form-group">
+              <h4 class="tecnm-field-label">Observaciones Registradas en el Dictamen</h4>
+              <p class="tecnm-field-value tecnm-field-value-box" style="background-color: var(--tecnm-bg-light, #f8fafc);">
+                {{ selectedProject.reviewComments }}
+              </p>
+            </div>
+          </template>
+
+          <!-- 2. Proyecto Rechazado / Devuelto con Observaciones -->
+          <template v-else-if="['rejected', 'rechazado'].includes((selectedProject.status || '').toLowerCase())">
+            <div id="reviewNoticeRejected" class="tecnm-alert tecnm-alert-warning">
+              Se han solicitado correcciones al residente. El dictamen formal queda en pausa en espera de que el estudiante realice los ajustes y reenvíe su anteproyecto a revisión.
+            </div>
+
+            <div v-if="selectedProject.reviewComments" class="tecnm-form-group">
+              <h4 class="tecnm-field-label">Observaciones y Correcciones Requeridas Enviadas</h4>
+              <p class="tecnm-field-value tecnm-field-value-box" style="border-left: 4px solid var(--tecnm-warning, #d97706); background-color: #fffbeb;">
+                {{ selectedProject.reviewComments }}
+              </p>
+            </div>
+          </template>
+
+          <!-- 3. Proyecto en Borrador -->
+          <template v-else-if="['draft', 'borrador'].includes((selectedProject.status || '').toLowerCase())">
+            <div id="reviewNoticeDraft" class="tecnm-alert tecnm-alert-secondary">
+              Este anteproyecto se encuentra en estado de <strong>Borrador</strong>. El residente aún se encuentra editándolo y no lo ha enviado formalmente a revisión.
+            </div>
+          </template>
+
+          <!-- 4. Proyecto Cancelado -->
+          <template v-else-if="['cancelled', 'cancelado'].includes((selectedProject.status || '').toLowerCase())">
+            <div id="reviewNoticeCancelled" class="tecnm-alert tecnm-alert-danger">
+              Esta solicitud de anteproyecto ha sido <strong>Cancelada</strong>.
+            </div>
+          </template>
+
+          <!-- 5. Proyecto Pendiente / En Revisión (Dictaminable) -->
+          <template v-else-if="isDictaminable(selectedProject.status) && !authStore.isReadOnly">
+            <div id="reviewCommentsGroup" class="tecnm-form-group">
+              <label for="reviewComments" class="tecnm-label">
+                Comentarios u Observaciones del Dictamen *
+                <span class="tecnm-text-muted">(Obligatorio si solicita correcciones; opcional para dictamen aprobado)</span>
+              </label>
+              <textarea
+                id="reviewComments"
+                v-model="reviewComments"
+                class="tecnm-form-control"
+                rows="3"
+                placeholder="Ingrese observaciones técnicas, recomendaciones o motivo del dictamen..."
+                :disabled="isSubmitting"
+              ></textarea>
+            </div>
+          </template>
         </div>
 
         <div class="tecnm-modal-footer">
+          <!-- Botón de Soft Delete (solo admin/jefatura y si no es read-only) -->
           <button
+            v-if="authStore.canManageRegistry && !authStore.isReadOnly"
             id="modalSoftDeleteBtn"
             type="button"
             class="tecnm-btn tecnm-btn-danger"
@@ -506,7 +618,19 @@ onMounted(() => {
           >
             Eliminar (Soft Delete)
           </button>
-          <template v-if="(selectedProject.status || '').toLowerCase() !== 'approved'">
+
+          <!-- Descargar PDF si está aprobado / en curso -->
+          <button
+            v-if="PRINTABLE_STATUSES.includes((selectedProject.status || '').toLowerCase())"
+            type="button"
+            class="tecnm-btn tecnm-btn-secondary"
+            @click="downloadProjectPdf(selectedProject)"
+          >
+            Descargar PDF Oficial
+          </button>
+
+          <!-- Botones de Dictamen solo si está Pendiente/En Revisión y usuario tiene permisos operativos -->
+          <template v-if="isDictaminable(selectedProject.status) && !authStore.isReadOnly">
             <button
               id="rejectBtn"
               type="button"
@@ -526,6 +650,14 @@ onMounted(() => {
               Dictaminar Aprobado
             </button>
           </template>
+
+          <button
+            type="button"
+            class="tecnm-btn tecnm-btn-secondary"
+            @click="isReviewModalOpen = false"
+          >
+            Cerrar
+          </button>
         </div>
       </div>
     </div>

@@ -22,9 +22,6 @@ const isAdvisor = computed(() =>
 const isStaff = computed(() =>
   authStore.hasRole('admin') || authStore.hasRole('departmenthead')
 )
-const canGrade = computed(() =>
-  !authStore.isReadOnly && authStore.hasRole('admin', 'departmenthead', 'advisor')
-)
 
 const currentProject = ref(null)
 const evaluations = ref([])
@@ -32,6 +29,40 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const alertMessage = ref('')
 const alertType = ref('info')
+
+const isProjectCompleted = computed(() => {
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return st === 'completed' || currentProject.value?.isCompleted === true
+})
+
+const isProjectPending = computed(() => {
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return ['pending', 'proposed', 'under_review'].includes(st)
+})
+
+const isProjectDraft = computed(() => {
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return st === 'draft'
+})
+
+const isProjectRejected = computed(() => {
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return st === 'rejected'
+})
+
+const isProjectReadOnly = computed(() => {
+  if (!currentProject.value) return true
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return isProjectCompleted.value || ['cancelled', 'rejected', 'pending', 'under_review', 'proposed', 'draft'].includes(st)
+})
+
+const canGrade = computed(() => {
+  if (authStore.isReadOnly) return false
+  if (!authStore.hasRole('admin', 'departmenthead', 'advisor')) return false
+  if (!currentProject.value?.id) return false
+  if (isAdvisor.value && isProjectReadOnly.value) return false
+  return true
+})
 
 // Paginación
 const pageNumber = ref(1)
@@ -110,6 +141,30 @@ const selectedProjectText = computed(() => {
   return `${title}${studentInfo}`
 })
 
+const projectStatusBadgeClass = computed(() => {
+  if (!currentProject.value) return 'tecnm-badge-neutral'
+  const st = String(currentProject.value.status || '').toLowerCase()
+  if (st === 'completed') return 'tecnm-badge-approved'
+  if (st === 'in_progress') return 'tecnm-badge-pending'
+  if (st === 'approved') return 'tecnm-badge-approved'
+  if (st === 'pending' || st === 'under_review' || st === 'proposed') return 'tecnm-badge-pending'
+  if (st === 'rejected' || st === 'cancelled') return 'tecnm-badge-rejected'
+  return 'tecnm-badge-neutral'
+})
+
+const projectStatusLabel = computed(() => {
+  if (!currentProject.value) return isStudent.value ? 'Sin anteproyecto' : 'No seleccionado'
+  const st = String(currentProject.value.status || '').toLowerCase()
+  if (st === 'completed') return 'Concluido / Acreditado'
+  if (st === 'in_progress') return 'En Desarrollo'
+  if (st === 'approved') return 'Aprobado'
+  if (st === 'pending' || st === 'under_review' || st === 'proposed') return 'En Revisión'
+  if (st === 'draft') return 'Borrador'
+  if (st === 'rejected') return 'Con Observaciones'
+  if (st === 'cancelled') return 'Cancelado'
+  return st
+})
+
 async function initPage() {
   if (isStudent.value) {
     await resolveStudentProject()
@@ -127,18 +182,17 @@ async function resolveStudentProject() {
       currentProject.value = res.data
       await loadEvaluations()
     } else {
-      errorMessage.value =
-        'No tienes un proyecto aprobado o en curso para consultar calificaciones.'
+      currentProject.value = null
       evaluations.value = []
     }
   } catch (err) {
+    currentProject.value = null
+    evaluations.value = []
     if (err.response?.status === 404) {
-      errorMessage.value =
-        'No tienes un proyecto aprobado o en curso para consultar calificaciones.'
+      // Sin anteproyecto
     } else {
       errorMessage.value = 'Error al consultar las calificaciones del residente.'
     }
-    evaluations.value = []
   } finally {
     isLoading.value = false
   }
@@ -427,6 +481,26 @@ onMounted(() => {
       </button>
     </div>
 
+    <!-- Banner Contextual según Estado del Proyecto -->
+    <div v-if="isProjectCompleted" class="tecnm-alert tecnm-alert-success" role="alert" style="margin-bottom: 1rem;">
+      <span><strong>✓ Residencia Profesional Concluida y Acreditada:</strong> A continuación se muestran las calificaciones oficiales finales registradas en el sistema.</span>
+    </div>
+    <div v-else-if="isProjectPending" class="tecnm-alert tecnm-alert-warning" role="alert" style="margin-bottom: 1rem;">
+      <span><strong>⏳ Anteproyecto en Dictamen:</strong> Las evaluaciones parciales se habilitarán una vez que el anteproyecto sea aprobado y comience el período operativo.</span>
+    </div>
+    <div v-else-if="isProjectDraft" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
+      <span><strong>📝 Anteproyecto en Borrador:</strong> Envía tu solicitud a revisión en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
+    </div>
+    <div v-else-if="isProjectRejected" class="tecnm-alert tecnm-alert-danger" role="alert" style="margin-bottom: 1rem;">
+      <span><strong>⚠️ Anteproyecto con Observaciones:</strong> Realiza las correcciones solicitadas en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
+    </div>
+    <div v-else-if="!currentProject && !isLoading && isStudent" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+      <span><strong>ℹ️ Sin Anteproyecto Registrado:</strong> Aún no cuentas con un anteproyecto para consultar calificaciones.</span>
+      <router-link to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm">
+        + Registrar Solicitud de Anteproyecto
+      </router-link>
+    </div>
+
     <!-- Tarjeta Principal con Lista de Calificaciones -->
     <div class="tecnm-card">
       <div class="tecnm-card-header">
@@ -447,8 +521,8 @@ onMounted(() => {
             </svg>
             <span>Buscar Anteproyecto</span>
           </button>
-          <span id="selectedProjectBadge" class="tecnm-badge tecnm-badge-info">
-            {{ selectedProjectText }}
+          <span id="selectedProjectBadge" class="tecnm-badge" :class="projectStatusBadgeClass">
+            {{ selectedProjectText }} — [{{ projectStatusLabel }}]
           </span>
         </div>
       </div>
@@ -477,9 +551,19 @@ onMounted(() => {
                   {{ errorMessage }}
                 </td>
               </tr>
+              <tr v-else-if="!currentProject">
+                <td colspan="6" class="tecnm-table-empty">
+                  <p style="margin-bottom: 0.5rem;">No tienes un anteproyecto registrado para consultar calificaciones.</p>
+                  <router-link v-if="isStudent" to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm">
+                    Registrar Solicitud de Anteproyecto
+                  </router-link>
+                </td>
+              </tr>
               <tr v-else-if="evaluations.length === 0">
                 <td colspan="6" class="tecnm-table-empty">
-                  No hay calificaciones registradas en la base de datos para este proyecto.
+                  <span v-if="isProjectCompleted">No hay calificaciones registradas en este proyecto concluido.</span>
+                  <span v-else-if="isProjectPending">Las evaluaciones se habilitarán una vez dictaminado favorablemente el anteproyecto.</span>
+                  <span v-else>No hay calificaciones registradas en la base de datos para este proyecto.</span>
                 </td>
               </tr>
               <tr

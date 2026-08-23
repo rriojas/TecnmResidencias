@@ -52,9 +52,24 @@ const welcomeDescription = computed(() => {
 
 const latestStudentProject = computed(() => {
   if (!studentProjects.value.length) return null
-  return studentProjects.value.reduce((best, p) => {
-    return !best || new Date(p.createdAt) > new Date(best.createdAt) ? p : best
-  }, null)
+  const priority = {
+    in_progress: 1,
+    approved: 2,
+    under_review: 3,
+    pending: 4,
+    proposed: 5,
+    draft: 6,
+    completed: 7,
+    rejected: 8,
+    cancelled: 9,
+  }
+  const sorted = [...studentProjects.value].sort((a, b) => {
+    const pa = priority[(a.status || '').toLowerCase()] || 99
+    const pb = priority[(b.status || '').toLowerCase()] || 99
+    if (pa !== pb) return pa - pb
+    return new Date(b.createdAt) - new Date(a.createdAt)
+  })
+  return sorted[0] || null
 })
 
 const studentProgressPercent = computed(() => {
@@ -69,11 +84,30 @@ const studentTasks = computed(() => {
   const tasks = []
   if (!latestStudentProject.value) {
     tasks.push({ text: 'Registrar tu anteproyecto', href: '/projects/proposal' })
-  } else {
-    const s = (latestStudentProject.value.status || '').toLowerCase()
-    if (s === 'pending' || s === 'under_review' || s === 'pendiente') {
-      tasks.push({ text: 'Tu anteproyecto está en revisión', href: '/projects/proposal' })
-    }
+    return tasks
+  }
+
+  const s = (latestStudentProject.value.status || '').toLowerCase()
+  if (s === 'completed') {
+    tasks.push({ text: 'Consultar calificaciones oficiales finales', href: '/evaluations/grades' })
+    tasks.push({ text: 'Descargar constancias del expediente digital', href: '/documents' })
+    tasks.push({ text: 'Consultar cronograma histórico concluido', href: '/activities/schedule' })
+    return tasks
+  }
+
+  if (s === 'pending' || s === 'under_review' || s === 'proposed' || s === 'pendiente') {
+    tasks.push({ text: 'Tu anteproyecto está en dictamen por la Academia', href: '/projects/proposal' })
+    return tasks
+  }
+
+  if (s === 'draft') {
+    tasks.push({ text: 'Completar y enviar solicitud de anteproyecto', href: '/projects/proposal' })
+    return tasks
+  }
+
+  if (s === 'rejected') {
+    tasks.push({ text: 'Corregir observaciones de tu anteproyecto', href: '/projects/proposal' })
+    return tasks
   }
 
   const docsByType = {}

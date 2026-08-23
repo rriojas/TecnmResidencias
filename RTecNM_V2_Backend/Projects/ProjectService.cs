@@ -268,9 +268,9 @@ public class ProjectService : IProjectService
         if (student is null)
             return Result<ProjectResponseDto>.Failure("Este recurso es exclusivo para estudiantes.", 403);
 
-        var project = await _repository.GetActiveByStudentIdAsync(student.Id, excludeDraft: true);
+        var project = await _repository.GetPrimaryProjectByStudentIdAsync(student.Id);
         if (project == null)
-            return Result<ProjectResponseDto>.Failure("No tienes un proyecto aprobado o en curso. Registra tu solicitud de anteproyecto primero.", 404);
+            return Result<ProjectResponseDto>.Failure("No se encontró ningún anteproyecto o residencia registrada para tu cuenta.", 404);
 
         return Result<ProjectResponseDto>.Success(MapToDto(project));
     }
@@ -496,6 +496,10 @@ public class ProjectService : IProjectService
         }
 
         project.Status = newStatus;
+        if (dto.Comments != null)
+        {
+            project.ReviewComments = dto.Comments.Trim();
+        }
         project.UpdatedAt = DateTime.UtcNow;
         project.UpdatedBy = _currentUser.UserId;
 
@@ -516,6 +520,19 @@ public class ProjectService : IProjectService
         if (project is null)
             return Result<ProjectResponseDto>.Failure("Anteproyecto no encontrado.", 404);
 
+        // Regla institucional: Los estudiantes solo pueden cancelar su solicitud antes de que sea aprobada (Borrador, En Revisión o Rechazado).
+        // Una vez aprobado, en curso o concluido, la baja requiere autorización y gestión de la División Académica (Staff).
+        if (!IsStaff())
+        {
+            if (project.Status is ProjectStatus.Approved or ProjectStatus.InProgress or ProjectStatus.Completed)
+            {
+                return Result<ProjectResponseDto>.Failure(
+                    "No puedes cancelar una solicitud de residencia que ya ha sido aprobada o está en curso. Para tramitar una baja, comunícate con la División de Estudios Profesionales.",
+                    403
+                );
+            }
+        }
+
         var cancellableStatuses = new[]
         {
             ProjectStatus.Draft,
@@ -523,11 +540,12 @@ public class ProjectService : IProjectService
             ProjectStatus.Proposed,
             ProjectStatus.UnderReview,
             ProjectStatus.Approved,
-            ProjectStatus.InProgress
+            ProjectStatus.InProgress,
+            ProjectStatus.Rejected
         };
 
         if (!cancellableStatuses.Contains(project.Status))
-            return Result<ProjectResponseDto>.Failure("Solo se pueden cancelar anteproyectos vigentes.", 400);
+            return Result<ProjectResponseDto>.Failure("Solo se pueden cancelar solicitudes vigentes o con observaciones.", 400);
 
         project.Status = ProjectStatus.Cancelled;
         project.UpdatedAt = DateTime.UtcNow;
@@ -602,6 +620,16 @@ public class ProjectService : IProjectService
         var advisorName = p.Advisor?.FullName ?? string.Empty;
         var companyName = p.Company?.Name ?? string.Empty;
 
+        var isCompleted = p.Status == ProjectStatus.Completed;
+        var isReadOnly = p.Status is ProjectStatus.Completed
+            or ProjectStatus.Cancelled
+            or ProjectStatus.Rejected
+            or ProjectStatus.Pending
+            or ProjectStatus.Proposed
+            or ProjectStatus.UnderReview;
+        var canManageActivities = p.Status is ProjectStatus.Approved or ProjectStatus.InProgress;
+        var canUploadDocuments = p.Status is ProjectStatus.Approved or ProjectStatus.InProgress;
+
         return new ProjectResponseDto(
             p.Id,
             p.StudentId,
@@ -629,7 +657,12 @@ public class ProjectService : IProjectService
             p.CreatedBy,
             p.UpdatedBy,
             p.DeletedBy,
-            p.DeletedAt
+            p.DeletedAt,
+            isCompleted,
+            isReadOnly,
+            canManageActivities,
+            canUploadDocuments,
+            p.ReviewComments
         );
     }
 }

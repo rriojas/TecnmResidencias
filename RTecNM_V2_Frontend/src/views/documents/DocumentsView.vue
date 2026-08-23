@@ -34,6 +34,39 @@ const errorMessage = ref('')
 const alertMessage = ref('')
 const alertType = ref('info')
 
+const isProjectCompleted = computed(() => {
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return st === 'completed' || currentProject.value?.isCompleted === true
+})
+
+const isProjectPending = computed(() => {
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return ['pending', 'proposed', 'under_review'].includes(st)
+})
+
+const isProjectDraft = computed(() => {
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return st === 'draft'
+})
+
+const isProjectRejected = computed(() => {
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return st === 'rejected'
+})
+
+const isProjectReadOnly = computed(() => {
+  if (!currentProject.value) return true
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return isProjectCompleted.value || ['cancelled', 'rejected', 'pending', 'under_review', 'proposed', 'draft'].includes(st)
+})
+
+const canUploadDocument = computed(() => {
+  if (isStaff.value) return true
+  if (isAdvisor.value) return false
+  if (!currentProject.value?.id) return false
+  return !isProjectReadOnly.value
+})
+
 // Paginación y Filtros
 const pageNumber = ref(1)
 const pageSize = ref(10)
@@ -129,6 +162,30 @@ const selectedProjectText = computed(() => {
   return `${title}${studentInfo}`
 })
 
+const projectStatusBadgeClass = computed(() => {
+  if (!currentProject.value) return 'tecnm-badge-neutral'
+  const st = String(currentProject.value.status || '').toLowerCase()
+  if (st === 'completed') return 'tecnm-badge-approved'
+  if (st === 'in_progress') return 'tecnm-badge-pending'
+  if (st === 'approved') return 'tecnm-badge-approved'
+  if (st === 'pending' || st === 'under_review' || st === 'proposed') return 'tecnm-badge-pending'
+  if (st === 'rejected' || st === 'cancelled') return 'tecnm-badge-rejected'
+  return 'tecnm-badge-neutral'
+})
+
+const projectStatusLabel = computed(() => {
+  if (!currentProject.value) return isStudent.value ? 'Sin anteproyecto' : 'No seleccionado'
+  const st = String(currentProject.value.status || '').toLowerCase()
+  if (st === 'completed') return 'Concluido / Acreditado'
+  if (st === 'in_progress') return 'En Desarrollo'
+  if (st === 'approved') return 'Aprobado'
+  if (st === 'pending' || st === 'under_review' || st === 'proposed') return 'En Revisión'
+  if (st === 'draft') return 'Borrador'
+  if (st === 'rejected') return 'Con Observaciones'
+  if (st === 'cancelled') return 'Cancelado'
+  return st
+})
+
 async function initPage() {
   if (isStudent.value) {
     await resolveStudentProject()
@@ -146,18 +203,17 @@ async function resolveStudentProject() {
       currentProject.value = res.data
       await loadDocuments()
     } else {
-      errorMessage.value =
-        'No tienes un proyecto aprobado o en curso para consultar el expediente digital.'
+      currentProject.value = null
       documents.value = []
     }
   } catch (err) {
+    currentProject.value = null
+    documents.value = []
     if (err.response?.status === 404) {
-      errorMessage.value =
-        'No tienes un proyecto aprobado o en curso para consultar el expediente digital.'
+      // Sin anteproyecto
     } else {
       errorMessage.value = 'Error al consultar los documentos del expediente.'
     }
-    documents.value = []
   } finally {
     isLoading.value = false
   }
@@ -282,6 +338,18 @@ function changePage(page) {
 
 // Modal Subida
 function openUploadModal() {
+  if (!currentProject.value?.id) {
+    showAlert('Debe seleccionar o registrar un anteproyecto primero.', 'warning')
+    return
+  }
+  if (!isStaff.value && isProjectReadOnly.value) {
+    if (isProjectCompleted.value) {
+      showAlert('El expediente de este proyecto concluido se encuentra en modo solo lectura.', 'info')
+    } else {
+      showAlert('No se pueden subir documentos hasta que el anteproyecto sea aprobado.', 'warning')
+    }
+    return
+  }
   uploadForm.value = {
     projectId: currentProject.value?.id || null,
     documentType: '',
@@ -527,7 +595,7 @@ onMounted(() => {
         </button>
         <span v-if="!isStudent" class="tecnm-page-actions-divider" aria-hidden="true"></span>
         <button
-          v-if="!authStore.isReadOnly"
+          v-if="!authStore.isReadOnly && canUploadDocument"
           id="openUploadModalBtn"
           type="button"
           class="tecnm-btn tecnm-btn-primary"
@@ -536,6 +604,26 @@ onMounted(() => {
           + Subir Documento
         </button>
       </div>
+    </div>
+
+    <!-- Banner Contextual según Estado del Proyecto -->
+    <div v-if="isProjectCompleted" class="tecnm-alert tecnm-alert-success" role="alert" style="margin-bottom: 1rem;">
+      <span><strong>✓ Expediente Digital Concluido:</strong> Este proyecto de residencia profesional ha sido finalizado. Puedes consultar y descargar todos los documentos y evidencias registradas.</span>
+    </div>
+    <div v-else-if="isProjectPending" class="tecnm-alert tecnm-alert-warning" role="alert" style="margin-bottom: 1rem;">
+      <span><strong>⏳ Anteproyecto en Dictamen:</strong> Tu solicitud se encuentra en revisión. La carga de formatos oficiales se habilitará tras la aprobación.</span>
+    </div>
+    <div v-else-if="isProjectDraft" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
+      <span><strong>📝 Anteproyecto en Borrador:</strong> Envía tu solicitud a revisión en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
+    </div>
+    <div v-else-if="isProjectRejected" class="tecnm-alert tecnm-alert-danger" role="alert" style="margin-bottom: 1rem;">
+      <span><strong>⚠️ Anteproyecto con Observaciones:</strong> Realiza las correcciones solicitadas en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
+    </div>
+    <div v-else-if="!currentProject && !isLoading && isStudent" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+      <span><strong>ℹ️ Sin Anteproyecto Registrado:</strong> Aún no cuentas con un anteproyecto para consultar el expediente digital.</span>
+      <router-link to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm">
+        + Registrar Solicitud de Anteproyecto
+      </router-link>
     </div>
 
     <!-- Tarjeta Principal con Lista de Documentos -->
@@ -558,8 +646,8 @@ onMounted(() => {
             </svg>
             <span>Buscar Anteproyecto</span>
           </button>
-          <span id="selectedProjectBadge" class="tecnm-badge tecnm-badge-info">
-            {{ selectedProjectText }}
+          <span id="selectedProjectBadge" class="tecnm-badge" :class="projectStatusBadgeClass">
+            {{ selectedProjectText }} — [{{ projectStatusLabel }}]
           </span>
         </div>
 
@@ -636,9 +724,19 @@ onMounted(() => {
                   {{ errorMessage }}
                 </td>
               </tr>
+              <tr v-else-if="!currentProject">
+                <td colspan="6" class="tecnm-table-empty">
+                  <p style="margin-bottom: 0.5rem;">No tienes un anteproyecto registrado para consultar el expediente.</p>
+                  <router-link v-if="isStudent" to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm">
+                    Registrar Solicitud de Anteproyecto
+                  </router-link>
+                </td>
+              </tr>
               <tr v-else-if="documents.length === 0">
                 <td colspan="6" class="tecnm-table-empty">
-                  No hay documentos registrados para este proyecto.
+                  <span v-if="isProjectCompleted">No hay documentos registrados en este expediente concluido.</span>
+                  <span v-else-if="isProjectPending">El expediente se habilitará una vez aprobado el anteproyecto.</span>
+                  <span v-else>No hay documentos registrados para este proyecto. Haga clic en "+ Subir Documento".</span>
                 </td>
               </tr>
               <tr

@@ -35,5 +35,10 @@ public record ProjectResponseDto(
     long? CreatedBy,
     long? UpdatedBy,
     long? DeletedBy,
-    DateTime? DeletedAt
+    DateTime? DeletedAt,
+    bool IsCompleted = false,
+    bool IsReadOnly = false,
+    bool CanManageActivities = false,
+    bool CanUploadDocuments = false,
+    string? ReviewComments = null
 );
