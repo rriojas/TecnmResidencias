@@ -16,6 +16,7 @@ const { open: openSearch } = useGlobalSearch()
 
 // Estado
 const proposals = ref([])
+const statusFilter = ref('all')
 const includeInactive = ref(false)
 const isLoading = ref(false)
 const isSubmitting = ref(false)
@@ -80,7 +81,7 @@ const isStaff = computed(() => {
 })
 
 function canCancelProposal(proposal) {
-  if (!proposal) return false
+  if (!proposal || authStore.isReadOnly) return false
   const st = String(proposal.status || '').toLowerCase()
   if (!proposal.isActive || st === 'cancelled' || st === 'completed') return false
   if (isStaff.value) return true
@@ -88,14 +89,19 @@ function canCancelProposal(proposal) {
   return CANCELLABLE_STUDENT_STATUSES.includes(st)
 }
 
-// Si es estudiante, verificar si ya tiene un anteproyecto activo
-const canCreateProposal = computed(() => {
-  if (isStaff.value) return true
-  const hasActive = proposals.value.some((p) => {
+// Para estudiantes: detectar si ya cuenta con un anteproyecto activo
+const activeProposal = computed(() => {
+  if (isStaff.value) return null
+  return proposals.value.find((p) => {
     const st = (p.status || '').toLowerCase()
     return ACTIVE_STATUSES.includes(st) && p.isActive !== false
   })
-  return !hasActive
+})
+
+const canCreateProposal = computed(() => {
+  if (authStore.isReadOnly) return false
+  if (isStaff.value) return true
+  return !activeProposal.value
 })
 
 async function loadStudentProposals() {
@@ -105,6 +111,9 @@ async function loadStudentProposals() {
       pageNumber: pageNumber.value,
       pageSize: pageSize.value,
       includeInactive: includeInactive.value,
+    }
+    if (statusFilter.value && statusFilter.value !== 'all') {
+      params.status = statusFilter.value
     }
     const res = await apiClient.get('/v1/projects', { params })
     const data = res.data
@@ -132,6 +141,7 @@ function removeObjective(index) {
 }
 
 function openCreateModal() {
+  if (authStore.isReadOnly) return
   isEditMode.value = false
   editingProposalId.value = null
   initialStudent.value = null
@@ -153,6 +163,10 @@ function openCreateModal() {
 }
 
 async function openEditModal(proposal) {
+  if (authStore.isReadOnly) {
+    showAlert('El rol de supervisión no cuenta con permisos de edición.', 'warning')
+    return
+  }
   try {
     const res = await apiClient.get(`/v1/projects/${proposal.id}`)
     const p = res.data
@@ -163,7 +177,7 @@ async function openEditModal(proposal) {
       showAlert(
         isStaff.value
           ? 'No se puede editar un anteproyecto completado o cancelado.'
-          : 'Solo puedes editar anteproyectos en estado de borrador. Una vez dictaminado, contacta a la División.',
+          : 'Solo puedes editar anteproyectos en estado de borrador o devueltos con correcciones.',
         'warning'
       )
       return
@@ -206,10 +220,11 @@ async function openDetailModal(proposal) {
 }
 
 async function handleProposalSubmit() {
+  if (authStore.isReadOnly) return
   formError.value = ''
 
   if (!form.value.companyId) {
-    formError.value = 'Seleccione la empresa receptora.'
+    formError.value = 'Seleccione la empresa receptora vinculada.'
     return
   }
   if (!form.value.advisorId) {
@@ -282,6 +297,7 @@ async function handleProposalSubmit() {
 }
 
 async function submitProposal(proposal) {
+  if (authStore.isReadOnly) return
   const confirmed = await confirm({
     title: 'Enviar a Revisión',
     message: `¿Desea enviar a revisión el anteproyecto "${proposal.title}"? Una vez enviado, la División Académica procederá con su dictamen.`,
@@ -300,9 +316,10 @@ async function submitProposal(proposal) {
 }
 
 async function cancelProposal(proposal) {
+  if (authStore.isReadOnly) return
   const confirmed = await confirm({
     title: 'Cancelar Solicitud de Anteproyecto',
-    message: `¿Está seguro de cancelar el anteproyecto "${proposal.title}"?`,
+    message: `¿Está seguro de cancelar el anteproyecto "${proposal.title}"? Esto liberará tu registro para presentar una nueva propuesta.`,
     okText: 'Cancelar Anteproyecto',
     cancelText: 'Volver',
   })
@@ -318,6 +335,7 @@ async function cancelProposal(proposal) {
 }
 
 async function reactivateProposal(proposal) {
+  if (authStore.isReadOnly) return
   try {
     await apiClient.patch(`/v1/projects/${proposal.id}/activate`)
     showAlert('Anteproyecto reactivado correctamente.', 'success')
@@ -328,6 +346,7 @@ async function reactivateProposal(proposal) {
 }
 
 async function downloadProposalPdf(proposal) {
+  if (!proposal) return
   try {
     const res = await apiClient.get(`/v1/projects/${proposal.id}/pdf`, {
       responseType: 'blob',
@@ -413,12 +432,66 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Banner Informativo para Estudiantes con Anteproyecto Vigente -->
+    <div
+      v-if="!isStaff && activeProposal"
+      class="tecnm-card active-proposal-banner"
+    >
+      <div class="active-proposal-body">
+        <div class="active-proposal-info">
+          <div class="active-proposal-header">
+            <span class="active-proposal-title">Anteproyecto Vigente: {{ activeProposal.title }}</span>
+            <TecnmBadge :status="activeProposal.status" />
+          </div>
+          <p class="active-proposal-desc">
+            Actualmente cuentas con esta solicitud en proceso. Cada estudiante puede gestionar un anteproyecto activo a la vez.
+          </p>
+        </div>
+        <div class="active-proposal-actions">
+          <button
+            type="button"
+            class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+            @click="openDetailModal(activeProposal)"
+          >
+            Ver Detalles
+          </button>
+          <button
+            v-if="['draft', 'rejected'].includes((activeProposal.status || '').toLowerCase()) && !authStore.isReadOnly"
+            type="button"
+            class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+            @click="openEditModal(activeProposal)"
+          >
+            Editar Borrador
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Tarjeta Principal de Tabla -->
     <div class="tecnm-card">
       <div class="tecnm-card-header">
-        <h3 class="tecnm-card-title">Mis Anteproyectos Registrados</h3>
+        <h3 class="tecnm-card-title">{{ isStaff ? 'Historial de Anteproyectos Registrados' : 'Mis Anteproyectos Registrados' }}</h3>
       </div>
       <div class="tecnm-card-toolbar">
+        <div class="tecnm-form-group tecnm-mb-0 tecnm-filter-group" style="margin-bottom: 0;">
+          <label for="proposalStatusFilter" class="tecnm-label tecnm-sr-only">Filtrar por Estatus</label>
+          <select
+            id="proposalStatusFilter"
+            v-model="statusFilter"
+            class="tecnm-form-control"
+            @change="loadStudentProposals"
+          >
+            <option value="all">Todos los Estatus</option>
+            <option value="draft">Borradores</option>
+            <option value="pending">En Revisión / Pendientes</option>
+            <option value="approved">Aprobados</option>
+            <option value="in_progress">En Residencia / En Curso</option>
+            <option value="rejected">Devueltos con Observaciones</option>
+            <option value="completed">Concluidos</option>
+            <option value="cancelled">Cancelados</option>
+          </select>
+        </div>
+
         <div class="tecnm-toolbar-actions">
           <label class="tecnm-switch-label">
             <span class="tecnm-switch">
@@ -449,6 +522,7 @@ onMounted(() => {
             <thead>
               <tr>
                 <th>Título del Proyecto</th>
+                <th v-if="isStaff">Estudiante</th>
                 <th>Empresa Receptora</th>
                 <th>Tipo</th>
                 <th>Fecha Registro</th>
@@ -458,12 +532,12 @@ onMounted(() => {
             </thead>
             <tbody id="studentProposalsTableBody">
               <tr v-if="isLoading">
-                <td colspan="6" class="tecnm-table-empty">
+                <td :colspan="isStaff ? 7 : 6" class="tecnm-table-empty">
                   Cargando solicitudes de anteproyecto...
                 </td>
               </tr>
               <tr v-else-if="proposals.length === 0">
-                <td colspan="6" class="tecnm-table-empty">
+                <td :colspan="isStaff ? 7 : 6" class="tecnm-table-empty">
                   No hay solicitudes de anteproyecto registradas.
                 </td>
               </tr>
@@ -479,9 +553,10 @@ onMounted(() => {
                     class="tecnm-text-muted"
                     style="font-size: 0.78rem; color: var(--tecnm-warning, #d97706); margin-top: 0.25rem;"
                   >
-                    ⚠️ Observación: {{ p.reviewComments.length > 80 ? p.reviewComments.substring(0, 80) + '...' : p.reviewComments }}
+                    ⚠️ Observaciones: {{ p.reviewComments.length > 80 ? p.reviewComments.substring(0, 80) + '...' : p.reviewComments }}
                   </div>
                 </td>
+                <td v-if="isStaff">{{ p.studentName || '—' }}</td>
                 <td>{{ p.companyName || '—' }}</td>
                 <td>{{ p.projectType || 'Desarrollo' }}</td>
                 <td>{{ formatTecNMDate(p.createdAt) }}</td>
@@ -498,7 +573,7 @@ onMounted(() => {
                       Ver detalle
                     </button>
                     <button
-                      v-if="isStaff ? !['completed', 'cancelled'].includes((p.status||'').toLowerCase()) : DRAFT_STATUSES.includes((p.status||'').toLowerCase())"
+                      v-if="!authStore.isReadOnly && (isStaff ? !['completed', 'cancelled'].includes((p.status||'').toLowerCase()) : DRAFT_STATUSES.includes((p.status||'').toLowerCase()))"
                       type="button"
                       class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                       @click="openEditModal(p)"
@@ -506,7 +581,7 @@ onMounted(() => {
                       {{ isStaff ? 'Editar' : 'Editar borrador' }}
                     </button>
                     <button
-                      v-if="['draft', 'rejected'].includes((p.status||'').toLowerCase())"
+                      v-if="!authStore.isReadOnly && ['draft', 'rejected'].includes((p.status||'').toLowerCase())"
                       type="button"
                       class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
                       @click="submitProposal(p)"
@@ -538,7 +613,7 @@ onMounted(() => {
                       Cancelar solicitud
                     </button>
                     <button
-                      v-if="(!p.isActive || (p.status||'').toLowerCase() === 'cancelled') && authStore.canManageRegistry"
+                      v-if="(!p.isActive || (p.status||'').toLowerCase() === 'cancelled') && authStore.canManageRegistry && !authStore.isReadOnly"
                       type="button"
                       class="tecnm-btn tecnm-btn-success tecnm-btn-sm"
                       @click="reactivateProposal(p)"
@@ -798,18 +873,95 @@ onMounted(() => {
         </div>
 
         <div>
-          <h4 class="tecnm-field-label">Título del Proyecto</h4>
-          <p class="tecnm-field-value tecnm-field-value-emphasis">{{ selectedProject.title }}</p>
+          <!-- Cabecera de Estado y Metadatos -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--tecnm-spacing-md);">
+            <div>
+              <h4 class="tecnm-field-label" style="margin-bottom: 0.25rem;">Título del Proyecto</h4>
+              <p class="tecnm-field-value tecnm-field-value-emphasis" style="margin-bottom: 0;">
+                {{ selectedProject.title }}
+              </p>
+            </div>
+            <div>
+              <TecnmBadge :status="selectedProject.status" />
+            </div>
+          </div>
 
-          <h4 class="tecnm-field-label">Empresa Receptora</h4>
-          <p class="tecnm-field-value">{{ selectedProject.companyName || '—' }}</p>
+          <!-- Stepper de Progreso del Trámite -->
+          <div class="proposal-stepper">
+            <div
+              class="step-item"
+              :class="{
+                active: ['draft', 'borrador'].includes((selectedProject.status || '').toLowerCase()),
+                completed: !['draft', 'borrador'].includes((selectedProject.status || '').toLowerCase())
+              }"
+            >
+              <div class="step-circle">1</div>
+              <div class="step-label">Borrador</div>
+            </div>
+            <div
+              class="step-line"
+              :class="{ completed: !['draft', 'borrador'].includes((selectedProject.status || '').toLowerCase()) }"
+            ></div>
+            <div
+              class="step-item"
+              :class="{
+                active: ['pending', 'pendiente', 'proposed', 'under_review', 'in_review'].includes((selectedProject.status || '').toLowerCase()),
+                warning: ['rejected', 'rechazado'].includes((selectedProject.status || '').toLowerCase()),
+                completed: ['approved', 'aprobado', 'in_progress', 'inprogress', 'completed', 'completado'].includes((selectedProject.status || '').toLowerCase())
+              }"
+            >
+              <div class="step-circle">2</div>
+              <div class="step-label">
+                {{ ['rejected', 'rechazado'].includes((selectedProject.status || '').toLowerCase()) ? 'Correcciones' : 'En Revisión' }}
+              </div>
+            </div>
+            <div
+              class="step-line"
+              :class="{ completed: ['approved', 'aprobado', 'in_progress', 'inprogress', 'completed', 'completado'].includes((selectedProject.status || '').toLowerCase()) }"
+            ></div>
+            <div
+              class="step-item"
+              :class="{
+                active: ['approved', 'aprobado'].includes((selectedProject.status || '').toLowerCase()),
+                completed: ['in_progress', 'inprogress', 'completed', 'completado'].includes((selectedProject.status || '').toLowerCase())
+              }"
+            >
+              <div class="step-circle">3</div>
+              <div class="step-label">Dictamen Aprobado</div>
+            </div>
+            <div
+              class="step-line"
+              :class="{ completed: ['in_progress', 'inprogress', 'completed', 'completado'].includes((selectedProject.status || '').toLowerCase()) }"
+            ></div>
+            <div
+              class="step-item"
+              :class="{
+                active: ['in_progress', 'inprogress'].includes((selectedProject.status || '').toLowerCase()),
+                completed: ['completed', 'completado'].includes((selectedProject.status || '').toLowerCase())
+              }"
+            >
+              <div class="step-circle">4</div>
+              <div class="step-label">En Residencia</div>
+            </div>
+          </div>
 
-          <h4 class="tecnm-field-label">Asesor Interno</h4>
-          <p class="tecnm-field-value">{{ selectedProject.advisorName || '—' }}</p>
-
-          <h4 class="tecnm-field-label">Estado</h4>
-          <div style="margin-bottom: var(--tecnm-spacing-md);">
-            <TecnmBadge :status="selectedProject.status" />
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: var(--tecnm-spacing-md);">
+            <div>
+              <h4 class="tecnm-field-label">Empresa Receptora</h4>
+              <p class="tecnm-field-value">{{ selectedProject.companyName || '—' }}</p>
+            </div>
+            <div>
+              <h4 class="tecnm-field-label">Asesor Interno Asignado</h4>
+              <p class="tecnm-field-value">{{ selectedProject.advisorName || '—' }}</p>
+            </div>
+            <div>
+              <h4 class="tecnm-field-label">Tipo de Proyecto</h4>
+              <p class="tecnm-field-value">{{ selectedProject.projectType || 'Desarrollo Tecnológico' }}</p>
+            </div>
+            <div>
+              <h4 class="tecnm-field-label">Fecha de Registro</h4>
+              <p class="tecnm-field-value">{{ formatTecNMDate(selectedProject.createdAt) }}</p>
+            </div>
           </div>
 
           <h4 class="tecnm-field-label">Planteamiento del Problema</h4>
@@ -831,6 +983,7 @@ onMounted(() => {
             </li>
           </ul>
 
+          <!-- Alerta de Observaciones del Dictamen -->
           <div v-if="selectedProject.reviewComments" style="margin-top: var(--tecnm-spacing-md);">
             <div
               class="tecnm-alert"
@@ -841,11 +994,28 @@ onMounted(() => {
                 {{ ['rejected', 'rechazado'].includes((selectedProject.status || '').toLowerCase()) ? 'Observaciones y Correcciones Requeridas por la División / Revisor:' : 'Observaciones Registradas en el Dictamen:' }}
               </h4>
               <p style="margin: 0.25rem 0 0 0; white-space: pre-wrap;">{{ selectedProject.reviewComments }}</p>
+              <div v-if="['rejected', 'rechazado'].includes((selectedProject.status || '').toLowerCase()) && !authStore.isReadOnly" style="margin-top: 0.75rem;">
+                <button
+                  type="button"
+                  class="tecnm-btn tecnm-btn-warning tecnm-btn-sm"
+                  @click="isDetailOpen = false; openEditModal(selectedProject)"
+                >
+                  ✏️ Realizar Correcciones Ahora
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         <div class="tecnm-modal-footer">
+          <button
+            v-if="PRINTABLE_STATUSES.includes((selectedProject.status || '').toLowerCase())"
+            type="button"
+            class="tecnm-btn tecnm-btn-primary"
+            @click="downloadProposalPdf(selectedProject)"
+          >
+            Descargar PDF Oficial
+          </button>
           <button
             type="button"
             class="tecnm-btn tecnm-btn-secondary"
@@ -863,5 +1033,133 @@ onMounted(() => {
 .tecnm-row-actions {
   display: inline-flex;
   gap: 0.35rem;
+}
+
+/* Banner de solicitud activa */
+.active-proposal-banner {
+  border-left: 4px solid var(--tecnm-primary, #1b396a);
+  margin-bottom: 1.5rem;
+  background: #f8fafc;
+}
+
+.active-proposal-body {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.active-proposal-info {
+  flex: 1;
+  min-width: 260px;
+}
+
+.active-proposal-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.active-proposal-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--tecnm-primary, #1b396a);
+}
+
+.active-proposal-desc {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--tecnm-text-muted, #64748b);
+}
+
+.active-proposal-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Stepper de Progreso */
+.proposal-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 1.25rem 0 1.75rem 0;
+  padding: 1rem 1.25rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid var(--tecnm-border, #e2e8f0);
+}
+
+.step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  z-index: 1;
+}
+
+.step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.step-label {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 600;
+  text-align: center;
+}
+
+.step-item.active .step-circle {
+  background: var(--tecnm-primary, #1b396a);
+  box-shadow: 0 0 0 3px rgba(27, 57, 106, 0.2);
+}
+
+.step-item.active .step-label {
+  color: var(--tecnm-primary, #1b396a);
+  font-weight: 700;
+}
+
+.step-item.completed .step-circle {
+  background: var(--tecnm-success, #16a34a);
+}
+
+.step-item.completed .step-label {
+  color: var(--tecnm-success, #16a34a);
+}
+
+.step-item.warning .step-circle {
+  background: var(--tecnm-warning, #d97706);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2);
+}
+
+.step-item.warning .step-label {
+  color: var(--tecnm-warning, #d97706);
+  font-weight: 700;
+}
+
+.step-line {
+  flex: 1;
+  height: 3px;
+  background: #cbd5e1;
+  margin: 0 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.step-line.completed {
+  background: var(--tecnm-success, #16a34a);
 }
 </style>
