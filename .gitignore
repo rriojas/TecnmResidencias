@@ -60,3 +60,16 @@ TestResult.xml
 *.coverage
 *.coveragexml
 coverage/
+
+## Skills & Agent Customizations
+skills-lock.json
+*skills-lock*.json
+.agents/
+skills/
+**/SKILL.md
+**/skill.md
+**/skills/**/README.md
+**/skills/**/readme.md
+SKILL.md
+skill.md
+
