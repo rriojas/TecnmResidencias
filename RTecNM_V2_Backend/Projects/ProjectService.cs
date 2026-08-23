@@ -496,6 +496,10 @@ public class ProjectService : IProjectService
         }
 
         project.Status = newStatus;
+        if (dto.Comments != null)
+        {
+            project.ReviewComments = dto.Comments.Trim();
+        }
         project.UpdatedAt = DateTime.UtcNow;
         project.UpdatedBy = _currentUser.UserId;
 
@@ -657,7 +661,8 @@ public class ProjectService : IProjectService
             isCompleted,
             isReadOnly,
             canManageActivities,
-            canUploadDocuments
+            canUploadDocuments,
+            p.ReviewComments
         );
     }
 }

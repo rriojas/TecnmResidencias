@@ -39,5 +39,6 @@ public record ProjectResponseDto(
     bool IsCompleted = false,
     bool IsReadOnly = false,
     bool CanManageActivities = false,
-    bool CanUploadDocuments = false
+    bool CanUploadDocuments = false,
+    string? ReviewComments = null
 );

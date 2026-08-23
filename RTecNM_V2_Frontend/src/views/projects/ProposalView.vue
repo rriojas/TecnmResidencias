@@ -472,7 +472,16 @@ onMounted(() => {
                 v-else
                 :key="p.id"
               >
-                <td><strong>{{ p.title }}</strong></td>
+                <td>
+                  <strong>{{ p.title }}</strong>
+                  <div
+                    v-if="['rejected', 'rechazado'].includes((p.status||'').toLowerCase()) && p.reviewComments"
+                    class="tecnm-text-muted"
+                    style="font-size: 0.78rem; color: var(--tecnm-warning, #d97706); margin-top: 0.25rem;"
+                  >
+                    ⚠️ Observación: {{ p.reviewComments.length > 80 ? p.reviewComments.substring(0, 80) + '...' : p.reviewComments }}
+                  </div>
+                </td>
                 <td>{{ p.companyName || '—' }}</td>
                 <td>{{ p.projectType || 'Desarrollo' }}</td>
                 <td>{{ formatTecNMDate(p.createdAt) }}</td>
@@ -821,6 +830,19 @@ onMounted(() => {
               {{ obj.description || obj }}
             </li>
           </ul>
+
+          <div v-if="selectedProject.reviewComments" style="margin-top: var(--tecnm-spacing-md);">
+            <div
+              class="tecnm-alert"
+              :class="['rejected', 'rechazado'].includes((selectedProject.status || '').toLowerCase()) ? 'tecnm-alert-warning' : 'tecnm-alert-info'"
+              style="margin-bottom: 0;"
+            >
+              <h4 class="tecnm-field-label" style="margin-top: 0; color: inherit;">
+                {{ ['rejected', 'rechazado'].includes((selectedProject.status || '').toLowerCase()) ? 'Observaciones y Correcciones Requeridas por la División / Revisor:' : 'Observaciones Registradas en el Dictamen:' }}
+              </h4>
+              <p style="margin: 0.25rem 0 0 0; white-space: pre-wrap;">{{ selectedProject.reviewComments }}</p>
+            </div>
+          </div>
         </div>
 
         <div class="tecnm-modal-footer">

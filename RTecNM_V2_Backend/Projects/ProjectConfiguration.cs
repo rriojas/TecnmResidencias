@@ -76,6 +76,9 @@ public class ProjectConfiguration : IEntityTypeConfiguration<Project>
         builder.Property(p => p.EndDate)
             .HasColumnName("end_date");
 
+        builder.Property(p => p.ReviewComments)
+            .HasColumnName("review_comments");
+
         // BaseEntity fields
         builder.Property(p => p.IsActive).HasColumnName("is_active");
         builder.Property(p => p.IsVisible).HasColumnName("is_visible");

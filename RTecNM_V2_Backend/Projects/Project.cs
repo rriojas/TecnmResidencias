@@ -18,6 +18,7 @@ public class Project : BaseEntity
     public ProjectStatus Status { get; set; } = ProjectStatus.Pending;
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
+    public string? ReviewComments { get; set; }
 
     public Student? Student { get; set; }
     public Advisor? Advisor { get; set; }
