@@ -43,6 +43,20 @@ function showAlert(msg, type = 'success') {
   }, 4500)
 }
 
+// Catálogos
+const ACADEMIC_PERIODS = [
+  { id: 1, name: 'Ene-Jun 2026' },
+  { id: 2, name: 'Ago-Dic 2026' },
+  { id: 3, name: 'Ene-Jun 2027' },
+  { id: 4, name: 'Ago-Dic 2027' },
+]
+
+const GENDER_OPTIONS = [
+  { value: 'Masculino', label: 'Masculino' },
+  { value: 'Femenino', label: 'Femenino' },
+  { value: 'Otro', label: 'Otro / No especificado' },
+]
+
 // Modal Formulario
 const isModalOpen = ref(false)
 const isEditMode = ref(false)
@@ -54,8 +68,12 @@ const form = ref({
   controlNumber: '',
   firstName: '',
   lastName: '',
+  lastName2: '',
+  curp: '',
+  gender: 'Masculino',
   email: '',
   careerId: 1,
+  academicPeriodId: 1,
   gpa: '',
 })
 
@@ -105,8 +123,12 @@ function openCreateModal() {
     controlNumber: '',
     firstName: '',
     lastName: '',
+    lastName2: '',
+    curp: '',
+    gender: 'Masculino',
     email: '',
     careerId: 1,
+    academicPeriodId: 1,
     gpa: '',
   }
   formError.value = ''
@@ -123,8 +145,12 @@ async function openEditModal(student) {
       controlNumber: s.controlNumber || '',
       firstName: s.firstName || '',
       lastName: s.lastName || '',
+      lastName2: s.lastName2 || '',
+      curp: s.curp || '',
+      gender: s.gender || 'Masculino',
       email: s.email || '',
       careerId: s.careerId || 1,
+      academicPeriodId: s.academicPeriodId || 1,
       gpa: s.gpa != null ? s.gpa : '',
     }
     formError.value = ''
@@ -148,7 +174,7 @@ async function handleSubmit() {
     return
   }
   if (!form.value.firstName.trim() || !form.value.lastName.trim()) {
-    formError.value = 'El nombre y los apellidos son obligatorios.'
+    formError.value = 'El nombre y el apellido paterno son obligatorios.'
     return
   }
   if (!form.value.email.trim()) {
@@ -167,17 +193,25 @@ async function handleSubmit() {
       await apiClient.put(`/v1/students/${editingStudentId.value}`, {
         firstName: form.value.firstName.trim(),
         lastName: form.value.lastName.trim(),
+        lastName2: form.value.lastName2.trim() || undefined,
+        curp: form.value.curp.trim().toUpperCase() || undefined,
+        gender: form.value.gender || undefined,
         careerId: Number(form.value.careerId),
+        academicPeriodId: form.value.academicPeriodId ? Number(form.value.academicPeriodId) : undefined,
         gpa: form.value.gpa !== '' ? Number(form.value.gpa) : undefined,
       })
       showAlert('Estudiante actualizado exitosamente.', 'success')
     } else {
       await apiClient.post('/v1/students', {
-        controlNumber: form.value.controlNumber.trim(),
+        controlNumber: form.value.controlNumber.trim().toUpperCase(),
         firstName: form.value.firstName.trim(),
         lastName: form.value.lastName.trim(),
+        lastName2: form.value.lastName2.trim() || undefined,
+        curp: form.value.curp.trim().toUpperCase() || undefined,
+        gender: form.value.gender || undefined,
         email: form.value.email.trim().toLowerCase(),
         careerId: Number(form.value.careerId),
+        academicPeriodId: form.value.academicPeriodId ? Number(form.value.academicPeriodId) : undefined,
         gpa: form.value.gpa !== '' ? Number(form.value.gpa) : undefined,
       })
       showAlert('Estudiante registrado exitosamente.', 'success')
@@ -486,7 +520,7 @@ onMounted(() => {
 
           <div class="tecnm-form-grid">
             <div class="tecnm-form-group">
-              <label for="controlNumber" class="tecnm-label">Número de Control</label>
+              <label for="controlNumber" class="tecnm-label">Número de Control *</label>
               <input
                 id="controlNumber"
                 v-model="form.controlNumber"
@@ -499,7 +533,21 @@ onMounted(() => {
             </div>
 
             <div class="tecnm-form-group">
-              <label for="firstName" class="tecnm-label">Nombre(s)</label>
+              <label for="curp" class="tecnm-label">CURP</label>
+              <input
+                id="curp"
+                v-model="form.curp"
+                type="text"
+                maxlength="18"
+                class="tecnm-form-control"
+                placeholder="ABCD010203HDFRLL09"
+                style="text-transform: uppercase;"
+                :disabled="isSubmitting"
+              />
+            </div>
+
+            <div class="tecnm-form-group">
+              <label for="firstName" class="tecnm-label">Nombre(s) *</label>
               <input
                 id="firstName"
                 v-model="form.firstName"
@@ -512,20 +560,50 @@ onMounted(() => {
             </div>
 
             <div class="tecnm-form-group">
-              <label for="lastName" class="tecnm-label">Apellido Paterno / Materno</label>
+              <label for="lastName" class="tecnm-label">Apellido Paterno *</label>
               <input
                 id="lastName"
                 v-model="form.lastName"
                 type="text"
                 class="tecnm-form-control"
-                placeholder="Pérez López"
+                placeholder="Pérez"
                 :disabled="isSubmitting"
                 required
               />
             </div>
 
             <div class="tecnm-form-group">
-              <label for="email" class="tecnm-label">Correo institucional</label>
+              <label for="lastName2" class="tecnm-label">Apellido Materno</label>
+              <input
+                id="lastName2"
+                v-model="form.lastName2"
+                type="text"
+                class="tecnm-form-control"
+                placeholder="Gómez"
+                :disabled="isSubmitting"
+              />
+            </div>
+
+            <div class="tecnm-form-group">
+              <label for="gender" class="tecnm-label">Género</label>
+              <select
+                id="gender"
+                v-model="form.gender"
+                class="tecnm-form-control"
+                :disabled="isSubmitting"
+              >
+                <option
+                  v-for="g in GENDER_OPTIONS"
+                  :key="g.value"
+                  :value="g.value"
+                >
+                  {{ g.label }}
+                </option>
+              </select>
+            </div>
+
+            <div class="tecnm-form-group">
+              <label for="email" class="tecnm-label">Correo institucional *</label>
               <input
                 id="email"
                 v-model="form.email"
@@ -538,7 +616,7 @@ onMounted(() => {
             </div>
 
             <div class="tecnm-form-group">
-              <label for="careerId" class="tecnm-label">Carrera</label>
+              <label for="careerId" class="tecnm-label">Carrera *</label>
               <select
                 id="careerId"
                 v-model="form.careerId"
@@ -554,6 +632,24 @@ onMounted(() => {
             </div>
 
             <div class="tecnm-form-group">
+              <label for="academicPeriodId" class="tecnm-label">Periodo Académico</label>
+              <select
+                id="academicPeriodId"
+                v-model="form.academicPeriodId"
+                class="tecnm-form-control"
+                :disabled="isSubmitting"
+              >
+                <option
+                  v-for="p in ACADEMIC_PERIODS"
+                  :key="p.id"
+                  :value="p.id"
+                >
+                  {{ p.name }}
+                </option>
+              </select>
+            </div>
+
+            <div class="tecnm-form-group">
               <label for="gpa" class="tecnm-label">Promedio General</label>
               <input
                 id="gpa"
@@ -565,7 +661,6 @@ onMounted(() => {
                 class="tecnm-form-control"
                 placeholder="92.5"
                 :disabled="isSubmitting"
-                required
               />
             </div>
           </div>

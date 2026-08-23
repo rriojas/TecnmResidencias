@@ -401,6 +401,8 @@ public static class DbSeeder
                 END IF;
                 IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='gender' AND data_type='USER-DEFINED') THEN
                     ALTER TABLE students ALTER COLUMN gender TYPE VARCHAR(50) USING gender::text;
+                ELSE
+                    ALTER TABLE students ADD COLUMN IF NOT EXISTS gender VARCHAR(50);
                 END IF;
             END $$;
         ";
@@ -524,6 +526,7 @@ public static class DbSeeder
                 LastName = "Pérez",
                 LastName2 = "Gómez",
                 Curp = "PEGJ020101HMCRRR01",
+                Gender = "Masculino",
                 CareerId = 1,
                 AcademicPeriodId = 1,
                 Gpa = 92.5m,

@@ -22,6 +22,13 @@ const CAREERS = {
   4: 'Ingeniería en Sistemas Computacionales',
 }
 
+const ACADEMIC_PERIODS = {
+  1: 'Ene-Jun 2026',
+  2: 'Ago-Dic 2026',
+  3: 'Ene-Jun 2027',
+  4: 'Ago-Dic 2027',
+}
+
 const fullName = computed(() => {
   if (!student.value) return '—'
   return [student.value.firstName, student.value.lastName, student.value.lastName2]
@@ -203,10 +210,22 @@ onMounted(() => {
                 <span class="tecnm-info-tile-value tecnm-info-tile-value--mono">{{ student.controlNumber || '—' }}</span>
               </div>
 
+              <!-- CURP -->
+              <div class="tecnm-info-tile">
+                <span class="tecnm-info-tile-label">CURP</span>
+                <span class="tecnm-info-tile-value tecnm-info-tile-value--mono">{{ student.curp || '—' }}</span>
+              </div>
+
               <!-- Nombre Completo -->
               <div class="tecnm-info-tile">
                 <span class="tecnm-info-tile-label">Nombre Completo</span>
                 <span class="tecnm-info-tile-value">{{ fullName }}</span>
+              </div>
+
+              <!-- Género -->
+              <div class="tecnm-info-tile">
+                <span class="tecnm-info-tile-label">Género</span>
+                <span class="tecnm-info-tile-value">{{ student.gender || '—' }}</span>
               </div>
 
               <!-- Correo Institucional -->
@@ -226,9 +245,15 @@ onMounted(() => {
               </div>
 
               <!-- Carrera -->
-              <div class="tecnm-info-tile tecnm-info-tile--full">
+              <div class="tecnm-info-tile">
                 <span class="tecnm-info-tile-label">Carrera / Programa Académico</span>
                 <span class="tecnm-info-tile-value">{{ CAREERS[student.careerId] || '—' }}</span>
+              </div>
+
+              <!-- Periodo Académico -->
+              <div class="tecnm-info-tile">
+                <span class="tecnm-info-tile-label">Periodo Académico</span>
+                <span class="tecnm-info-tile-value">{{ ACADEMIC_PERIODS[student.academicPeriodId] || (student.academicPeriodId ? `Periodo #${student.academicPeriodId}` : '—') }}</span>
               </div>
 
               <!-- Promedio General -->
