@@ -37,13 +37,19 @@ echo -e "${CYAN}======================================================${NC}"
 echo -e "${CYAN}  🏛️  TecNM Residencias - Iniciando Frontend (Vite + Vue 3)${NC}"
 echo -e "${CYAN}======================================================${NC}"
 
-# 1. Verificar pnpm
-echo -e "\n${YELLOW}🔍 Verificando pnpm...${NC}"
+# 1. Verificar Gestor de Paquetes (pnpm o npm)
+echo -e "\n${YELLOW}🔍 Verificando gestor de paquetes (pnpm / npm)...${NC}"
+PKG_MANAGER=""
 if command -v pnpm >/dev/null 2>&1; then
     PNPM_VERSION=$(pnpm -v)
     echo -e "   ${GREEN}✅ pnpm detectado: v${PNPM_VERSION}${NC}"
+    PKG_MANAGER="pnpm"
+elif command -v npm >/dev/null 2>&1; then
+    NPM_VERSION=$(npm -v)
+    echo -e "   ${GREEN}✅ npm detectado: v${NPM_VERSION} (usando npm)${NC}"
+    PKG_MANAGER="npm"
 else
-    echo -e "   ${RED}❌ ERROR: pnpm no está instalado o no se encuentra en el PATH.${NC}"
+    echo -e "   ${RED}❌ ERROR: Ni pnpm ni npm están instalados o disponibles en el PATH.${NC}"
     exit 1
 fi
 
@@ -61,4 +67,18 @@ if [ ! -d "$FRONTEND_DIR" ]; then
 fi
 
 cd "$FRONTEND_DIR"
-pnpm dev
+
+if [ ! -d "node_modules" ]; then
+    echo -e "   ${YELLOW}📦 Instalando dependencias del Frontend (${PKG_MANAGER} install)...${NC}"
+    if [ "$PKG_MANAGER" = "pnpm" ]; then
+        pnpm install
+    else
+        npm install
+    fi
+fi
+
+if [ "$PKG_MANAGER" = "pnpm" ]; then
+    pnpm dev
+else
+    npm run dev
+fi

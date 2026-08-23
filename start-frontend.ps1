@@ -29,14 +29,19 @@ Write-Host "======================================================" -ForegroundC
 Write-Host "  🏛️  TecNM Residencias - Iniciando Frontend (Vite + Vue 3)" -ForegroundColor Cyan
 Write-Host "======================================================" -ForegroundColor Cyan
 
-# 1. Verificar Node y pnpm
-Write-Host "`n🔍 Verificando Node y pnpm..." -ForegroundColor Yellow
-$pnpmCmd = Get-Command pnpm -ErrorAction SilentlyContinue
-if ($pnpmCmd) {
+# 1. Verificar Gestor de Paquetes (pnpm o npm)
+Write-Host "`n🔍 Verificando gestor de paquetes (pnpm / npm)..." -ForegroundColor Yellow
+$pkgManager = ""
+if (Get-Command pnpm -ErrorAction SilentlyContinue) {
     $pnpmVersion = pnpm -v
     Write-Host "   ✅ pnpm detectado: v$pnpmVersion" -ForegroundColor Green
+    $pkgManager = "pnpm"
+} elseif (Get-Command npm -ErrorAction SilentlyContinue) {
+    $npmVersion = npm -v
+    Write-Host "   ✅ npm detectado: v$npmVersion (usando npm)" -ForegroundColor Green
+    $pkgManager = "npm"
 } else {
-    Write-Host "   ❌ ERROR: pnpm no está instalado o no se encuentra en el PATH." -ForegroundColor Red
+    Write-Host "   ❌ ERROR: Ni pnpm ni npm están instalados o disponibles en el PATH." -ForegroundColor Red
     exit 1
 }
 
@@ -54,4 +59,18 @@ if (-not (Test-Path $FrontendDir)) {
 }
 
 Set-Location $FrontendDir
-pnpm dev
+
+if (-not (Test-Path "node_modules")) {
+    Write-Host "   📦 Instalando dependencias del Frontend ($pkgManager install)..." -ForegroundColor Yellow
+    if ($pkgManager -eq "pnpm") {
+        pnpm install
+    } else {
+        npm install
+    }
+}
+
+if ($pkgManager -eq "pnpm") {
+    pnpm dev
+} else {
+    npm run dev
+}
