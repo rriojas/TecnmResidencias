@@ -1,0 +1,209 @@
+@page
+@{
+    ViewData["Title"] = "Anteproyecto de Residencia Profesional - TecNM";
+    ViewData["NavActive"] = "proposal";
+}
+@section Scripts {
+    <script src="~/assets/js/ui.js"></script>
+    <script src="~/assets/js/projects/projects.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            initProposalPage();
+        });
+    </script>
+}
+
+<div id="alertContainer"></div>
+
+<div class="tecnm-actions-bar">
+    <div>
+        <h1 class="tecnm-page-title">Solicitud de Anteproyecto de Residencia</h1>
+        <p class="tecnm-page-subtitle">Registro y seguimiento de propuestas de residencia profesional</p>
+    </div>
+    <div class="tecnm-page-actions">
+        <button type="button" class="tecnm-btn tecnm-btn-secondary" onclick="window.openGlobalSearch({ initialSource: 'PROJECTS' })" data-roles="admin,departmenthead,advisor,vinculacion,director">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+            </svg>
+            <span>Abrir búsqueda</span>
+        </button>
+        <span class="tecnm-page-actions-divider" aria-hidden="true"></span>
+        <button type="button" id="openProposalModalBtn" class="tecnm-btn tecnm-btn-primary">+ Registrar Nuevo Anteproyecto</button>
+    </div>
+</div>
+
+<div class="tecnm-card">
+    <div class="tecnm-card-header">
+        <h3 class="tecnm-card-title">Mis Anteproyectos Registrados</h3>
+    </div>
+    <div class="tecnm-card-toolbar">
+        <div class="tecnm-toolbar-actions">
+            <label class="tecnm-switch-label">
+                <span class="tecnm-switch">
+                    <input type="checkbox" id="proposalIncludeInactiveToggle">
+                    <span class="tecnm-switch-slider"></span>
+                </span>
+                Mostrar inactivos
+            </label>
+            <button type="button" id="refreshProposalsBtn" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm">Recargar Historial</button>
+        </div>
+    </div>
+    <div class="tecnm-card-body">
+        <div class="tecnm-table-responsive">
+            <table class="tecnm-table tecnm-table-striped">
+                <thead>
+                    <tr>
+                        <th>Título del Proyecto</th>
+                        <th>Empresa Receptora</th>
+                        <th>Tipo</th>
+                        <th>Fecha Registro</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="studentProposalsTableBody">
+                    <tr>
+                        <td colspan="6" class="tecnm-table-empty">Cargando solicitudes de anteproyecto...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="studentProposalsPagination"></div>
+    </div>
+</div>
+
+<!-- Modal Registrar Nuevo Anteproyecto -->
+<div id="createProposalModal" class="modal-backdrop">
+    <div class="modal-card modal-card-wide">
+        <div class="tecnm-modal-header">
+            <h3 id="createProposalModalTitle" class="tecnm-modal-title">Registrar Nueva Solicitud de Anteproyecto</h3>
+            <button type="button" id="closeProposalModalBtn" class="tecnm-modal-close" aria-label="Cerrar">&times;</button>
+        </div>
+
+        <form id="proposalForm">
+            <div id="adminStudentGroup" class="tecnm-form-group tecnm-hidden">
+                <label for="adminStudentId" class="tecnm-label">Estudiante Destinatario * <span class="tecnm-text-muted">(Administración asigna el anteproyecto a un alumno)</span></label>
+                <div id="studentAutocompleteWrapper">
+                    <input type="hidden" id="adminStudentId" name="studentId">
+                </div>
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="companyId" class="tecnm-label">Empresa Receptora *</label>
+                <div id="companyAutocompleteWrapper">
+                    <input type="hidden" id="companyId" name="companyId" required>
+                </div>
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="advisorId" class="tecnm-label">Asesor Interno Asignado * <span class="tecnm-text-muted">(Requerido antes de registrar anteproyecto)</span></label>
+                <div id="advisorAutocompleteWrapper">
+                    <input type="hidden" id="advisorId" name="advisorId" required>
+                </div>
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="title" class="tecnm-label">Título del Proyecto *</label>
+                <input type="text" id="title" class="tecnm-form-control" placeholder="Ej. Sistema de Control de Inventarios Tecnológicos" required>
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="projectType" class="tecnm-label">Tipo de Proyecto</label>
+                <input type="text" id="projectType" class="tecnm-form-control" placeholder="Ej. Desarrollo Tecnológico, Investigación, etc.">
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="problemStatement" class="tecnm-label">Planteamiento del Problema *</label>
+                <textarea id="problemStatement" class="tecnm-form-control" rows="3" placeholder="Describa detalladamente el problema a resolver..." required></textarea>
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="justification" class="tecnm-label">Justificación *</label>
+                <textarea id="justification" class="tecnm-form-control" rows="3" placeholder="Explique las razones e impacto del proyecto..." required></textarea>
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="generalObjective" class="tecnm-label">Objetivo General *</label>
+                <textarea id="generalObjective" class="tecnm-form-control" rows="2" placeholder="Defina la meta global a alcanzar..." required></textarea>
+            </div>
+
+            <div class="tecnm-form-group">
+                <div class="tecnm-label-row">
+                    <span class="tecnm-label">Objetivos Específicos</span>
+                    <button type="button" id="addObjectiveBtn" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm">+ Agregar Objetivo</button>
+                </div>
+                <div id="objectivesContainer">
+                    <div class="objective-row">
+                        <input type="text" class="tecnm-form-control specific-objective-input" placeholder="Objetivo específico 1" required>
+                        <button type="button" class="tecnm-btn tecnm-btn-danger tecnm-btn-sm remove-obj-btn">&times;</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tecnm-modal-footer">
+                <button type="button" id="cancelProposalModalBtn" class="tecnm-btn tecnm-btn-secondary">Cancelar</button>
+                <button type="submit" id="submitProposalBtn" class="tecnm-btn tecnm-btn-primary">Guardar Borrador</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Detalle de Anteproyecto -->
+<div id="proposalDetailModal" class="modal-backdrop">
+    <div class="modal-card modal-card-wide">
+        <div class="tecnm-modal-header">
+            <h3 class="tecnm-modal-title">Detalle de Solicitud de Anteproyecto</h3>
+            <button type="button" id="closeProposalDetailModalBtn" class="tecnm-modal-close" aria-label="Cerrar">&times;</button>
+        </div>
+
+        <div class="tecnm-profile-grid">
+            <div class="tecnm-form-group">
+                <span class="tecnm-field-label">ID</span>
+                <strong id="detailProjectId" class="tecnm-field-value">—</strong>
+            </div>
+            <div class="tecnm-form-group">
+                <span class="tecnm-field-label">Estado</span>
+                <span id="detailProjectStatus">—</span>
+            </div>
+            <div class="tecnm-form-group">
+                <span class="tecnm-field-label">Empresa Receptora</span>
+                <strong id="detailProjectCompanyName" class="tecnm-field-value">—</strong>
+            </div>
+            <div class="tecnm-form-group">
+                <span class="tecnm-field-label">Fecha de Registro</span>
+                <strong id="detailProjectCreatedAt" class="tecnm-field-value">—</strong>
+            </div>
+            <div class="tecnm-form-group">
+                <span class="tecnm-field-label">Tipo de Proyecto</span>
+                <strong id="detailProjectType" class="tecnm-field-value">—</strong>
+            </div>
+        </div>
+
+        <div class="tecnm-form-group">
+            <span class="tecnm-field-label">Título del Proyecto</span>
+            <strong id="detailProjectTitle" class="tecnm-field-value">—</strong>
+        </div>
+        <div class="tecnm-form-group">
+            <span class="tecnm-field-label">Planteamiento del Problema</span>
+            <p id="detailProblemStatement" class="tecnm-field-value">—</p>
+        </div>
+        <div class="tecnm-form-group">
+            <span class="tecnm-field-label">Justificación</span>
+            <p id="detailJustification" class="tecnm-field-value">—</p>
+        </div>
+        <div class="tecnm-form-group">
+            <span class="tecnm-field-label">Objetivo General</span>
+            <p id="detailGeneralObjective" class="tecnm-field-value">—</p>
+        </div>
+        <div class="tecnm-form-group">
+            <span class="tecnm-field-label">Objetivos Específicos</span>
+            <ul id="detailObjectivesList" class="tecnm-field-list">
+                <li>Sin objetivos específicos registrados.</li>
+            </ul>
+        </div>
+
+        <div class="tecnm-modal-footer">
+            <button type="button" id="cancelProposalDetailModalBtn" class="tecnm-btn tecnm-btn-secondary">Cerrar</button>
+        </div>
+    </div>
+</div>

@@ -73,7 +73,9 @@ public class UserRoleManagementDto
     public string? LastName { get; set; }
     public string? LastName2 { get; set; }
     public string? Curp { get; set; }
+    public string? Gender { get; set; }
     public long? CareerId { get; set; }
+    public int? AcademicPeriodId { get; set; }
 
     // Linked Advisor profile data
     public string? FullName { get; set; }
@@ -118,7 +120,9 @@ public class CreateUserManagementDto
     public string? LastName { get; set; }
     public string? LastName2 { get; set; }
     public string? Curp { get; set; }
+    public string? Gender { get; set; }
     public long? CareerId { get; set; }
+    public int? AcademicPeriodId { get; set; }
 
     // Advisor fields
     public string? FullName { get; set; }
@@ -140,7 +144,9 @@ public class UpdateUserManagementDto
     public string? LastName { get; set; }
     public string? LastName2 { get; set; }
     public string? Curp { get; set; }
+    public string? Gender { get; set; }
     public long? CareerId { get; set; }
+    public int? AcademicPeriodId { get; set; }
 
     // Advisor fields
     public string? FullName { get; set; }

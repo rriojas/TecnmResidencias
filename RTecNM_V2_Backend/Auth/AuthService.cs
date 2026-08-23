@@ -49,6 +49,37 @@ public class AuthService : IAuthService
         var token = GenerateJwtToken(user, permissions);
         var expiresIn = (int)TimeSpan.FromMinutes(_jwtSettings.ExpirationMinutes).TotalSeconds;
 
+        string? fullName = null;
+        string? controlNumber = null;
+
+        if (user.Role == UserRole.Student)
+        {
+            var student = await _context.Students
+                .AsNoTracking()
+                .Where(s => s.UserId == user.Id)
+                .Select(s => new {
+                    FullName = (s.FirstName + " " + s.LastName + (string.IsNullOrWhiteSpace(s.LastName2) ? "" : " " + s.LastName2)).Trim(),
+                    s.ControlNumber
+                })
+                .FirstOrDefaultAsync();
+
+            if (student != null)
+            {
+                fullName = student.FullName;
+                controlNumber = student.ControlNumber;
+            }
+        }
+        else if (user.Role == UserRole.Advisor)
+        {
+            var advisor = await _context.Advisors
+                .AsNoTracking()
+                .Where(a => a.UserId == user.Id)
+                .Select(a => a.FullName)
+                .FirstOrDefaultAsync();
+
+            fullName = advisor;
+        }
+
         var response = new AuthTokenResponseDto
         {
             Token = token,
@@ -57,6 +88,8 @@ public class AuthService : IAuthService
             {
                 Id = user.Id,
                 Email = user.Email,
+                FullName = fullName,
+                ControlNumber = controlNumber,
                 Role = user.Role.ToString().ToLowerInvariant(),
                 IsActive = user.IsActive,
                 IsAdmin = user.IsAdmin,

@@ -21,13 +21,17 @@ public class ReportGeneratorService : IReportGeneratorService
             .Where(p => p.IsActive)
             .ToListAsync();
 
+        // The total number of evaluation periods is always 3: partial_1, partial_2, final.
+        // The average must be calculated over 3 regardless of how many have been graded.
+        const int totalPeriods = 3;
+
         var scores = await _context.Evaluations
             .Where(e => e.IsActive)
             .GroupBy(e => e.ProjectId)
-            .Select(g => new { ProjectId = g.Key, Average = g.Average(e => e.Score) })
+            .Select(g => new { ProjectId = g.Key, TotalScore = g.Sum(e => e.Score) })
             .ToListAsync();
 
-        var scoreMap = scores.ToDictionary(s => s.ProjectId, s => s.Average);
+        var scoreMap = scores.ToDictionary(s => s.ProjectId, s => s.TotalScore / totalPeriods);
 
         var list = projects.Select(p =>
         {
@@ -76,9 +80,17 @@ public class ReportGeneratorService : IReportGeneratorService
         if (evals.Count == 0)
             return Result<DocumentDto>.Failure("El proyecto no cuenta con evaluaciones registradas.");
 
-        decimal avgScore = evals.Average(e => e.Score);
+        // Always divide by 3 total periods (partial_1, partial_2, final).
+        // Unregistered periods count as 0.
+        const int totalPeriods = 3;
+        decimal avgScore = evals.Sum(e => e.Score) / totalPeriods;
         if (avgScore < 70m)
             return Result<DocumentDto>.Failure($"La residencia no cumple con el puntaje mínimo de liberación (Promedio: {avgScore:F2} / 100, Mínimo: 70.00).");
+
+        project.Status = TecNM.Residency.Projects.ProjectStatus.Completed;
+        project.UpdatedAt = DateTime.UtcNow;
+        _context.Projects.Update(project);
+        await _context.SaveChangesAsync();
 
         var doc = new DocumentDto(
             DateTime.UtcNow.Ticks,

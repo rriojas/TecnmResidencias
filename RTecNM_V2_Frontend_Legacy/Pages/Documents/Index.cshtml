@@ -1,0 +1,174 @@
+@page
+@{
+    ViewData["Title"] = "Expediente Digital y Documentos - TecNM";
+    ViewData["NavActive"] = "documents";
+}
+@section Scripts {
+    <script src="~/assets/js/ui.js"></script>
+    <script src="~/assets/js/documents/documents.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            initDocumentsPage();
+        });
+    </script>
+}
+
+<div id="alertContainer"></div>
+
+<div class="tecnm-actions-bar">
+    <div>
+        <h1 class="tecnm-page-title">Expediente Digital de Residencia Profesional</h1>
+    </div>
+    <div class="tecnm-page-actions">
+        <button type="button" class="tecnm-btn tecnm-btn-secondary" onclick="window.openGlobalSearch({ initialSource: 'PROJECTS' })" data-roles="admin,departmenthead,advisor,vinculacion,director">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+            </svg>
+            <span>Abrir búsqueda</span>
+        </button>
+        <span class="tecnm-page-actions-divider" aria-hidden="true"></span>
+        <button type="button" id="openUploadModalBtn" class="tecnm-btn tecnm-btn-primary">+ Subir Documento</button>
+    </div>
+</div>
+
+<div class="tecnm-card">
+    <div class="tecnm-card-header">
+        <h3 class="tecnm-card-title">Documentos Cargados en el Expediente</h3>
+    </div>
+    <div class="tecnm-card-toolbar">
+        <div id="projectSearchContainer" class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+            <button type="button" id="searchProjectBtn" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" style="display: none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                </svg>
+                <span>Buscar Anteproyecto</span>
+            </button>
+            <span id="selectedProjectBadge" class="tecnm-badge tecnm-badge-info">Cargando anteproyecto...</span>
+        </div>
+        <div class="tecnm-toolbar-actions">
+            <label class="tecnm-switch-label">
+                <span class="tecnm-switch">
+                    <input type="checkbox" id="documentsIncludeInactiveToggle">
+                    <span class="tecnm-switch-slider"></span>
+                </span>
+                Mostrar inactivos
+            </label>
+        </div>
+    </div>
+    <div class="tecnm-card-body">
+        <div class="tecnm-table-responsive">
+            <table class="tecnm-table tecnm-table-striped" id="documentsTable">
+                <thead>
+                    <tr>
+                        <th data-sort="DocumentType">Tipo de Documento</th>
+                        <th data-sort="FileName">Nombre de Archivo</th>
+                        <th>Tamaño</th>
+                        <th data-sort="UploadedAt">Fecha de Carga</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="documentsTableBody">
+                    <tr>
+                        <td colspan="6" class="tecnm-table-empty">Cargando documentos del expediente...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="documentsPagination"></div>
+    </div>
+</div>
+
+<!-- Modal Subir Documento -->
+<div id="uploadModal" class="modal-backdrop">
+    <div class="modal-card">
+        <div class="tecnm-modal-header">
+            <h3 class="tecnm-modal-title">Subir Documento al Expediente</h3>
+            <button type="button" id="closeUploadModalBtn" class="tecnm-modal-close" aria-label="Cerrar">&times;</button>
+        </div>
+
+        <form id="uploadDocumentForm" enctype="multipart/form-data">
+            <div class="tecnm-form-group">
+                <label for="uploadProjectId" class="tecnm-label">Proyecto Destino *</label>
+                <div id="uploadProjectAutocompleteWrapper">
+                    <input type="hidden" id="uploadProjectId" required>
+                </div>
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="uploadDocumentType" class="tecnm-label">Tipo de Documento *</label>
+                <select id="uploadDocumentType" class="tecnm-form-control" required>
+                    <option value="">-- Seleccionar Tipo --</option>
+                    <option value="solicitud">Solicitud de Residencia Profesional</option>
+                    <option value="carta_presentacion">Carta de Presentación</option>
+                    <option value="carta_aceptacion">Carta de Aceptación</option>
+                    <option value="anteproyecto">Anteproyecto Técnico</option>
+                    <option value="dictamen">Dictamen de Aprobación</option>
+                    <option value="manual_usuario">Manual de Usuario</option>
+                    <option value="manual_tecnico">Manual Técnico</option>
+                    <option value="libranza">Oficio de Liberación</option>
+                    <option value="otro">Otro / Evidencia Adicional</option>
+                </select>
+            </div>
+
+            <div class="tecnm-form-group">
+                <label for="documentFile" class="tecnm-label">Archivo PDF o Imagen (Máximo 10MB) *</label>
+                <input type="file" id="documentFile" class="tecnm-form-control" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required>
+            </div>
+
+            <div id="uploadPreviewContainer" class="document-preview-container document-preview-compact tecnm-hidden"></div>
+
+            <div class="tecnm-modal-footer">
+                <button type="button" id="cancelUploadBtn" class="tecnm-btn tecnm-btn-secondary">Cancelar</button>
+                <button type="submit" id="submitUploadBtn" class="tecnm-btn tecnm-btn-primary">Subir Documento</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Vista Previa de Documento -->
+<div id="previewModal" class="modal-backdrop">
+    <div class="modal-card modal-card-wide">
+        <div class="tecnm-modal-header">
+            <h3 class="tecnm-modal-title">Vista Previa: <span id="previewDocName"></span></h3>
+            <button type="button" id="closePreviewModalBtn" class="tecnm-modal-close" aria-label="Cerrar">&times;</button>
+        </div>
+        <div id="previewContainer" class="document-preview-container"></div>
+    </div>
+</div>
+
+<!-- Modal Revisión de Estado de Documento -->
+<div id="statusModal" class="modal-backdrop">
+    <div class="modal-card">
+        <div class="tecnm-modal-header">
+            <h3 class="tecnm-modal-title">Revisar Documento #<span id="statusDocId"></span></h3>
+            <button type="button" id="closeStatusModalBtn" class="tecnm-modal-close" aria-label="Cerrar">&times;</button>
+        </div>
+
+        <div>
+            <p><strong>Tipo:</strong> <span id="statusDocType"></span></p>
+            <p><strong>Archivo:</strong> <span id="statusDocName"></span></p>
+
+            <div id="statusPreviewContainer" class="document-preview-container document-preview-compact"></div>
+
+            <div class="tecnm-form-group">
+                <label for="statusSelect" class="tecnm-label">Estado del Documento *</label>
+                <select id="statusSelect" class="tecnm-form-control">
+                    <option value="approved">Aprobado</option>
+                    <option value="rejected">Rechazado</option>
+                    <option value="under_review">En Revisión</option>
+                </select>
+            </div>
+
+            <div class="tecnm-form-group" id="rejectionReasonGroup">
+                <label for="rejectionReasonInput" class="tecnm-label">Motivo del Rechazo / Observaciones</label>
+                <textarea id="rejectionReasonInput" class="tecnm-form-control" rows="3" placeholder="Detalle los motivos por los que el documento fue rechazado..."></textarea>
+            </div>
+        </div>
+
+        <div class="tecnm-modal-footer">
+            <button type="button" id="cancelStatusBtn" class="tecnm-btn tecnm-btn-secondary">Cancelar</button>
+            <button type="button" id="saveStatusBtn" class="tecnm-btn tecnm-btn-success">Guardar Estado</button>
+        </div>
+    </div>
+</div>

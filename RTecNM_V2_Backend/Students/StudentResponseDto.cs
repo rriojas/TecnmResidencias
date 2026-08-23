@@ -7,9 +7,13 @@ public class StudentResponseDto
     public string ControlNumber { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
+    public string? LastName2 { get; set; }
+    public string? Curp { get; set; }
+    public string? Gender { get; set; }
     public long CareerId { get; set; }
     public long? AdvisorId { get; set; }
     public string? AdvisorName { get; set; }
+    public int? AcademicPeriodId { get; set; }
     public string Email { get; set; } = string.Empty;
     public decimal Gpa { get; set; }
     public bool IsActive { get; set; }

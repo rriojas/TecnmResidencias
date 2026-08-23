@@ -16,6 +16,13 @@ public record CreateAdvisorySessionDto(
     string? StudentAgreements
 );
 
+public record UpdateAdvisorySessionDto(
+    long AdvisorId,
+    DateTime? SessionDate,
+    string TopicsCovered,
+    string? StudentAgreements
+);
+
 public record EvaluationResponseDto(
     long Id,
     long ProjectId,
