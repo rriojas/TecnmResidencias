@@ -119,7 +119,9 @@ public class StudentService : IStudentService
             ControlNumber = cleanControlNum,
             FirstName = dto.FirstName.Trim(),
             LastName = dto.LastName.Trim(),
-            Curp = $"CURP-{cleanControlNum}",
+            LastName2 = !string.IsNullOrWhiteSpace(dto.LastName2) ? dto.LastName2.Trim() : null,
+            Curp = !string.IsNullOrWhiteSpace(dto.Curp) ? dto.Curp.Trim().ToUpperInvariant() : null,
+            Gender = !string.IsNullOrWhiteSpace(dto.Gender) ? dto.Gender.Trim() : null,
             CareerId = dto.CareerId,
             AcademicPeriodId = dto.AcademicPeriodId,
             Gpa = dto.Gpa,
@@ -138,8 +140,12 @@ public class StudentService : IStudentService
         if (student is null)
             return Result<StudentResponseDto>.Failure("Estudiante no encontrado", 404);
 
-        student.FirstName = dto.FirstName;
-        student.LastName = dto.LastName;
+        student.FirstName = dto.FirstName.Trim();
+        student.LastName = dto.LastName.Trim();
+        student.LastName2 = !string.IsNullOrWhiteSpace(dto.LastName2) ? dto.LastName2.Trim() : null;
+        student.Curp = !string.IsNullOrWhiteSpace(dto.Curp) ? dto.Curp.Trim().ToUpperInvariant() : null;
+        student.Gender = !string.IsNullOrWhiteSpace(dto.Gender) ? dto.Gender.Trim() : null;
+        student.AcademicPeriodId = dto.AcademicPeriodId;
         student.CareerId = dto.CareerId;
         student.Gpa = dto.Gpa;
         student.UpdatedAt = DateTime.UtcNow;
@@ -200,7 +206,11 @@ public class StudentService : IStudentService
             ControlNumber = student.ControlNumber,
             FirstName = student.FirstName,
             LastName = student.LastName,
+            LastName2 = student.LastName2,
+            Curp = student.Curp,
+            Gender = student.Gender,
             CareerId = student.CareerId,
+            AcademicPeriodId = student.AcademicPeriodId,
             Email = student.User?.Email ?? string.Empty,
             Gpa = student.Gpa,
             IsActive = student.IsActive,

@@ -48,6 +48,10 @@ public class StudentConfiguration : IEntityTypeConfiguration<Student>
             .HasColumnName("curp")
             .HasMaxLength(20);
 
+        builder.Property(s => s.Gender)
+            .HasColumnName("gender")
+            .HasMaxLength(20);
+
         builder.Property(s => s.CareerId)
             .HasColumnName("career_id")
             .IsRequired();

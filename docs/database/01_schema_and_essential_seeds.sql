@@ -184,6 +184,7 @@ CREATE TABLE students (
     last_name_1 VARCHAR(100) NOT NULL,
     last_name_2 VARCHAR(100) NULL,
     curp VARCHAR(20) NULL,
+    gender VARCHAR(20) NULL,
     career_id BIGINT NOT NULL,
     academic_period_id INT NULL,
     gpa NUMERIC(5,2) NOT NULL DEFAULT 0.00,

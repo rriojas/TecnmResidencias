@@ -386,7 +386,7 @@ public class RoleRepository : IRoleRepository
         return await q.Take(1000).ToListAsync();
     }
 
-    public async Task EnsureStudentProfileAsync(long userId, string email, string? controlNum, string? firstName, string? lastName, string? lastName2, string? curp, long? careerId, long? createdByUserId, long? updatedByUserId)
+    public async Task EnsureStudentProfileAsync(long userId, string email, string? controlNum, string? firstName, string? lastName, string? lastName2, string? curp, string? gender, long? careerId, int? academicPeriodId, long? createdByUserId, long? updatedByUserId)
     {
         var existingStudent = await _context.Students.FirstOrDefaultAsync(s => s.UserId == userId);
         var namePart = (email ?? "").Split('@')[0];
@@ -401,8 +401,10 @@ public class RoleRepository : IRoleRepository
                 FirstName = !string.IsNullOrWhiteSpace(firstName) ? firstName.Trim() : namePart,
                 LastName = !string.IsNullOrWhiteSpace(lastName) ? lastName.Trim() : "Alumno",
                 LastName2 = lastName2?.Trim(),
-                Curp = curp?.Trim(),
+                Curp = curp?.Trim().ToUpperInvariant(),
+                Gender = gender?.Trim(),
                 CareerId = careerId > 0 ? careerId.Value : 1,
+                AcademicPeriodId = academicPeriodId,
                 IsActive = true,
                 IsVisible = true,
                 CreatedAt = DateTime.UtcNow,
@@ -416,7 +418,9 @@ public class RoleRepository : IRoleRepository
             if (!string.IsNullOrWhiteSpace(firstName)) existingStudent.FirstName = firstName.Trim();
             if (!string.IsNullOrWhiteSpace(lastName)) existingStudent.LastName = lastName.Trim();
             if (lastName2 != null) existingStudent.LastName2 = lastName2.Trim();
-            if (curp != null) existingStudent.Curp = curp.Trim();
+            if (curp != null) existingStudent.Curp = curp.Trim().ToUpperInvariant();
+            if (gender != null) existingStudent.Gender = gender.Trim();
+            if (academicPeriodId.HasValue) existingStudent.AcademicPeriodId = academicPeriodId.Value;
             if (careerId > 0) existingStudent.CareerId = careerId.Value;
             existingStudent.UpdatedAt = DateTime.UtcNow;
             existingStudent.UpdatedBy = updatedByUserId;

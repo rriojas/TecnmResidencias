@@ -74,6 +74,8 @@ const userForm = ref({
   phone: '',
   title: '',
   curp: '',
+  gender: 'Masculino',
+  academicPeriodId: 1,
 })
 
 const INSTITUTIONAL_DOMAIN = '@monclova.tecnm.mx'
@@ -340,6 +342,8 @@ function openCreateUserModal() {
     phone: '',
     title: '',
     curp: '',
+    gender: 'Masculino',
+    academicPeriodId: 1,
   }
   isUserModalOpen.value = true
 }
@@ -374,6 +378,8 @@ function openEditUserModal(u) {
     phone: u.phone || '',
     title: u.title || '',
     curp: u.curp || '',
+    gender: u.gender || 'Masculino',
+    academicPeriodId: u.academicPeriodId || 1,
   }
   isUserModalOpen.value = true
 }
@@ -427,6 +433,8 @@ async function handleSaveUser() {
     title: userForm.value.title.trim() || null,
     phone: userForm.value.phone.trim() || null,
     curp: userForm.value.curp.trim().toUpperCase() || null,
+    gender: userForm.value.gender || null,
+    academicPeriodId: userForm.value.academicPeriodId ? parseInt(userForm.value.academicPeriodId, 10) : 1,
     departmentId: 1,
     advisorType: 0,
   }
@@ -1134,6 +1142,33 @@ onMounted(async () => {
                 <option :value="1">Ingeniería Informática</option>
                 <option :value="2">Ingeniería Industrial</option>
                 <option :value="3">Ingeniería Mecatrónica</option>
+              </select>
+            </div>
+
+            <div class="tecnm-form-group">
+              <label for="userGenderSelect" class="tecnm-label">Género</label>
+              <select
+                id="userGenderSelect"
+                v-model="userForm.gender"
+                class="tecnm-form-control"
+              >
+                <option value="Masculino">Masculino</option>
+                <option value="Femenino">Femenino</option>
+                <option value="Otro">Otro / No especificado</option>
+              </select>
+            </div>
+
+            <div class="tecnm-form-group">
+              <label for="userAcademicPeriodSelect" class="tecnm-label">Periodo Académico</label>
+              <select
+                id="userAcademicPeriodSelect"
+                v-model.number="userForm.academicPeriodId"
+                class="tecnm-form-control"
+              >
+                <option :value="1">Ene-Jun 2026</option>
+                <option :value="2">Ago-Dic 2026</option>
+                <option :value="3">Ene-Jun 2027</option>
+                <option :value="4">Ago-Dic 2027</option>
               </select>
             </div>
 

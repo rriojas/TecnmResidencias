@@ -123,7 +123,9 @@ public class RoleService : IRoleService
                 dto.LastName = student.LastName;
                 dto.LastName2 = student.LastName2;
                 dto.Curp = student.Curp;
+                dto.Gender = student.Gender;
                 dto.CareerId = student.CareerId;
+                dto.AcademicPeriodId = student.AcademicPeriodId;
             }
 
             var advisor = await _roleRepository.GetAdvisorByUserIdAsync(u.Id);
@@ -309,7 +311,7 @@ public class RoleService : IRoleService
 
             if (baseUserRole == UserRole.Student || !string.IsNullOrWhiteSpace(dto.ControlNumber) || !string.IsNullOrWhiteSpace(dto.FirstName))
             {
-                await _roleRepository.EnsureStudentProfileAsync(created.Id, created.Email, dto.ControlNumber, dto.FirstName, dto.LastName, dto.LastName2, dto.Curp, dto.CareerId, _currentUser.UserId, _currentUser.UserId);
+                await _roleRepository.EnsureStudentProfileAsync(created.Id, created.Email, dto.ControlNumber, dto.FirstName, dto.LastName, dto.LastName2, dto.Curp, dto.Gender, dto.CareerId, dto.AcademicPeriodId, _currentUser.UserId, _currentUser.UserId);
             }
 
             if (baseUserRole == UserRole.Advisor || !string.IsNullOrWhiteSpace(dto.Phone) || !string.IsNullOrWhiteSpace(advisorFullName) || !string.IsNullOrWhiteSpace(dto.Title))
@@ -326,7 +328,9 @@ public class RoleService : IRoleService
                 responseDto.LastName = createdStudent.LastName;
                 responseDto.LastName2 = createdStudent.LastName2;
                 responseDto.Curp = createdStudent.Curp;
+                responseDto.Gender = createdStudent.Gender;
                 responseDto.CareerId = createdStudent.CareerId;
+                responseDto.AcademicPeriodId = createdStudent.AcademicPeriodId;
             }
             var createdAdvisor = await _roleRepository.GetAdvisorByUserIdAsync(created.Id);
             if (createdAdvisor != null)
@@ -407,7 +411,7 @@ public class RoleService : IRoleService
 
             if (updated.Role == UserRole.Student || !string.IsNullOrWhiteSpace(dto.ControlNumber) || !string.IsNullOrWhiteSpace(dto.FirstName))
             {
-                await _roleRepository.EnsureStudentProfileAsync(updated.Id, updated.Email, dto.ControlNumber, dto.FirstName, dto.LastName, dto.LastName2, dto.Curp, dto.CareerId, _currentUser.UserId, _currentUser.UserId);
+                await _roleRepository.EnsureStudentProfileAsync(updated.Id, updated.Email, dto.ControlNumber, dto.FirstName, dto.LastName, dto.LastName2, dto.Curp, dto.Gender, dto.CareerId, dto.AcademicPeriodId, _currentUser.UserId, _currentUser.UserId);
             }
 
             if (updated.Role == UserRole.Advisor || !string.IsNullOrWhiteSpace(dto.Phone) || !string.IsNullOrWhiteSpace(advisorFullName) || !string.IsNullOrWhiteSpace(dto.Title))
@@ -424,7 +428,9 @@ public class RoleService : IRoleService
                 responseDto.LastName = updatedStudent.LastName;
                 responseDto.LastName2 = updatedStudent.LastName2;
                 responseDto.Curp = updatedStudent.Curp;
+                responseDto.Gender = updatedStudent.Gender;
                 responseDto.CareerId = updatedStudent.CareerId;
+                responseDto.AcademicPeriodId = updatedStudent.AcademicPeriodId;
             }
             var updatedAdvisor = await _roleRepository.GetAdvisorByUserIdAsync(updated.Id);
             if (updatedAdvisor != null)
