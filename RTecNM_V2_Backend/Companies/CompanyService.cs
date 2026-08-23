@@ -138,6 +138,95 @@ public class CompanyService : ICompanyService
         return Result<bool>.Success(true);
     }
 
+    public async Task<Result<BatchImportResultDto>> ImportExcelAsync(Microsoft.AspNetCore.Http.IFormFile file, long? createdByUserId = null)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return Result<BatchImportResultDto>.Failure("Debe seleccionar un archivo Excel válido.");
+        }
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (ext != ".xlsx" && ext != ".xls")
+        {
+            return Result<BatchImportResultDto>.Failure("El archivo debe ser un documento Excel con extensión .xlsx o .xls.");
+        }
+
+        var expectedColumns = new List<string>
+        {
+            "Nombre", "RFC", "Sector", "Dirección", "NombreContacto", "CorreoContacto", "TeléfonoContacto"
+        };
+
+        using var stream = file.OpenReadStream();
+        var (isValid, errorMessage, rows) = ExcelHelper.ParseExcelFile(stream, expectedColumns);
+
+        if (!isValid)
+        {
+            return Result<BatchImportResultDto>.Failure(errorMessage ?? "Error de validación de encabezados en el archivo Excel.", 400);
+        }
+
+        var result = new BatchImportResultDto
+        {
+            TotalRows = rows.Count
+        };
+
+        int rowNum = 1;
+        foreach (var row in rows)
+        {
+            rowNum++;
+            var name = row.GetValueOrDefault("Nombre");
+            var rfc = row.GetValueOrDefault("RFC");
+            var sector = row.GetValueOrDefault("Sector");
+            var address = row.GetValueOrDefault("Dirección");
+            var contactName = row.GetValueOrDefault("NombreContacto");
+            var contactEmail = row.GetValueOrDefault("CorreoContacto");
+            var contactPhone = row.GetValueOrDefault("TeléfonoContacto");
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El nombre de la empresa es obligatorio.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(rfc))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El RFC de la empresa es obligatorio.");
+                continue;
+            }
+
+            var cleanRfc = rfc.Trim().ToUpperInvariant();
+            var existing = await _repository.GetByRfcAsync(cleanRfc);
+            if (existing != null)
+            {
+                result.SkippedCount++;
+                result.Skipped.Add($"Fila {rowNum}: Omitida. Ya existe la empresa '{name}' con RFC '{cleanRfc}'.");
+                continue;
+            }
+
+            var company = new Company
+            {
+                Name = name.Trim(),
+                Rfc = cleanRfc,
+                Sector = !string.IsNullOrWhiteSpace(sector) ? sector.Trim() : null,
+                Address = !string.IsNullOrWhiteSpace(address) ? address.Trim() : null,
+                ContactName = !string.IsNullOrWhiteSpace(contactName) ? contactName.Trim() : string.Empty,
+                ContactEmail = !string.IsNullOrWhiteSpace(contactEmail) ? contactEmail.Trim() : string.Empty,
+                ContactPhone = !string.IsNullOrWhiteSpace(contactPhone) ? contactPhone.Trim() : null,
+                IsActive = true,
+                IsVisible = true,
+                CreatedBy = createdByUserId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await _repository.AddAsync(company);
+            result.SuccessCount++;
+        }
+
+        return Result<BatchImportResultDto>.Success(result);
+    }
+
     private static CompanyResponseDto MapToResponseDto(Company company) => new(
         company.Id,
         company.Name,

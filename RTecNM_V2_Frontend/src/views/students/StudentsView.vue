@@ -77,6 +77,67 @@ const form = ref({
   gpa: '',
 })
 
+const canImport = computed(() => {
+  return (
+    authStore.isAdmin ||
+    authStore.hasPermission('students.import.excel') ||
+    authStore.hasRole('admin', 'vinculacion')
+  )
+})
+
+// Modal Importar Excel Estudiantes
+const isImportModalOpen = ref(false)
+const importFile = ref(null)
+const isImporting = ref(false)
+const importError = ref('')
+const importResult = ref(null)
+
+function openImportModal() {
+  importFile.value = null
+  isImporting.value = false
+  importError.value = ''
+  importResult.value = null
+  isImportModalOpen.value = true
+}
+
+function handleFileChange(event) {
+  const files = event.target.files
+  if (files && files.length > 0) {
+    importFile.value = files[0]
+  } else {
+    importFile.value = null
+  }
+}
+
+async function handleImportSubmit() {
+  importError.value = ''
+  importResult.value = null
+
+  if (!importFile.value) {
+    importError.value = 'Seleccione un archivo Excel (.xlsx o .xls).'
+    return
+  }
+
+  isImporting.value = true
+  const formData = new FormData()
+  formData.append('file', importFile.value)
+
+  try {
+    const res = await apiClient.post('/v1/students/import-excel', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    importResult.value = res.data
+    showAlert(`Importación finalizada. ${res.data.successCount} estudiantes creados.`, 'success')
+    loadStudents()
+  } catch (err) {
+    importError.value =
+      err.response?.data?.message ||
+      'Error al procesar el archivo Excel. Verifique que cumpla con el formato y columnas requeridas.'
+  } finally {
+    isImporting.value = false
+  }
+}
+
 async function loadStudents() {
   isLoading.value = true
   try {
@@ -315,6 +376,15 @@ onMounted(() => {
             <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
           </svg>
           <span>Abrir búsqueda</span>
+        </button>
+        <button
+          v-if="canImport"
+          id="openImportStudentModalBtn"
+          type="button"
+          class="tecnm-btn tecnm-btn-secondary"
+          @click="openImportModal"
+        >
+          📊 Importar Excel
         </button>
         <span class="tecnm-page-actions-divider" aria-hidden="true"></span>
         <button
@@ -682,6 +752,101 @@ onMounted(() => {
             >
               <span v-if="!isSubmitting">Guardar Estudiante</span>
               <span v-else class="login-spinner"></span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Importar Excel Estudiantes -->
+    <div
+      v-if="isImportModalOpen"
+      id="importStudentModal"
+      class="modal-backdrop active"
+      role="dialog"
+      aria-modal="true"
+      @click.self="isImportModalOpen = false"
+    >
+      <div class="modal-card" style="max-width: 600px;">
+        <div class="tecnm-modal-header">
+          <h3 class="tecnm-modal-title">📊 Carga Masiva de Estudiantes vía Excel</h3>
+          <button
+            type="button"
+            class="tecnm-modal-close"
+            aria-label="Cerrar"
+            @click="isImportModalOpen = false"
+          >
+            &times;
+          </button>
+        </div>
+
+        <form @submit.prevent="handleImportSubmit">
+          <div class="tecnm-alert tecnm-alert-warning" style="margin-bottom: 1rem;">
+            <strong>⚠️ Requisito Estricto de Columnas:</strong><br />
+            El archivo Excel debe contener exactamente las siguientes columnas en la primera fila:<br />
+            <code>NumeroControl, Nombre, ApellidoPaterno, ApellidoMaterno, Correo, CURP, Genero, CarreraId, PeriodoAcademicoId, Promedio</code><br />
+            <small>Si los nombres de columnas no coinciden exactamente, el archivo será rechazado.</small>
+          </div>
+
+          <div v-if="importError" class="tecnm-alert tecnm-alert-danger" style="margin-bottom: 1rem;" role="alert">
+            <span>{{ importError }}</span>
+          </div>
+
+          <div v-if="importResult" class="tecnm-alert tecnm-alert-info" style="margin-bottom: 1rem;">
+            <strong>Resumen de Importación:</strong>
+            <ul>
+              <li>Filas procesadas: {{ importResult.totalRows }}</li>
+              <li>Estudiantes registrados: {{ importResult.successCount }}</li>
+              <li>Omitidos (Duplicados): {{ importResult.skippedCount }}</li>
+              <li>Errores de fila: {{ importResult.errorCount }}</li>
+            </ul>
+            <div v-if="importResult.errors && importResult.errors.length > 0" style="margin-top: 0.5rem; max-height: 120px; overflow-y: auto;">
+              <small class="tecnm-text-danger">
+                <strong>Detalle de errores:</strong>
+                <ul>
+                  <li v-for="(e, idx) in importResult.errors" :key="idx">{{ e }}</li>
+                </ul>
+              </small>
+            </div>
+            <div v-if="importResult.skipped && importResult.skipped.length > 0" style="margin-top: 0.5rem; max-height: 100px; overflow-y: auto;">
+              <small class="tecnm-text-muted">
+                <strong>Omitidos:</strong>
+                <ul>
+                  <li v-for="(s, idx) in importResult.skipped" :key="idx">{{ s }}</li>
+                </ul>
+              </small>
+            </div>
+          </div>
+
+          <div class="tecnm-form-group">
+            <label for="studentExcelFile" class="tecnm-label">Seleccionar Archivo Excel (.xlsx / .xls) *</label>
+            <input
+              id="studentExcelFile"
+              type="file"
+              accept=".xlsx, .xls"
+              class="tecnm-form-control"
+              :disabled="isImporting"
+              required
+              @change="handleFileChange"
+            />
+          </div>
+
+          <div class="tecnm-modal-footer">
+            <button
+              type="button"
+              class="tecnm-btn tecnm-btn-secondary"
+              :disabled="isImporting"
+              @click="isImportModalOpen = false"
+            >
+              Cerrar
+            </button>
+            <button
+              type="submit"
+              class="tecnm-btn tecnm-btn-primary"
+              :disabled="isImporting || !importFile"
+            >
+              <span v-if="!isImporting">Subir e Importar</span>
+              <span v-else class="login-spinner">Procesando...</span>
             </button>
           </div>
         </form>

@@ -238,6 +238,140 @@ public class StudentService : IStudentService
         return Result<StudentResponseDto>.Success(MapToResponseDto(student));
     }
 
+    public async Task<Result<BatchImportResultDto>> ImportExcelAsync(Microsoft.AspNetCore.Http.IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return Result<BatchImportResultDto>.Failure("Debe seleccionar un archivo Excel válido.");
+        }
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (ext != ".xlsx" && ext != ".xls")
+        {
+            return Result<BatchImportResultDto>.Failure("El archivo debe ser un documento Excel con extensión .xlsx o .xls.");
+        }
+
+        var expectedColumns = new List<string>
+        {
+            "NumeroControl", "Nombre", "ApellidoPaterno", "ApellidoMaterno", "Correo", "CURP", "Genero", "CarreraId", "PeriodoAcademicoId", "Promedio"
+        };
+
+        using var stream = file.OpenReadStream();
+        var (isValid, errorMessage, rows) = ExcelHelper.ParseExcelFile(stream, expectedColumns);
+
+        if (!isValid)
+        {
+            return Result<BatchImportResultDto>.Failure(errorMessage ?? "Error de validación de encabezados en el archivo Excel.", 400);
+        }
+
+        var result = new BatchImportResultDto
+        {
+            TotalRows = rows.Count
+        };
+
+        int rowNum = 1;
+        foreach (var row in rows)
+        {
+            rowNum++;
+            var controlNum = row.GetValueOrDefault("NumeroControl");
+            var firstName = row.GetValueOrDefault("Nombre");
+            var lastName1 = row.GetValueOrDefault("ApellidoPaterno");
+            var lastName2 = row.GetValueOrDefault("ApellidoMaterno");
+            var email = row.GetValueOrDefault("Correo");
+            var curp = row.GetValueOrDefault("CURP");
+            var gender = row.GetValueOrDefault("Genero");
+            var careerStr = row.GetValueOrDefault("CarreraId");
+            var periodStr = row.GetValueOrDefault("PeriodoAcademicoId");
+            var gpaStr = row.GetValueOrDefault("Promedio");
+
+            if (string.IsNullOrWhiteSpace(controlNum))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El número de control es obligatorio.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName1))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El nombre y el primer apellido son obligatorios.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(email) || !InstitutionalEmail.IsValid(email))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El correo institucional '{email}' no es válido.");
+                continue;
+            }
+
+            var cleanControlNum = controlNum.Trim().ToUpperInvariant();
+            var cleanEmail = email.Trim().ToLowerInvariant();
+
+            var existingStudent = await _studentRepository.GetByControlNumberAsync(cleanControlNum);
+            if (existingStudent != null)
+            {
+                result.SkippedCount++;
+                result.Skipped.Add($"Fila {rowNum}: Omitida. Ya existe un estudiante con N° Control '{cleanControlNum}'.");
+                continue;
+            }
+
+            var existingUser = await _authRepository.GetByEmailAsync(cleanEmail);
+            if (existingUser != null)
+            {
+                result.SkippedCount++;
+                result.Skipped.Add($"Fila {rowNum}: Omitida. Ya existe una cuenta asociada al correo '{cleanEmail}'.");
+                continue;
+            }
+
+            long.TryParse(careerStr, out var careerId);
+            if (careerId <= 0) careerId = 1;
+
+            int? periodId = null;
+            if (int.TryParse(periodStr, out var parsedPeriod) && parsedPeriod > 0)
+            {
+                periodId = parsedPeriod;
+            }
+
+            decimal.TryParse(gpaStr, out var gpa);
+
+            var defaultPasswordHash = BCrypt.Net.BCrypt.HashPassword(cleanControlNum);
+            var newUser = new User
+            {
+                Email = cleanEmail,
+                PasswordHash = defaultPasswordHash,
+                Role = UserRole.Student,
+                IsActive = true,
+                CreatedBy = _currentUser.UserId
+            };
+
+            var createdUser = await _authRepository.AddUserAsync(newUser);
+            await _roleRepository.EnsureUserRoleAsync(createdUser.Id, "student", _currentUser.UserId);
+
+            var newStudent = new Student
+            {
+                UserId = createdUser.Id,
+                ControlNumber = cleanControlNum,
+                FirstName = firstName.Trim(),
+                LastName = lastName1.Trim(),
+                LastName2 = !string.IsNullOrWhiteSpace(lastName2) ? lastName2.Trim() : null,
+                Curp = !string.IsNullOrWhiteSpace(curp) ? curp.Trim().ToUpperInvariant() : null,
+                Gender = !string.IsNullOrWhiteSpace(gender) ? gender.Trim() : null,
+                CareerId = careerId,
+                AcademicPeriodId = periodId,
+                Gpa = gpa,
+                IsActive = true,
+                CreatedBy = _currentUser.UserId,
+                User = createdUser
+            };
+
+            await _studentRepository.AddAsync(newStudent);
+            result.SuccessCount++;
+        }
+
+        return Result<BatchImportResultDto>.Success(result);
+    }
+
     private static StudentResponseDto MapToResponseDto(Student student)
     {
         return new StudentResponseDto

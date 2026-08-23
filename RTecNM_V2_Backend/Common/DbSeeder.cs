@@ -53,6 +53,7 @@ public static class DbSeeder
             ("students", "Actualizar Perfil", "students.profile.update"),
             ("students", "Verificar Elegibilidad", "students.eligibility.verify"),
             ("students", "Gestión de Estudiantes", "students.manage"),
+            ("students", "Importación Masiva de Estudiantes (Excel)", "students.import.excel"),
             ("students", "Gestión de Asesores", "advisors.manage"),
 
             // Anteproyectos
@@ -94,6 +95,7 @@ public static class DbSeeder
             ("companies", "Ver Catálogo de Empresas", "companies.view"),
             ("companies", "Alta de Empresa", "companies.create"),
             ("companies", "Gestión de Empresas", "companies.manage"),
+            ("companies", "Importación Masiva de Empresas (Excel)", "companies.import.excel"),
 
             // Reportes
             ("reports", "Reportes y Métricas", "admin.reports"),
@@ -182,9 +184,9 @@ public static class DbSeeder
 
         var vinculacionSlugs = new HashSet<string>
         {
-            "companies.view", "companies.create", "companies.manage",
+            "companies.view", "companies.create", "companies.manage", "companies.import.excel",
             "documents.digital", "documents.verify", "documents.letters.generate",
-            "students.profile.view", "advisors.manage", "projects.proposals", "projects.review",
+            "students.profile.view", "students.import.excel", "advisors.manage", "projects.proposals", "projects.review",
             "admin.reports", "reports.export.excel"
         };
 

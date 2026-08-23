@@ -92,4 +92,15 @@ public class CompaniesController : ControllerBase
 
         return Ok(new { message = "Empresa reactivada correctamente" });
     }
+
+    [HttpPost("import-excel")]
+    [TecNM.Residency.Auth.RequirePermission("companies.import.excel")]
+    public async Task<IActionResult> ImportExcel(IFormFile file)
+    {
+        var result = await _companyService.ImportExcelAsync(file, _currentUser.UserId);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
 }

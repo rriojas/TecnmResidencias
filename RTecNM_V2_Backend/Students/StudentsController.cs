@@ -126,4 +126,15 @@ public class StudentsController : ControllerBase
 
         return Ok(new { message = "Estudiante reactivado correctamente" });
     }
+
+    [HttpPost("import-excel")]
+    [TecNM.Residency.Auth.RequirePermission("students.import.excel")]
+    public async Task<IActionResult> ImportExcel(IFormFile file)
+    {
+        var result = await _studentService.ImportExcelAsync(file);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
 }

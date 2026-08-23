@@ -10,4 +10,5 @@ public interface ICompanyService
     Task<Result<CompanyResponseDto>> UpdateAsync(long id, UpdateCompanyDto dto, long? updatedByUserId = null);
     Task<Result<bool>> SoftDeleteAsync(long id, long deletedByUserId);
     Task<Result<bool>> ReactivateAsync(long id);
+    Task<Result<BatchImportResultDto>> ImportExcelAsync(Microsoft.AspNetCore.Http.IFormFile file, long? createdByUserId = null);
 }

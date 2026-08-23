@@ -14,4 +14,5 @@ public interface IStudentService
     Task<Result<StudentResponseDto>> AssignAdvisorAsync(long studentId, long advisorId);
     Task<Result<bool>> SoftDeleteAsync(long id, long deletedByUserId);
     Task<Result<bool>> ReactivateAsync(long id);
+    Task<Result<BatchImportResultDto>> ImportExcelAsync(Microsoft.AspNetCore.Http.IFormFile file);
 }
