@@ -432,41 +432,6 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Banner Informativo para Estudiantes con Anteproyecto Vigente -->
-    <div
-      v-if="!isStaff && activeProposal"
-      class="tecnm-card active-proposal-banner"
-    >
-      <div class="active-proposal-body">
-        <div class="active-proposal-info">
-          <div class="active-proposal-header">
-            <span class="active-proposal-title">Anteproyecto Vigente: {{ activeProposal.title }}</span>
-            <TecnmBadge :status="activeProposal.status" />
-          </div>
-          <p class="active-proposal-desc">
-            Actualmente cuentas con esta solicitud en proceso. Cada estudiante puede gestionar un anteproyecto activo a la vez.
-          </p>
-        </div>
-        <div class="active-proposal-actions">
-          <button
-            type="button"
-            class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
-            @click="openDetailModal(activeProposal)"
-          >
-            Ver Detalles
-          </button>
-          <button
-            v-if="['draft', 'rejected'].includes((activeProposal.status || '').toLowerCase()) && !authStore.isReadOnly"
-            type="button"
-            class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
-            @click="openEditModal(activeProposal)"
-          >
-            Editar Borrador
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- Tarjeta Principal de Tabla -->
     <div class="tecnm-card">
       <div class="tecnm-card-header">
@@ -1035,15 +1000,23 @@ onMounted(() => {
   gap: 0.35rem;
 }
 
-/* Banner de solicitud activa */
+/* Banner de solicitud activa (Minimalista) */
 .active-proposal-banner {
-  border-left: 4px solid var(--tecnm-primary, #1b396a);
+  background: #ffffff;
+  border: 1px solid var(--tecnm-border-color, #e2e8f0);
+  border-left: 4px solid var(--tecnm-blue-primary, #1b396a);
+  border-radius: var(--tecnm-radius-md, 8px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease;
   margin-bottom: 1.5rem;
-  background: #f8fafc;
+}
+
+.active-proposal-banner:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.07);
 }
 
 .active-proposal-body {
-  padding: 1.25rem 1.5rem;
+  padding: 0.95rem 1.25rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1053,27 +1026,30 @@ onMounted(() => {
 
 .active-proposal-info {
   flex: 1;
-  min-width: 260px;
+  min-width: 240px;
 }
 
 .active-proposal-header {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.25rem;
   flex-wrap: wrap;
 }
 
 .active-proposal-title {
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
-  color: var(--tecnm-primary, #1b396a);
+  color: var(--tecnm-blue-primary, #1b396a);
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .active-proposal-desc {
   margin: 0;
-  font-size: 0.88rem;
-  color: var(--tecnm-text-muted, #64748b);
+  font-size: 0.85rem;
+  color: var(--tecnm-text-secondary, #64748b);
+  line-height: 1.4;
 }
 
 .active-proposal-actions {

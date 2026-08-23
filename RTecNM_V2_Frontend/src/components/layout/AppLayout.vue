@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AppHeader from '@/components/layout/AppHeader.vue'
@@ -13,6 +13,12 @@ const route = useRoute()
 const authStore = useAuthStore()
 
 const isPublicRoute = computed(() => route.meta.isPublic === true)
+
+onMounted(() => {
+  if (authStore.isAuthenticated) {
+    authStore.fetchUserProfile()
+  }
+})
 </script>
 
 <template>

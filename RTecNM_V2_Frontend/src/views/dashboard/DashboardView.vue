@@ -80,6 +80,60 @@ const approvedDocsCount = computed(() => {
   return studentDocs.value.filter((d) => String(d.status).toLowerCase() === 'approved').length
 })
 
+const projectStepInfo = computed(() => {
+  if (!latestStudentProject.value) return null
+  const s = String(latestStudentProject.value.status || '').trim().toLowerCase()
+
+  const isDraft = ['draft', 'borrador'].includes(s)
+  const isReview = ['pending', 'pendiente', 'proposed', 'under_review', 'in_review', 'en_revision', 'en revision'].includes(s)
+  const isRejected = ['rejected', 'rechazado', 'correcciones', 'correcciones requeridas'].includes(s)
+  const isApproved = ['approved', 'aprobado', 'autorizado', 'vigente'].includes(s)
+  const isInProgress = ['in_progress', 'inprogress', 'en_progreso', 'en progreso'].includes(s)
+  const isCompleted = ['completed', 'completado', 'finalizado'].includes(s)
+
+  return {
+    step1: {
+      completed: !isDraft,
+      active: isDraft,
+      label: 'Borrador'
+    },
+    line1: !isDraft,
+    step2: {
+      completed: isApproved || isInProgress || isCompleted,
+      active: isReview,
+      warning: isRejected,
+      label: isRejected ? 'Correcciones' : 'En Revisión'
+    },
+    line2: isApproved || isInProgress || isCompleted,
+    step3: {
+      completed: isInProgress || isCompleted,
+      active: isApproved,
+      label: 'Dictamen Aprobado'
+    },
+    line3: isInProgress || isCompleted,
+    step4: {
+      completed: isCompleted,
+      active: isInProgress,
+      label: 'En Residencia'
+    }
+  }
+})
+
+const studentInitials = computed(() => {
+  if (!studentProfile.value) return 'E'
+  const f = studentProfile.value.firstName ? studentProfile.value.firstName[0].toUpperCase() : ''
+  const l = studentProfile.value.lastName ? studentProfile.value.lastName[0].toUpperCase() : ''
+  return `${f}${l}` || 'E'
+})
+
+const studentFullName = computed(() => {
+  if (!studentProfile.value) return 'Estudiante'
+  return [studentProfile.value.firstName, studentProfile.value.lastName, studentProfile.value.lastName2]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
+})
+
 const studentTasks = computed(() => {
   const tasks = []
   if (!latestStudentProject.value) {
@@ -371,89 +425,206 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- VISTA ESTUDIANTE: Tarjeta Mi Residencia y Avance -->
-        <div
-          v-else-if="authStore.currentRole === 'student'"
-          id="contentCard"
-          class="tecnm-card"
-        >
-          <div class="tecnm-card-header">
-            <h3 class="tecnm-card-title">Mi Residencia</h3>
-          </div>
-          <div class="tecnm-card-body tecnm-card-body--loose">
-            <div v-if="studentProfile" class="tecnm-profile-grid">
-              <div>
-                <span class="tecnm-field-label">Nombre</span>
-                <span class="tecnm-field-value tecnm-field-value-emphasis">{{ studentProfile.firstName }} {{ studentProfile.lastName }}</span>
+        <!-- ======================================================== -->
+        <!-- VISTA ESTUDIANTE: COLUMNA PRINCIPAL (RESIDENCIA Y AVANCE) -->
+        <!-- ======================================================== -->
+        <template v-else-if="authStore.currentRole === 'student'">
+          <!-- Card 1: Expediente de Residencia Profesional y Línea Temporal -->
+          <div class="tecnm-card">
+            <div class="tecnm-card-header">
+              <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: var(--tecnm-blue-primary, #1b396a);">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                </svg>
+                <h3 class="tecnm-card-title">Mi Residencia Profesional</h3>
               </div>
-              <div>
-                <span class="tecnm-field-label">No. Control</span>
-                <span class="tecnm-field-value">{{ studentProfile.controlNumber }}</span>
-              </div>
-              <div>
-                <span class="tecnm-field-label">Carrera</span>
-                <span class="tecnm-field-value">{{ CAREERS[studentProfile.careerId] || '—' }}</span>
-              </div>
+              <TecnmBadge v-if="latestStudentProject" :status="latestStudentProject.status" />
             </div>
 
-            <div v-if="latestStudentProject" class="tecnm-mt-3" style="margin-top: 1rem;">
-              <div class="tecnm-d-flex tecnm-justify-between tecnm-align-center tecnm-flex-wrap tecnm-gap-2">
-                <div>
-                  <span class="tecnm-field-label">Anteproyecto</span>
-                  <span class="tecnm-field-value tecnm-field-value-emphasis">{{ latestStudentProject.title }}</span>
+            <div class="tecnm-card-body">
+              <!-- Si hay anteproyecto registrado -->
+              <div v-if="latestStudentProject" class="dashboard-project-hero">
+                <!-- Información Principal del Proyecto -->
+                <div class="dashboard-project-header">
+                  <div class="dashboard-project-details">
+                    <span class="dashboard-project-label">Anteproyecto Vigente</span>
+                    <h4 class="dashboard-project-title">{{ latestStudentProject.title }}</h4>
+                    
+                    <div class="dashboard-project-meta">
+                      <span class="dashboard-meta-pill">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                        </svg>
+                        {{ latestStudentProject.companyName || 'Empresa Receptora' }}
+                      </span>
+                      <span class="dashboard-meta-pill">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                        </svg>
+                        Asesor: {{ latestStudentProject.advisorName || 'Sin asignar' }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="dashboard-project-actions">
+                    <router-link
+                      to="/projects/proposal"
+                      class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                    >
+                      Ver Anteproyecto &rarr;
+                    </router-link>
+                  </div>
                 </div>
-                <TecnmBadge :status="latestStudentProject.status" />
+
+                <!-- Línea Temporal de Progreso (Captura 2) -->
+                <div v-if="projectStepInfo" class="dashboard-stepper-box">
+                  <div class="dashboard-stepper-header">
+                    <span class="dashboard-stepper-title">Fase Actual del Trámite</span>
+                    <span class="dashboard-stepper-hint">Seguimiento institucional de tu expediente</span>
+                  </div>
+                  <div class="proposal-stepper">
+                    <div
+                      class="step-item"
+                      :class="{
+                        active: projectStepInfo.step1.active,
+                        completed: projectStepInfo.step1.completed
+                      }"
+                    >
+                      <div class="step-circle">1</div>
+                      <div class="step-label">Borrador</div>
+                    </div>
+                    <div
+                      class="step-line"
+                      :class="{ completed: projectStepInfo.line1 }"
+                    ></div>
+                    <div
+                      class="step-item"
+                      :class="{
+                        active: projectStepInfo.step2.active,
+                        warning: projectStepInfo.step2.warning,
+                        completed: projectStepInfo.step2.completed
+                      }"
+                    >
+                      <div class="step-circle">2</div>
+                      <div class="step-label">
+                        {{ projectStepInfo.step2.label }}
+                      </div>
+                    </div>
+                    <div
+                      class="step-line"
+                      :class="{ completed: projectStepInfo.line2 }"
+                    ></div>
+                    <div
+                      class="step-item"
+                      :class="{
+                        active: projectStepInfo.step3.active,
+                        completed: projectStepInfo.step3.completed
+                      }"
+                    >
+                      <div class="step-circle">3</div>
+                      <div class="step-label">Dictamen Aprobado</div>
+                    </div>
+                    <div
+                      class="step-line"
+                      :class="{ completed: projectStepInfo.line3 }"
+                    ></div>
+                    <div
+                      class="step-item"
+                      :class="{
+                        active: projectStepInfo.step4.active,
+                        completed: projectStepInfo.step4.completed
+                      }"
+                    >
+                      <div class="step-circle">4</div>
+                      <div class="step-label">En Residencia</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Si NO hay anteproyecto registrado -->
+              <div v-else class="dashboard-empty-residency">
+                <div class="dashboard-empty-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                </div>
+                <h4 class="dashboard-empty-title">Aún no has registrado tu Anteproyecto</h4>
+                <p class="dashboard-empty-desc">
+                  Para iniciar tu proceso de residencia profesional, debes registrar y enviar tu propuesta de anteproyecto para su dictamen por la Academia.
+                </p>
+                <router-link to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm" style="margin-top: 0.75rem;">
+                  + Registrar Anteproyecto
+                </router-link>
               </div>
             </div>
-            <div v-else class="tecnm-alert tecnm-alert-warning" style="margin-top: 1rem;">
-              Aún no has registrado tu anteproyecto de residencia.
-            </div>
+          </div>
 
-            <div class="tecnm-form-group" style="margin-top: 1.25rem;">
-              <span class="tecnm-label">Avance Semanal</span>
-              <div class="progress-track">
-                <div class="progress-fill" :style="{ width: `${studentProgressPercent}%` }"></div>
+          <!-- Card 2: Avance Semanal de Cronograma -->
+          <div class="tecnm-card">
+            <div class="tecnm-card-header">
+              <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: var(--tecnm-blue-primary, #1b396a);">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                </svg>
+                <h3 class="tecnm-card-title">Avance del Cronograma de Actividades</h3>
               </div>
-              <span class="progress-label">{{ studentProgressPercent }}% del avance semanal registrado</span>
+              <router-link to="/activities/schedule" class="tecnm-btn tecnm-btn-outline tecnm-btn-sm">
+                Ver Cronograma &rarr;
+              </router-link>
+            </div>
+            <div class="tecnm-card-body">
+              <div class="tecnm-d-flex tecnm-justify-between tecnm-align-center" style="margin-bottom: 0.4rem; display: flex; justify-content: space-between; align-items: center;">
+                <span class="tecnm-field-label" style="margin-bottom: 0;">Progreso de las 26 Semanas Oficiales</span>
+                <strong style="color: var(--tecnm-blue-primary, #1b396a); font-size: 0.95rem;">
+                  {{ completedWeeksCount }} de {{ TOTAL_WEEKS }} semanas ({{ studentProgressPercent }}%)
+                </strong>
+              </div>
+              <div class="progress-track" style="height: 10px; border-radius: 5px;">
+                <div class="progress-fill" :style="{ width: `${studentProgressPercent}%`, borderRadius: '5px' }"></div>
+              </div>
+              <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: var(--tecnm-text-secondary, #64748b);">
+                Registra periódicamente el avance de tus actividades semanales para mantener tu reporte actualizado con tu Asesor Interno.
+              </p>
             </div>
           </div>
-        </div>
 
-        <!-- Acceso Rápido / Role Actions -->
-        <section v-if="authStore.currentRole === 'student'" class="dashboard-section">
-          <h2 class="dashboard-section-title">Acceso Rápido</h2>
-          <div class="action-cards">
-            <router-link to="/projects/proposal" class="action-card">
-              <span class="action-card-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
-              </span>
-              <span class="action-card-body">
-                <span class="action-card-title">Anteproyecto</span>
-                <span class="action-card-sub">Registrar o dar seguimiento</span>
-              </span>
-            </router-link>
+          <!-- Acceso Rápido / Role Actions -->
+          <section class="dashboard-section">
+            <h2 class="dashboard-section-title">Acceso Rápido</h2>
+            <div class="action-cards">
+              <router-link to="/projects/proposal" class="action-card">
+                <span class="action-card-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                </span>
+                <span class="action-card-body">
+                  <span class="action-card-title">Anteproyecto</span>
+                  <span class="action-card-sub">Registrar o dar seguimiento</span>
+                </span>
+              </router-link>
 
-            <router-link to="/activities/schedule" class="action-card">
-              <span class="action-card-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>
-              </span>
-              <span class="action-card-body">
-                <span class="action-card-title">Cronograma</span>
-                <span class="action-card-sub">Avance de tus 26 semanas</span>
-              </span>
-            </router-link>
+              <router-link to="/activities/schedule" class="action-card">
+                <span class="action-card-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>
+                </span>
+                <span class="action-card-body">
+                  <span class="action-card-title">Cronograma</span>
+                  <span class="action-card-sub">Avance de tus 26 semanas</span>
+                </span>
+              </router-link>
 
-            <router-link to="/documents" class="action-card">
-              <span class="action-card-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" /></svg>
-              </span>
-              <span class="action-card-body">
-                <span class="action-card-title">Expediente Digital</span>
-                <span class="action-card-sub">Documentos y evidencias</span>
-              </span>
-            </router-link>
-          </div>
-        </section>
+              <router-link to="/documents" class="action-card">
+                <span class="action-card-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" /></svg>
+                </span>
+                <span class="action-card-body">
+                  <span class="action-card-title">Expediente Digital</span>
+                  <span class="action-card-sub">Documentos y evidencias</span>
+                </span>
+              </router-link>
+            </div>
+          </section>
+        </template>
       </div>
 
       <!-- Columna Lateral / Side Panel -->
@@ -492,28 +663,64 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- VISTA ESTUDIANTE: Tareas Pendientes -->
-        <div
-          v-else-if="authStore.currentRole === 'student'"
-          class="panel-card panel-card--loose"
-        >
-          <h3 class="panel-title">Tareas Pendientes</h3>
-          <ul class="list-panel">
-            <li v-if="studentTasks.length === 0" class="list-panel-empty">
-              Sin tareas pendientes. ¡Vas al día!
-            </li>
-            <li
-              v-for="(task, idx) in studentTasks"
-              v-else
-              :key="idx"
-              class="list-panel-item"
-            >
-              <router-link :to="task.href" class="list-panel-link">
-                {{ task.text }}
+        <!-- VISTA ESTUDIANTE: Perfil y Tareas Pendientes -->
+        <template v-else-if="authStore.currentRole === 'student'">
+          <!-- Card de Identidad del Estudiante -->
+          <div v-if="studentProfile" class="panel-card panel-card--loose dashboard-student-card">
+            <div class="dashboard-student-header">
+              <div class="dashboard-student-avatar">
+                {{ studentInitials }}
+              </div>
+              <div class="dashboard-student-names">
+                <h4 class="dashboard-student-name">{{ studentFullName }}</h4>
+                <span class="dashboard-student-career">{{ CAREERS[studentProfile.careerId] || 'Estudiante' }}</span>
+              </div>
+            </div>
+            
+            <div class="dashboard-student-info-list">
+              <div class="dashboard-student-info-item">
+                <span class="dashboard-info-label">No. Control:</span>
+                <strong class="dashboard-info-val">{{ studentProfile.controlNumber || '—' }}</strong>
+              </div>
+              <div class="dashboard-student-info-item">
+                <span class="dashboard-info-label">Correo:</span>
+                <span class="dashboard-info-val dashboard-info-val--email">{{ studentProfile.email || '—' }}</span>
+              </div>
+            </div>
+
+            <div style="margin-top: 0.75rem; border-top: 1px solid var(--tecnm-border-color, #e2e8f0); padding-top: 0.75rem;">
+              <router-link to="/students/profile" class="tecnm-btn tecnm-btn-outline tecnm-btn-sm" style="width: 100%; justify-content: center;">
+                Ver Expediente Completo &rarr;
               </router-link>
-            </li>
-          </ul>
-        </div>
+            </div>
+          </div>
+
+          <!-- Card de Tareas Pendientes -->
+          <div class="panel-card panel-card--loose">
+            <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: var(--tecnm-gold-accent, #d4a017);">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              <h3 class="panel-title" style="margin-bottom: 0;">Tareas y Avisos</h3>
+            </div>
+
+            <ul class="list-panel">
+              <li v-if="studentTasks.length === 0" class="list-panel-empty">
+                Sin tareas pendientes. ¡Vas al día con tu residencia!
+              </li>
+              <li
+                v-for="(task, idx) in studentTasks"
+                v-else
+                :key="idx"
+                class="list-panel-item"
+              >
+                <router-link :to="task.href" class="list-panel-link">
+                  {{ task.text }} &rarr;
+                </router-link>
+              </li>
+            </ul>
+          </div>
+        </template>
       </div>
     </div>
   </div>
