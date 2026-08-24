@@ -86,6 +86,7 @@ const isSavingTemplate = ref(false)
 const fileInputRef = ref(null)
 const wordFileInputRef = ref(null)
 const isUploadingWord = ref(false)
+const editorMode = ref('split')
 
 async function loadTemplate() {
   isLoadingTemplate.value = true
@@ -365,41 +366,101 @@ onMounted(() => {
           </div>
         </div>
 
-        <div v-if="isLoadingTemplate" style="text-align: center; padding: 2rem;">
-          <div class="tecnm-spinner" style="margin: 0 auto 1rem auto;"></div>
-          <p>Cargando código de plantilla...</p>
-        </div>
-
-        <div v-else style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
-          <!-- Editor HTML -->
-          <div>
-            <label class="tecnm-form-label" style="font-weight: bold;">Código Fuente HTML</label>
-            <textarea
-              v-model="templateHtml"
-              rows="22"
-              class="tecnm-form-input"
-              style="font-family: monospace; font-size: 0.85rem; line-height: 1.4; white-space: pre;"
-            ></textarea>
-            <button
-              type="button"
-              class="tecnm-btn tecnm-btn-primary"
-              style="margin-top: 1rem;"
-              :disabled="isSavingTemplate"
-              @click="handleSaveTemplate"
-            >
-              {{ isSavingTemplate ? 'Guardando...' : '💾 Guardar Cambios en Plantilla' }}
-            </button>
+        <!-- Selector de Modo de Visualización -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; background: #f8fafc; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-size: 0.85rem; font-weight: bold; color: #475569;">📐 Modo de Vista:</span>
+            <div style="display: flex; gap: 0.25rem; background: #e2e8f0; padding: 3px; border-radius: 6px;">
+              <button
+                type="button"
+                class="tecnm-btn tecnm-btn-sm"
+                :style="editorMode === 'preview' ? 'background: #ffffff; color: #1e293b; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b; border: none;'"
+                @click="editorMode = 'preview'"
+              >
+                👁️ Vista Previa
+              </button>
+              <button
+                type="button"
+                class="tecnm-btn tecnm-btn-sm"
+                :style="editorMode === 'code' ? 'background: #ffffff; color: #1e293b; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b; border: none;'"
+                @click="editorMode = 'code'"
+              >
+                💻 Código Fuente
+              </button>
+              <button
+                type="button"
+                class="tecnm-btn tecnm-btn-sm"
+                :style="editorMode === 'split' ? 'background: #ffffff; color: #1e293b; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b; border: none;'"
+                @click="editorMode = 'split'"
+              >
+                📑 Lado a Lado
+              </button>
+            </div>
           </div>
 
-          <!-- Vista Previa Live -->
-          <div>
-            <label class="tecnm-form-label" style="font-weight: bold;">Vista Previa (En Tiempo Real)</label>
-            <div style="border: 1px solid #cbd5e1; border-radius: 6px; height: 500px; overflow: auto; background: #ffffff; padding: 0.5rem;">
+          <button
+            type="button"
+            class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+            :disabled="isSavingTemplate"
+            @click="handleSaveTemplate"
+          >
+            {{ isSavingTemplate ? 'Guardando...' : '💾 Guardar Cambios en Plantilla' }}
+          </button>
+        </div>
+
+        <div v-if="isLoadingTemplate" style="text-align: center; padding: 3rem;">
+          <div class="tecnm-spinner" style="margin: 0 auto 1rem auto;"></div>
+          <p style="color: #64748b;">Cargando código de la plantilla...</p>
+        </div>
+
+        <div v-else>
+          <!-- Modo 1: Código Fuente Completo (100% Ancho) -->
+          <div v-if="editorMode === 'code'">
+            <label class="tecnm-form-label" style="font-weight: bold; margin-bottom: 0.5rem; display: block;">💻 Código Fuente HTML (Editor Completo)</label>
+            <textarea
+              v-model="templateHtml"
+              rows="28"
+              class="tecnm-form-input"
+              style="font-family: 'Fira Code', 'Consolas', 'Monaco', monospace; font-size: 0.9rem; line-height: 1.6; background-color: #0f172a; color: #38bdf8; border: 1px solid #1e293b; padding: 1.25rem; border-radius: 8px; width: 100%; white-space: pre;"
+              placeholder="Ingresa o edita el código HTML aquí..."
+            ></textarea>
+          </div>
+
+          <!-- Modo 2: Vista Previa Completa (100% Ancho) -->
+          <div v-else-if="editorMode === 'preview'">
+            <label class="tecnm-form-label" style="font-weight: bold; margin-bottom: 0.5rem; display: block;">👁️ Vista Previa en Vivo (Pantalla Completa)</label>
+            <div style="border: 1px solid #cbd5e1; border-radius: 8px; height: 680px; overflow: hidden; background: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
               <iframe
                 :srcdoc="templateHtml"
                 style="width: 100%; height: 100%; border: none;"
-                title="Vista previa de plantilla"
+                title="Vista previa de plantilla completa"
               ></iframe>
+            </div>
+          </div>
+
+          <!-- Modo 3: Vista Dividida Lado a Lado -->
+          <div v-else style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+            <!-- Editor HTML -->
+            <div>
+              <label class="tecnm-form-label" style="font-weight: bold; margin-bottom: 0.5rem; display: block;">💻 Código Fuente HTML</label>
+              <textarea
+                v-model="templateHtml"
+                rows="24"
+                class="tecnm-form-input"
+                style="font-family: 'Fira Code', 'Consolas', 'Monaco', monospace; font-size: 0.85rem; line-height: 1.5; background-color: #0f172a; color: #38bdf8; border: 1px solid #1e293b; padding: 1rem; border-radius: 8px; width: 100%; white-space: pre;"
+              ></textarea>
+            </div>
+
+            <!-- Vista Previa Live -->
+            <div>
+              <label class="tecnm-form-label" style="font-weight: bold; margin-bottom: 0.5rem; display: block;">👁️ Vista Previa en Vivo</label>
+              <div style="border: 1px solid #cbd5e1; border-radius: 8px; height: 560px; overflow: hidden; background: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                <iframe
+                  :srcdoc="templateHtml"
+                  style="width: 100%; height: 100%; border: none;"
+                  title="Vista previa de plantilla"
+                ></iframe>
+              </div>
             </div>
           </div>
         </div>
