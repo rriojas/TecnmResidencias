@@ -196,7 +196,7 @@ onMounted(() => {
           :disabled="isSendingLetter"
           @click="handleSendPresentationLetter"
         >
-          {{ isSendingLetter ? '⌛ Enviando...' : (student?.isPresentationLetterSent ? '✉️ Reenviar Carta' : '✉️ Enviar Carta de Presentación') }}
+          {{ isSendingLetter ? 'Enviando...' : (student?.isPresentationLetterSent ? 'Reenviar Carta' : 'Enviar Carta de Presentación') }}
         </button>
         <button
           v-if="authStore.isAdmin || authStore.hasRole('vinculacion') || authStore.hasRole('departmenthead') || authStore.hasRole('director')"
@@ -204,7 +204,7 @@ onMounted(() => {
           class="tecnm-btn tecnm-btn-secondary"
           @click="handleDownloadPresentationLetterPdf"
         >
-          📄 PDF Carta
+          PDF Carta
         </button>
         <button
           type="button"

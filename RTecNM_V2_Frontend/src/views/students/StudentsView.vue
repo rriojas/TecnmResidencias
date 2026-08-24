@@ -449,7 +449,7 @@ onMounted(() => {
           class="tecnm-btn tecnm-btn-secondary"
           @click="openImportModal"
         >
-          📊 Importar Excel
+          Importar Excel
         </button>
         <button
           v-if="authStore.isAdmin || authStore.hasRole('vinculacion')"
@@ -459,7 +459,7 @@ onMounted(() => {
           :disabled="isSendingMassLetters"
           @click="handleMassSendPresentationLetters"
         >
-          {{ isSendingMassLetters ? '⌛ Enviando...' : '✉️ Enviar Cartas de Presentación (Nuevos)' }}
+          {{ isSendingMassLetters ? 'Enviando...' : 'Enviar Cartas de Presentación (Nuevos)' }}
         </button>
         <span class="tecnm-page-actions-divider" aria-hidden="true"></span>
         <button
@@ -583,7 +583,7 @@ onMounted(() => {
                     :title="s.isPresentationLetterSent ? 'Reenviar Carta de Presentación por Correo' : 'Enviar Carta de Presentación por Correo'"
                     @click="handleSendIndividualPresentationLetter(s)"
                   >
-                    {{ isSendingIndividualLetterId === s.id ? '⌛ Enviando...' : (s.isPresentationLetterSent ? '✉️ Reenviar' : '✉️ Enviar Carta') }}
+                    {{ isSendingIndividualLetterId === s.id ? 'Enviando...' : (s.isPresentationLetterSent ? 'Reenviar' : 'Enviar Carta') }}
                   </button>
                   <button
                     v-if="authStore.isAdmin || authStore.hasRole('vinculacion') || authStore.hasRole('departmenthead') || authStore.hasRole('director')"
@@ -592,7 +592,7 @@ onMounted(() => {
                     title="Descargar PDF de la Carta de Presentación"
                     @click="handleDownloadPresentationLetterPdf(s)"
                   >
-                    📄 PDF
+                    PDF
                   </button>
                   <button
                     type="button"

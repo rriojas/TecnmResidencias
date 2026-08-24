@@ -303,21 +303,21 @@ onMounted(() => {
 
           <div style="margin-top: 1.5rem; display: flex; gap: 1rem; border-top: 1px solid #e5e7eb; padding-top: 1.25rem;">
             <button type="submit" class="tecnm-btn tecnm-btn-primary" :disabled="isSavingSmtp">
-              {{ isSavingSmtp ? 'Guardando...' : '💾 Guardar Configuración SMTP' }}
+              {{ isSavingSmtp ? 'Guardando...' : 'Guardar Configuración SMTP' }}
             </button>
           </div>
         </form>
 
         <!-- Prueba SMTP -->
         <div style="margin-top: 2.5rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem;">
-          <h4 style="margin-top: 0; color: #1B396A; font-size: 1.1rem;">🧪 Probar Conexión SMTP</h4>
+          <h4 style="margin-top: 0; color: #1B396A; font-size: 1.1rem;">Probar Conexión SMTP</h4>
           <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 1rem;">
             Envía un correo de prueba en vivo para verificar que los datos SMTP ingresados sean válidos y funcionen correctamente.
           </p>
           <div style="display: flex; gap: 0.75rem; max-width: 600px; flex-wrap: wrap;">
             <input v-model="testEmail" type="email" class="tecnm-form-input" style="flex: 1; min-width: 250px;" placeholder="Ingresa tu correo personal para probar" />
             <button type="button" class="tecnm-btn tecnm-btn-secondary" :disabled="isTestingSmtp" @click="handleTestSmtp">
-              {{ isTestingSmtp ? 'Enviando...' : '🚀 Enviar Correo de Prueba' }}
+              {{ isTestingSmtp ? 'Enviando...' : 'Enviar Correo de Prueba' }}
             </button>
           </div>
         </div>
@@ -330,18 +330,18 @@ onMounted(() => {
         <h3 class="tecnm-card-title">Plantilla Oficial para Carta de Presentación</h3>
         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
           <button type="button" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm" :disabled="isUploadingWord" @click="triggerWordUpload">
-            {{ isUploadingWord ? '⌛ Procesando Word...' : '📄 Cargar Plantilla Word (.docx)' }}
+            {{ isUploadingWord ? 'Procesando Word...' : 'Cargar Plantilla Word (.docx)' }}
           </button>
           <input ref="wordFileInputRef" type="file" accept=".docx,.doc" style="display: none;" @change="handleWordFileUpload" />
           <button type="button" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" @click="handleDownloadTemplate">
-            📥 Descargar .html
+            Descargar .html
           </button>
           <button type="button" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" @click="triggerFileUpload">
-            📤 Subir .html
+            Subir .html
           </button>
           <input ref="fileInputRef" type="file" accept=".html,.htm" style="display: none;" @change="handleFileUpload" />
           <button type="button" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" @click="handleResetTemplate">
-            🔄 Restablecer Formato
+            Restablecer Formato
           </button>
         </div>
       </div>
@@ -349,12 +349,12 @@ onMounted(() => {
       <div class="tecnm-card-body">
         <!-- Panel de Carga Word y Variables -->
         <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 1rem; margin-bottom: 1.25rem;">
-          <p style="margin: 0 0 0.5rem 0; font-weight: bold; color: #166534;">📝 Carga Oficial desde Documento de Word (.docx):</p>
+          <p style="margin: 0 0 0.5rem 0; font-weight: bold; color: #166534;">Carga Oficial desde Documento de Word (.docx):</p>
           <p style="margin: 0; font-size: 0.85rem; color: #15803d; line-height: 1.5;">
             Sube directamente la carta membretada oficial en formato <strong>Word (.docx)</strong>. El sistema la convertirá automáticamente a estructura HTML conservando estilos, formato y los marcadores variables entre corchetes <code>[...]</code>.
           </p>
           <div style="margin-top: 0.75rem; border-top: 1px dashed #86efac; padding-top: 0.75rem;">
-            <p style="margin: 0 0 0.35rem 0; font-weight: bold; font-size: 0.85rem; color: #166534;">🏷️ Variables dinámicas a colocar en el archivo Word entre corchetes [ ]:</p>
+            <p style="margin: 0 0 0.35rem 0; font-weight: bold; font-size: 0.85rem; color: #166534;">Variables dinámicas a colocar en el archivo Word entre corchetes [ ]:</p>
             <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; font-family: monospace; font-size: 0.85rem;">
               <span style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #86efac; font-weight: bold;">[NOMBRE_ALUMNO]</span>
               <span style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #86efac; font-weight: bold;">[MATRICULA]</span>
@@ -369,7 +369,7 @@ onMounted(() => {
         <!-- Selector de Modo de Visualización -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; background: #f8fafc; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
           <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span style="font-size: 0.85rem; font-weight: bold; color: #475569;">📐 Modo de Vista:</span>
+            <span style="font-size: 0.85rem; font-weight: bold; color: #475569;">Modo de Vista:</span>
             <div style="display: flex; gap: 0.25rem; background: #e2e8f0; padding: 3px; border-radius: 6px;">
               <button
                 type="button"
@@ -377,7 +377,7 @@ onMounted(() => {
                 :style="editorMode === 'preview' ? 'background: #ffffff; color: #1e293b; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b; border: none;'"
                 @click="editorMode = 'preview'"
               >
-                👁️ Vista Previa
+                Vista Previa
               </button>
               <button
                 type="button"
@@ -385,7 +385,7 @@ onMounted(() => {
                 :style="editorMode === 'code' ? 'background: #ffffff; color: #1e293b; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b; border: none;'"
                 @click="editorMode = 'code'"
               >
-                💻 Código Fuente
+                Código Fuente
               </button>
               <button
                 type="button"
@@ -393,7 +393,7 @@ onMounted(() => {
                 :style="editorMode === 'split' ? 'background: #ffffff; color: #1e293b; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b; border: none;'"
                 @click="editorMode = 'split'"
               >
-                📑 Lado a Lado
+                Lado a Lado
               </button>
             </div>
           </div>
@@ -404,7 +404,7 @@ onMounted(() => {
             :disabled="isSavingTemplate"
             @click="handleSaveTemplate"
           >
-            {{ isSavingTemplate ? 'Guardando...' : '💾 Guardar Cambios en Plantilla' }}
+            {{ isSavingTemplate ? 'Guardando...' : 'Guardar Cambios en Plantilla' }}
           </button>
         </div>
 
@@ -416,7 +416,7 @@ onMounted(() => {
         <div v-else>
           <!-- Modo 1: Código Fuente Completo (100% Ancho) -->
           <div v-if="editorMode === 'code'">
-            <label class="tecnm-form-label" style="font-weight: bold; margin-bottom: 0.5rem; display: block;">💻 Código Fuente HTML (Editor Completo)</label>
+            <label class="tecnm-form-label" style="font-weight: bold; margin-bottom: 0.5rem; display: block;">Código Fuente HTML (Editor Completo)</label>
             <textarea
               v-model="templateHtml"
               rows="28"
@@ -428,7 +428,7 @@ onMounted(() => {
 
           <!-- Modo 2: Vista Previa Completa (100% Ancho) -->
           <div v-else-if="editorMode === 'preview'">
-            <label class="tecnm-form-label" style="font-weight: bold; margin-bottom: 0.5rem; display: block;">👁️ Vista Previa en Vivo (Pantalla Completa)</label>
+            <label class="tecnm-form-label" style="font-weight: bold; margin-bottom: 0.5rem; display: block;">Vista Previa en Vivo (Pantalla Completa)</label>
             <div style="border: 1px solid #cbd5e1; border-radius: 8px; height: 680px; overflow: hidden; background: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
               <iframe
                 :srcdoc="templateHtml"
@@ -442,7 +442,7 @@ onMounted(() => {
           <div v-else style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
             <!-- Editor HTML -->
             <div>
-              <label class="tecnm-form-label" style="font-weight: bold; margin-bottom: 0.5rem; display: block;">💻 Código Fuente HTML</label>
+              <label class="tecnm-form-label" style="font-weight: bold; margin-bottom: 0.5rem; display: block;">Código Fuente HTML</label>
               <textarea
                 v-model="templateHtml"
                 rows="24"
@@ -453,7 +453,7 @@ onMounted(() => {
 
             <!-- Vista Previa Live -->
             <div>
-              <label class="tecnm-form-label" style="font-weight: bold; margin-bottom: 0.5rem; display: block;">👁️ Vista Previa en Vivo</label>
+              <label class="tecnm-form-label" style="font-weight: bold; margin-bottom: 0.5rem; display: block;">Vista Previa en Vivo</label>
               <div style="border: 1px solid #cbd5e1; border-radius: 8px; height: 560px; overflow: hidden; background: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
                 <iframe
                   :srcdoc="templateHtml"

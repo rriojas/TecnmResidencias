@@ -42,13 +42,13 @@ public class EmailTemplateService : IEmailTemplateService
                                 Te enviamos adjunta tu <strong>Carta de Presentación Oficial</strong> en formato PDF para el inicio de tu trámite de <strong>Residencia Profesional</strong>.
                             </p>
                             <div style=""background-color:#f8f9fa; border-left:4px solid #C5A059; padding:16px 20px; margin:20px 0; border-radius:4px;"">
-                                <p style=""margin:0 0 6px 0; font-size:14px; color:#1B396A;"">📋 <strong>Detalles del Alumno:</strong></p>
+                                <p style=""margin:0 0 6px 0; font-size:14px; color:#1B396A;""><strong>Detalles del Alumno:</strong></p>
                                 <p style=""margin:0 0 4px 0; font-size:14px;"">• <strong>N° Control:</strong> {controlNumber}</p>
                                 <p style=""margin:0 0 4px 0; font-size:14px;"">• <strong>Programa:</strong> {careerName}</p>
                                 <p style=""margin:0; font-size:14px;"">• <strong>Institución / Empresa:</strong> {companyName}</p>
                             </div>
                             <p style=""line-height:1.6; font-size:14px; color:#495057;"">
-                                📎 El archivo adjunto <strong>Carta_Presentacion_{controlNumber}.pdf</strong> cuenta con el aval del departamento de Vinculación. Imprime o presenta este documento ante la empresa receptora.
+                                El archivo adjunto <strong>Carta_Presentacion_{controlNumber}.pdf</strong> cuenta con el aval del departamento de Vinculación. Imprime o presenta este documento ante la empresa receptora.
                             </p>
                         </td>
                     </tr>

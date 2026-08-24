@@ -31,7 +31,7 @@ public class EmailBackgroundWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("📧 EmailBackgroundWorker iniciado. (UseMockInDev={UseMockInDev}, Host={Host}:{Port})",
+        _logger.LogInformation("[EmailBackgroundWorker] iniciado. (UseMockInDev={UseMockInDev}, Host={Host}:{Port})",
             _options.UseMockInDev, _options.Host, _options.Port);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -47,7 +47,7 @@ public class EmailBackgroundWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error procesando correo de la cola.");
+                _logger.LogError(ex, "[ERROR] Error procesando correo de la cola.");
             }
         }
     }
@@ -61,11 +61,11 @@ public class EmailBackgroundWorker : BackgroundService
             config = await settingService.GetSmtpConfigAsync();
         }
 
-        _logger.LogInformation("📬 Procesando correo para '{ToEmail}' | Asunto: '{Subject}' | Host={Host}:{Port}", msg.ToEmail, msg.Subject, config.Host, config.Port);
+        _logger.LogInformation("[PROCESANDO CORREO] Para '{ToEmail}' | Asunto: '{Subject}' | Host={Host}:{Port}", msg.ToEmail, msg.Subject, config.Host, config.Port);
 
         if (config.UseMockInDev || string.IsNullOrWhiteSpace(config.Username) || string.IsNullOrWhiteSpace(config.Password))
         {
-            _logger.LogInformation("🌐 [MOCK EMAIL DISPATCH] Correo enviado simbólicamente en desarrollo:\n  Para: {ToEmail} ({ToName})\n  Asunto: {Subject}",
+            _logger.LogInformation("[MOCK EMAIL DISPATCH] Correo enviado simbólicamente en desarrollo:\n  Para: {ToEmail} ({ToName})\n  Asunto: {Subject}",
                 msg.ToEmail, msg.ToName, msg.Subject);
             return;
         }
@@ -99,11 +99,11 @@ public class EmailBackgroundWorker : BackgroundService
             await client.SendAsync(mime, ct);
             await client.DisconnectAsync(true, ct);
 
-            _logger.LogInformation("✅ Correo enviado exitosamente vía SMTP a '{ToEmail}'", msg.ToEmail);
+            _logger.LogInformation("[EXITO] Correo enviado exitosamente vía SMTP a '{ToEmail}'", msg.ToEmail);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "⚠️ Error enviando correo vía SMTP a '{ToEmail}'. Mensaje retenido.", msg.ToEmail);
+            _logger.LogError(ex, "[ADVERTENCIA] Error enviando correo vía SMTP a '{ToEmail}'. Mensaje retenido.", msg.ToEmail);
         }
     }
 }
