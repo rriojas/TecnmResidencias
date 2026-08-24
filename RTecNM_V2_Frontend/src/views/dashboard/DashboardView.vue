@@ -34,6 +34,7 @@ const welcomeTitle = computed(() => {
   const role = authStore.currentRole
   if (role === 'admin') return 'Panel de Administración General'
   if (role === 'departmenthead') return 'Panel de la División Académica'
+  if (role === 'vinculacion') return 'Panel de Gestión y Vinculación'
   if (role === 'advisor') return 'Portal de Asesoría de Residencias'
   if (role === 'student') return 'Portal del Estudiante Residente'
   if (role === 'director') return 'Panel Ejecutivo de Dirección'
@@ -44,10 +45,19 @@ const welcomeDescription = computed(() => {
   const role = authStore.currentRole
   if (role === 'admin') return 'Gestión institucional de alumnos, asesores, anteproyectos y reportes de residencia.'
   if (role === 'departmenthead') return 'Revisión de anteproyectos, dictámenes y avance general de residencias.'
+  if (role === 'vinculacion') return 'Gestión de empresas receptoras, solicitudes, expediente digital y alumnos.'
   if (role === 'advisor') return 'Seguimiento de los residentes a tu cargo, dictámenes pendientes y evaluaciones.'
   if (role === 'student') return 'Seguimiento de tu anteproyecto, avance semanal y expediente digital.'
   if (role === 'director') return 'Vista ejecutiva y consulta global de indicadores del sistema de residencias.'
   return 'Sistema de Residencias Profesionales - TecNM Campus Monclova.'
+})
+
+const isStaff = computed(() => {
+  return (
+    authStore.isAdmin ||
+    authStore.hasRole('departmenthead', 'director', 'vinculacion', 'academic') ||
+    (authStore.currentRole !== 'student' && authStore.currentRole !== 'advisor')
+  )
 })
 
 const latestStudentProject = computed(() => {
@@ -187,7 +197,7 @@ async function loadDashboard() {
   const role = authStore.currentRole
 
   try {
-    if (authStore.isAdmin || role === 'departmenthead' || role === 'director') {
+    if (isStaff.value) {
       const [mRes, rRes, pRes] = await Promise.all([
         apiClient.get('/v1/admin/dashboard').catch(() => ({ data: {} })),
         apiClient.get('/v1/projects', { params: { pageNumber: 1, pageSize: 5 } }).catch(() => ({ data: { items: [] } })),
@@ -247,10 +257,10 @@ onMounted(() => {
     </div>
 
     <!-- ========================================== -->
-    <!-- 1. KPIs PARA ADMIN / JEFE DE DIVISIÓN / DIRECTOR -->
+    <!-- 1. KPIs PARA ADMIN / VINCULACIÓN / JEFE / DIRECTOR -->
     <!-- ========================================== -->
     <div
-      v-if="authStore.isAdmin || authStore.hasRole('departmenthead', 'director')"
+      v-if="isStaff"
       id="statsSection"
       class="kpi-grid"
       data-kpi-count="6"
@@ -384,9 +394,9 @@ onMounted(() => {
     <div class="dashboard-grid">
       <!-- Columna Principal -->
       <div class="dashboard-main">
-        <!-- VISTA ADMIN: Tabla de Anteproyectos Recientes -->
+        <!-- VISTA ADMIN / STAFF: Tabla de Anteproyectos Recientes -->
         <div
-          v-if="authStore.isAdmin || authStore.hasRole('departmenthead', 'director')"
+          v-if="isStaff"
           id="contentCard"
           class="tecnm-card"
         >
@@ -629,9 +639,9 @@ onMounted(() => {
 
       <!-- Columna Lateral / Side Panel -->
       <div id="sidePanel" class="dashboard-side">
-        <!-- VISTA ADMIN: Cola de Dictamen -->
+        <!-- VISTA ADMIN / STAFF: Cola de Dictamen -->
         <div
-          v-if="authStore.isAdmin || authStore.hasRole('departmenthead', 'director')"
+          v-if="isStaff"
           class="panel-card"
         >
           <h3 class="panel-title">Cola de Dictamen</h3>
