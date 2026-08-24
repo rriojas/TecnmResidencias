@@ -67,6 +67,14 @@ public class StudentConfiguration : IEntityTypeConfiguration<Student>
             .HasColumnType("numeric(5,2)")
             .IsRequired();
 
+        builder.Property(s => s.IsPresentationLetterSent)
+            .HasColumnName("is_presentation_letter_sent")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(s => s.PresentationLetterSentAt)
+            .HasColumnName("presentation_letter_sent_at");
+
         builder.Property(s => s.IsActive)
             .HasColumnName("is_active")
             .HasDefaultValue(true)

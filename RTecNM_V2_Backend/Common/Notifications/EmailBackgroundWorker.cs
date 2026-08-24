@@ -68,6 +68,15 @@ public class EmailBackgroundWorker : BackgroundService
             {
                 HtmlBody = msg.BodyHtml
             };
+
+            if (msg.Attachments != null && msg.Attachments.Count > 0)
+            {
+                foreach (var att in msg.Attachments)
+                {
+                    bodyBuilder.Attachments.Add(att.FileName, att.Content, ContentType.Parse(att.ContentType ?? "application/pdf"));
+                }
+            }
+
             mime.Body = bodyBuilder.ToMessageBody();
 
             using var client = new SmtpClient();

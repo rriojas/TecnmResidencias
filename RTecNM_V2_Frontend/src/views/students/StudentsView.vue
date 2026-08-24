@@ -353,6 +353,71 @@ async function handleExportPdf() {
   }
 }
 
+const isSendingMassLetters = ref(false)
+const isSendingIndividualLetterId = ref(null)
+
+async function handleMassSendPresentationLetters() {
+  const confirmed = await confirm({
+    title: 'Enviar Cartas de Presentación',
+    message: 'Se generará y enviará por correo electrónico la Carta de Presentación Oficial en formato PDF únicamente a los alumnos que aún no la hayan recibido. ¿Desea proceder?',
+    okText: 'Enviar Cartas',
+    cancelText: 'Cancelar',
+  })
+  if (!confirmed) return
+
+  isSendingMassLetters.value = true
+  try {
+    const res = await apiClient.post('/v1/students/presentation-letters/mass-send')
+    const count = res.data.sentCount || 0
+    showAlert(res.data.message || `Se encoló el envío para ${count} carta(s) de presentación.`, 'success')
+    loadStudents()
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al procesar el envío de cartas.', 'danger')
+  } finally {
+    isSendingMassLetters.value = false
+  }
+}
+
+async function handleSendIndividualPresentationLetter(student) {
+  const confirmed = await confirm({
+    title: 'Enviar Carta de Presentación',
+    message: `¿Desea enviar la Carta de Presentación en PDF al correo (${student.email}) del alumno ${student.fullName || student.firstName}?`,
+    okText: 'Enviar',
+    cancelText: 'Cancelar',
+  })
+  if (!confirmed) return
+
+  isSendingIndividualLetterId.value = student.id
+  try {
+    await apiClient.post(`/v1/students/${student.id}/presentation-letter/send`)
+    showAlert(`Carta de presentación encolada para ${student.email} exitosamente.`, 'success')
+    loadStudents()
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al enviar la carta de presentación.', 'danger')
+  } finally {
+    isSendingIndividualLetterId.value = null
+  }
+}
+
+async function handleDownloadPresentationLetterPdf(student) {
+  try {
+    const res = await apiClient.get(`/v1/students/${student.id}/presentation-letter/pdf`, {
+      responseType: 'blob'
+    })
+    const blob = new Blob([res.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `Carta_Presentacion_${student.controlNumber}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch {
+    showAlert('Error al descargar el PDF de la Carta de Presentación.', 'danger')
+  }
+}
+
 onMounted(() => {
   loadStudents()
 })
@@ -385,6 +450,16 @@ onMounted(() => {
           @click="openImportModal"
         >
           📊 Importar Excel
+        </button>
+        <button
+          v-if="authStore.isAdmin || authStore.hasRole('vinculacion')"
+          id="massSendPresentationLettersBtn"
+          type="button"
+          class="tecnm-btn tecnm-btn-secondary"
+          :disabled="isSendingMassLetters"
+          @click="handleMassSendPresentationLetters"
+        >
+          {{ isSendingMassLetters ? '⌛ Enviando...' : '✉️ Enviar Cartas de Presentación (Nuevos)' }}
         </button>
         <span class="tecnm-page-actions-divider" aria-hidden="true"></span>
         <button
@@ -462,6 +537,7 @@ onMounted(() => {
                 </th>
                 <th>Carrera</th>
                 <th>Correo Institucional</th>
+                <th>Carta Presentación</th>
                 <th
                   data-sort="IsActive"
                   :class="getSortClass('IsActive')"
@@ -474,12 +550,12 @@ onMounted(() => {
             </thead>
             <tbody id="studentsTableBody">
               <tr v-if="isLoading">
-                <td colspan="6" class="tecnm-table-empty">
+                <td colspan="7" class="tecnm-table-empty">
                   Cargando catálogo de estudiantes...
                 </td>
               </tr>
               <tr v-else-if="students.length === 0">
-                <td colspan="6" class="tecnm-table-empty">
+                <td colspan="7" class="tecnm-table-empty">
                   No se encontraron estudiantes registrados.
                 </td>
               </tr>
@@ -493,9 +569,31 @@ onMounted(() => {
                 <td>{{ s.career || (s.careerId === 1 ? 'Informática' : s.careerId === 2 ? 'Industrial' : s.careerId === 3 ? 'Mecatrónica' : 'ISC') }}</td>
                 <td>{{ s.email }}</td>
                 <td>
+                  <TecnmBadge :status="s.isPresentationLetterSent ? 'Aprobado' : 'Pendiente'" />
+                </td>
+                <td>
                   <TecnmBadge :status="s.isActive ? 'Activo' : 'Inactivo'" />
                 </td>
                 <td class="tecnm-row-actions">
+                  <button
+                    v-if="authStore.isAdmin || authStore.hasRole('vinculacion')"
+                    type="button"
+                    class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                    :disabled="isSendingIndividualLetterId === s.id"
+                    :title="s.isPresentationLetterSent ? 'Reenviar Carta de Presentación por Correo' : 'Enviar Carta de Presentación por Correo'"
+                    @click="handleSendIndividualPresentationLetter(s)"
+                  >
+                    {{ isSendingIndividualLetterId === s.id ? '⌛ Enviando...' : (s.isPresentationLetterSent ? '✉️ Reenviar' : '✉️ Enviar Carta') }}
+                  </button>
+                  <button
+                    v-if="authStore.isAdmin || authStore.hasRole('vinculacion') || authStore.hasRole('departmenthead') || authStore.hasRole('director')"
+                    type="button"
+                    class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                    title="Descargar PDF de la Carta de Presentación"
+                    @click="handleDownloadPresentationLetterPdf(s)"
+                  >
+                    📄 PDF
+                  </button>
                   <button
                     type="button"
                     class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"

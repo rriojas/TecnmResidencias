@@ -17,6 +17,8 @@ public class Student : BaseEntity
     public int? AcademicPeriodId { get; set; }           // Maps to academic_period_id
     public long? AdvisorId { get; set; }
     public decimal Gpa { get; set; }
+    public bool IsPresentationLetterSent { get; set; } = false;
+    public DateTime? PresentationLetterSentAt { get; set; }
 
     public User? User { get; set; }
     public Advisor? Advisor { get; set; }

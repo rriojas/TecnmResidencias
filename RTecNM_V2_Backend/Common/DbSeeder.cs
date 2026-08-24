@@ -336,6 +336,12 @@ public static class DbSeeder
                     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='advisor_id') THEN
                         ALTER TABLE students ADD COLUMN advisor_id bigint NULL;
                     END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='is_presentation_letter_sent') THEN
+                        ALTER TABLE students ADD COLUMN is_presentation_letter_sent boolean NOT NULL DEFAULT false;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='presentation_letter_sent_at') THEN
+                        ALTER TABLE students ADD COLUMN presentation_letter_sent_at timestamp with time zone NULL;
+                    END IF;
                 END IF;
 
                 IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='companies') THEN

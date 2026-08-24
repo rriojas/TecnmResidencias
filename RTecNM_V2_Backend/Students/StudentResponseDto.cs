@@ -16,6 +16,8 @@ public class StudentResponseDto
     public int? AcademicPeriodId { get; set; }
     public string Email { get; set; } = string.Empty;
     public decimal Gpa { get; set; }
+    public bool IsPresentationLetterSent { get; set; }
+    public DateTime? PresentationLetterSentAt { get; set; }
     public bool IsActive { get; set; }
     public bool IsVisible { get; set; }
     public int DisplayOrder { get; set; }

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using TecNM.Residency.Advisors;
 using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
@@ -16,6 +17,7 @@ public class StudentService : IStudentService
     private readonly ICurrentUserService _currentUser;
     private readonly IEmailQueue _emailQueue;
     private readonly IEmailTemplateService _emailTemplateService;
+    private readonly AppDbContext _context;
 
     public StudentService(
         IStudentRepository studentRepository,
@@ -25,7 +27,8 @@ public class StudentService : IStudentService
         IRoleRepository roleRepository,
         ICurrentUserService currentUser,
         IEmailQueue emailQueue,
-        IEmailTemplateService emailTemplateService)
+        IEmailTemplateService emailTemplateService,
+        AppDbContext context)
     {
         _studentRepository = studentRepository;
         _advisorRepository = advisorRepository;
@@ -35,6 +38,7 @@ public class StudentService : IStudentService
         _currentUser = currentUser;
         _emailQueue = emailQueue;
         _emailTemplateService = emailTemplateService;
+        _context = context;
     }
 
     public async Task<Result<PaginatedResult<StudentResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
@@ -437,6 +441,165 @@ public class StudentService : IStudentService
         return 1;
     }
 
+    public async Task<Result<int>> SendMassPresentationLettersAsync()
+    {
+        var unsentStudents = await _context.Students
+            .Include(s => s.User)
+            .Where(s => s.IsActive && !s.IsPresentationLetterSent)
+            .ToListAsync();
+
+        if (unsentStudents.Count == 0)
+        {
+            return Result<int>.Success(0);
+        }
+
+        int sentCount = 0;
+        foreach (var student in unsentStudents)
+        {
+            var email = student.User?.Email;
+            if (string.IsNullOrWhiteSpace(email)) continue;
+
+            var careerName = GetCareerNameById(student.CareerId);
+            var studentName = $"{student.FirstName} {student.LastName} {student.LastName2}".Trim();
+
+            var project = await _context.Projects
+                .Include(p => p.Company)
+                .FirstOrDefaultAsync(p => p.StudentId == student.Id && p.IsActive);
+
+            var companyName = project?.Company?.Name ?? "A QUIEN CORRESPONDA";
+
+            var letterData = new PresentationLetterData
+            {
+                StudentFullName = studentName,
+                ControlNumber = student.ControlNumber,
+                CareerName = careerName,
+                CompanyName = companyName,
+                FolioNumber = $"TecNM-MON-VP-{DateTime.UtcNow.Year}-{student.ControlNumber}",
+                IssueDate = DateTime.UtcNow
+            };
+
+            var pdfBytes = PresentationLetterPdfService.GeneratePresentationLetterPdf(letterData);
+            var emailMsg = _emailTemplateService.BuildPresentationLetterEmail(
+                studentName,
+                student.ControlNumber,
+                email,
+                careerName,
+                companyName,
+                pdfBytes
+            );
+
+            _emailQueue.Enqueue(emailMsg);
+
+            student.IsPresentationLetterSent = true;
+            student.PresentationLetterSentAt = DateTime.UtcNow;
+            student.UpdatedAt = DateTime.UtcNow;
+            student.UpdatedBy = _currentUser.UserId;
+
+            sentCount++;
+        }
+
+        await _context.SaveChangesAsync();
+        return Result<int>.Success(sentCount);
+    }
+
+    public async Task<Result<bool>> SendPresentationLetterAsync(long studentId)
+    {
+        var student = await _context.Students
+            .Include(s => s.User)
+            .FirstOrDefaultAsync(s => s.Id == studentId && s.IsActive);
+
+        if (student is null)
+            return Result<bool>.Failure("Estudiante no encontrado.", 404);
+
+        var email = student.User?.Email;
+        if (string.IsNullOrWhiteSpace(email))
+            return Result<bool>.Failure("El estudiante no tiene un correo electrónico configurado.", 400);
+
+        var careerName = GetCareerNameById(student.CareerId);
+        var studentName = $"{student.FirstName} {student.LastName} {student.LastName2}".Trim();
+
+        var project = await _context.Projects
+            .Include(p => p.Company)
+            .FirstOrDefaultAsync(p => p.StudentId == student.Id && p.IsActive);
+
+        var companyName = project?.Company?.Name ?? "A QUIEN CORRESPONDA";
+
+        var letterData = new PresentationLetterData
+        {
+            StudentFullName = studentName,
+            ControlNumber = student.ControlNumber,
+            CareerName = careerName,
+            CompanyName = companyName,
+            FolioNumber = $"TecNM-MON-VP-{DateTime.UtcNow.Year}-{student.ControlNumber}",
+            IssueDate = DateTime.UtcNow
+        };
+
+        var pdfBytes = PresentationLetterPdfService.GeneratePresentationLetterPdf(letterData);
+        var emailMsg = _emailTemplateService.BuildPresentationLetterEmail(
+            studentName,
+            student.ControlNumber,
+            email,
+            careerName,
+            companyName,
+            pdfBytes
+        );
+
+        _emailQueue.Enqueue(emailMsg);
+
+        student.IsPresentationLetterSent = true;
+        student.PresentationLetterSentAt = DateTime.UtcNow;
+        student.UpdatedAt = DateTime.UtcNow;
+        student.UpdatedBy = _currentUser.UserId;
+
+        await _context.SaveChangesAsync();
+        return Result<bool>.Success(true);
+    }
+
+    public async Task<Result<byte[]>> GetPresentationLetterPdfAsync(long studentId)
+    {
+        var student = await _context.Students
+            .FirstOrDefaultAsync(s => s.Id == studentId && s.IsActive);
+
+        if (student is null)
+            return Result<byte[]>.Failure("Estudiante no encontrado.", 404);
+
+        var careerName = GetCareerNameById(student.CareerId);
+        var studentName = $"{student.FirstName} {student.LastName} {student.LastName2}".Trim();
+
+        var project = await _context.Projects
+            .Include(p => p.Company)
+            .FirstOrDefaultAsync(p => p.StudentId == student.Id && p.IsActive);
+
+        var companyName = project?.Company?.Name ?? "A QUIEN CORRESPONDA";
+
+        var letterData = new PresentationLetterData
+        {
+            StudentFullName = studentName,
+            ControlNumber = student.ControlNumber,
+            CareerName = careerName,
+            CompanyName = companyName,
+            FolioNumber = $"TecNM-MON-VP-{DateTime.UtcNow.Year}-{student.ControlNumber}",
+            IssueDate = DateTime.UtcNow
+        };
+
+        var pdfBytes = PresentationLetterPdfService.GeneratePresentationLetterPdf(letterData);
+        return Result<byte[]>.Success(pdfBytes);
+    }
+
+    private static string GetCareerNameById(long careerId)
+    {
+        return careerId switch
+        {
+            1 => "Ingeniería Informática",
+            2 => "Ingeniería Industrial",
+            3 => "Ingeniería Mecatrónica",
+            4 => "Ingeniería en Sistemas Computacionales",
+            5 => "Ingeniería Electrónica",
+            6 => "Ingeniería en Gestión Empresarial",
+            _ => "Ingeniería"
+        };
+    }
+
     private static StudentResponseDto MapToResponseDto(Student student)
     {
         return new StudentResponseDto
@@ -455,6 +618,8 @@ public class StudentService : IStudentService
             AcademicPeriodId = student.AcademicPeriodId,
             Email = student.User?.Email ?? string.Empty,
             Gpa = student.Gpa,
+            IsPresentationLetterSent = student.IsPresentationLetterSent,
+            PresentationLetterSentAt = student.PresentationLetterSentAt,
             IsActive = student.IsActive,
             IsVisible = student.IsVisible,
             DisplayOrder = student.DisplayOrder,

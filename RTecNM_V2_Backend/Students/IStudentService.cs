@@ -15,4 +15,7 @@ public interface IStudentService
     Task<Result<bool>> SoftDeleteAsync(long id, long deletedByUserId);
     Task<Result<bool>> ReactivateAsync(long id);
     Task<Result<BatchImportResultDto>> ImportExcelAsync(Microsoft.AspNetCore.Http.IFormFile file);
+    Task<Result<int>> SendMassPresentationLettersAsync();
+    Task<Result<bool>> SendPresentationLetterAsync(long studentId);
+    Task<Result<byte[]>> GetPresentationLetterPdfAsync(long studentId);
 }
