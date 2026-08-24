@@ -30,14 +30,14 @@ public class SystemSettingService : ISystemSettingService
 
         return new SmtpConfigDto
         {
-            Host = settings.TryGetValue("smtp.host", out var h) ? h : _defaultSmtpOptions.Host,
-            Port = settings.TryGetValue("smtp.port", out var p) && int.TryParse(p, out var portVal) ? portVal : _defaultSmtpOptions.Port,
-            SenderName = settings.TryGetValue("smtp.sender_name", out var sn) ? sn : _defaultSmtpOptions.SenderName,
-            SenderEmail = settings.TryGetValue("smtp.sender_email", out var se) ? se : _defaultSmtpOptions.SenderEmail,
-            Username = settings.TryGetValue("smtp.username", out var u) ? u : _defaultSmtpOptions.Username,
-            Password = settings.TryGetValue("smtp.password", out var pwd) ? pwd : _defaultSmtpOptions.Password,
-            EnableSsl = settings.TryGetValue("smtp.enable_ssl", out var ssl) ? bool.TryParse(ssl, out var sslVal) && sslVal : _defaultSmtpOptions.EnableSsl,
-            UseMockInDev = settings.TryGetValue("smtp.use_mock", out var mock) ? bool.TryParse(mock, out var mockVal) && mockVal : _defaultSmtpOptions.UseMockInDev
+            Host = settings.TryGetValue("smtp.host", out var h) && !string.IsNullOrWhiteSpace(h) ? h : (_defaultSmtpOptions.Host ?? "smtp.office365.com"),
+            Port = settings.TryGetValue("smtp.port", out var p) && int.TryParse(p, out var portVal) ? portVal : (_defaultSmtpOptions.Port != 0 ? _defaultSmtpOptions.Port : 587),
+            SenderName = settings.TryGetValue("smtp.sender_name", out var sn) && !string.IsNullOrWhiteSpace(sn) ? sn : (_defaultSmtpOptions.SenderName ?? "TecNM Residencias Monclova"),
+            SenderEmail = settings.TryGetValue("smtp.sender_email", out var se) && !string.IsNullOrWhiteSpace(se) ? se : (_defaultSmtpOptions.SenderEmail ?? "noreply@monclova.tecnm.mx"),
+            Username = settings.TryGetValue("smtp.username", out var u) && !string.IsNullOrWhiteSpace(u) ? u : (_defaultSmtpOptions.Username ?? "noreply@monclova.tecnm.mx"),
+            Password = settings.TryGetValue("smtp.password", out var pwd) && !string.IsNullOrWhiteSpace(pwd) ? pwd : (_defaultSmtpOptions.Password ?? "bsrlqmgkxgrqyqnv"),
+            EnableSsl = settings.TryGetValue("smtp.enable_ssl", out var ssl) ? (bool.TryParse(ssl, out var sslVal) && sslVal) : _defaultSmtpOptions.EnableSsl,
+            UseMockInDev = settings.TryGetValue("smtp.use_mock", out var mock) ? (bool.TryParse(mock, out var mockVal) && mockVal) : _defaultSmtpOptions.UseMockInDev
         };
     }
 

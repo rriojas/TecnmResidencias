@@ -19,14 +19,14 @@ function showAlert(msg, type = 'success') {
 
 // SMTP State
 const smtpForm = ref({
-  host: 'smtp.gmail.com',
+  host: 'smtp.office365.com',
   port: 587,
   senderName: 'TecNM Residencias Monclova',
-  senderEmail: '',
-  username: '',
-  password: '',
+  senderEmail: 'noreply@monclova.tecnm.mx',
+  username: 'noreply@monclova.tecnm.mx',
+  password: 'bsrlqmgkxgrqyqnv',
   enableSsl: true,
-  useMockInDev: true
+  useMockInDev: false
 })
 
 const isLoadingSmtp = ref(false)
