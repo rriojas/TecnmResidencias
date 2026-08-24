@@ -85,8 +85,7 @@ const showAdvisors = computed(() =>
 
 const showAdvisorAssignments = computed(() =>
   authStore.isAdmin ||
-  authStore.hasRole('admin', 'vinculacion', 'departmenthead', 'academic') ||
-  authStore.hasPermission('advisors.manage')
+  authStore.hasRole('admin', 'departmenthead', 'academic')
 )
 
 const showCompanies = computed(() =>

@@ -65,7 +65,7 @@ public class AdvisorsController : ControllerBase
     }
 
     [HttpPost("assign")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico")]
     public async Task<IActionResult> Assign([FromBody] AssignAdvisorDto dto)
     {
         var result = await _advisorService.AssignAdvisorAsync(dto);
