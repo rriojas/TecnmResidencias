@@ -3,12 +3,14 @@ import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useConfirm } from '@/composables/useConfirm'
 import { useAudit } from '@/composables/useAudit'
+import { useGlobalSearch } from '@/composables/useGlobalSearch'
 import apiClient from '@/services/api'
 import TecnmBadge from '@/components/common/TecnmBadge.vue'
 
 const authStore = useAuthStore()
 const { confirm } = useConfirm()
 const { showAudit } = useAudit()
+const { openSearch } = useGlobalSearch()
 
 // Estado
 const companies = ref([])
@@ -297,6 +299,16 @@ onMounted(() => {
         <p class="tecnm-page-subtitle">Gestión y catálogo de instituciones y organizaciones vinculadas a residencias profesionales</p>
       </div>
       <div class="tecnm-page-actions">
+        <button
+          type="button"
+          class="tecnm-btn tecnm-btn-secondary"
+          @click="openSearch({ initialSource: 'COMPANIES' })"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+          </svg>
+          <span>Abrir búsqueda</span>
+        </button>
         <button
           v-if="canImport"
           id="openImportCompanyModalBtn"
