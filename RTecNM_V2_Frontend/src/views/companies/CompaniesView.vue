@@ -287,7 +287,7 @@ onMounted(() => {
           class="tecnm-btn tecnm-btn-secondary"
           @click="openImportModal"
         >
-          📊 Importar Excel
+         Importar Excel
         </button>
         <button
           v-if="canCreate"
@@ -583,7 +583,7 @@ onMounted(() => {
     >
       <div class="modal-card" style="max-width: 600px;">
         <div class="tecnm-modal-header">
-          <h3 class="tecnm-modal-title">📊 Carga Masiva de Empresas vía Excel</h3>
+          <h3 class="tecnm-modal-title"> Carga Masiva de Empresas vía Excel</h3>
           <button
             type="button"
             class="tecnm-modal-close"
