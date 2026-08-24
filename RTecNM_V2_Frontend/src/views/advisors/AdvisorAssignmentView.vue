@@ -383,14 +383,27 @@ onMounted(() => {
     </div>
 
     <!-- Modal Asignación Masiva por Asesor -->
-    <div v-if="isBatchModalOpen" class="tecnm-modal-backdrop" @click.self="isBatchModalOpen = false">
-      <div class="tecnm-modal" style="max-width: 700px;">
+    <div
+      v-if="isBatchModalOpen"
+      class="modal-backdrop active"
+      role="dialog"
+      aria-modal="true"
+      @click.self="isBatchModalOpen = false"
+    >
+      <div class="modal-card" style="max-width: 720px;">
         <div class="tecnm-modal-header">
-          <h3 class="tecnm-modal-title">Asignación Masiva por Asesor</h3>
-          <button type="button" class="tecnm-modal-close" @click="isBatchModalOpen = false">&times;</button>
+          <h3 class="tecnm-modal-title">Asignación Masiva por Asesor Académico</h3>
+          <button
+            type="button"
+            class="tecnm-modal-close"
+            aria-label="Cerrar"
+            @click="isBatchModalOpen = false"
+          >
+            &times;
+          </button>
         </div>
-        <div class="tecnm-modal-body">
-          <div class="tecnm-form-group">
+        <div class="tecnm-modal-body" style="padding: 1.25rem;">
+          <div class="tecnm-form-group" style="margin-bottom: 1rem;">
             <label class="tecnm-label">Seleccionar Asesor Académico destinatario <span class="tecnm-required">*</span></label>
             <select v-model="selectedAdvisorId" class="tecnm-form-control">
               <option value="">-- Seleccionar Asesor --</option>
@@ -400,7 +413,7 @@ onMounted(() => {
             </select>
           </div>
 
-          <div class="tecnm-form-group">
+          <div class="tecnm-form-group" style="margin-bottom: 1rem;">
             <label class="tecnm-label">Buscar estudiantes para asignar</label>
             <input
               v-model="batchSearch"
@@ -411,10 +424,10 @@ onMounted(() => {
           </div>
 
           <div class="tecnm-table-responsive" style="max-height: 280px; overflow-y: auto; border: 1px solid var(--tecnm-border-color); border-radius: 6px;">
-            <table class="tecnm-table tecnm-table-striped" style="font-size: 0.85rem;">
+            <table class="tecnm-table tecnm-table-striped" style="font-size: 0.85rem; margin-bottom: 0;">
               <thead>
                 <tr>
-                  <th style="width: 40px;">
+                  <th style="width: 40px; text-align: center;">
                     <input type="checkbox" @change="toggleSelectAllBatch" />
                   </th>
                   <th>N° Control</th>
@@ -424,10 +437,10 @@ onMounted(() => {
               </thead>
               <tbody>
                 <tr v-for="st in filteredBatchStudents" :key="st.id">
-                  <td>
+                  <td style="text-align: center;">
                     <input type="checkbox" :value="st.id" v-model="selectedStudentIds" />
                   </td>
-                  <td>{{ st.controlNumber }}</td>
+                  <td><strong>{{ st.controlNumber }}</strong></td>
                   <td>{{ st.fullName || `${st.firstName} ${st.lastName}` }}</td>
                   <td>
                     <span v-if="st.advisorName" class="tecnm-text-muted">{{ st.advisorName }}</span>
