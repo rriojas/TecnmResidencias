@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using TecNM.Residency.Activities;
 using TecNM.Residency.Advisors;
 using TecNM.Residency.Auth;
+using TecNM.Residency.Common.Settings;
 using TecNM.Residency.Companies;
 using TecNM.Residency.Documents;
 using TecNM.Residency.Evaluations;
@@ -30,6 +31,7 @@ public class AppDbContext : DbContext
     public DbSet<Evaluation> Evaluations => Set<Evaluation>();
     public DbSet<AdvisorySession> AdvisorySessions => Set<AdvisorySession>();
     public DbSet<Document> Documents => Set<Document>();
+    public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -51,6 +53,7 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new EvaluationConfiguration());
         modelBuilder.ApplyConfiguration(new AdvisorySessionConfiguration());
         modelBuilder.ApplyConfiguration(new DocumentConfiguration());
+        modelBuilder.ApplyConfiguration(new SystemSettingConfiguration());
     }
 }
 

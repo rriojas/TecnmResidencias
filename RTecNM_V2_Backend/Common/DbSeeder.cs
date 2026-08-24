@@ -103,8 +103,9 @@ public static class DbSeeder
 
             // Admin
             ("admin", "Administración de Usuarios", "admin.users.manage"),
-            ("admin", "Administración de Roles y Permisos", "admin.roles"),
-            ("admin", "Administración de Catálogos", "admin.catalogs.manage")
+            ("admin", "Gestión de Roles y Permisos", "admin.roles"),
+            ("admin", "Reportes Globales", "admin.reports"),
+            ("admin", "Configuración del Sistema y Vinculación", "admin.settings")
         };
 
         foreach (var pdef in permDefs)
@@ -188,7 +189,7 @@ public static class DbSeeder
             "documents.digital", "documents.verify", "documents.letters.generate",
             "students.profile.view", "students.profile.update", "students.manage", "students.eligibility.verify", "students.import.excel",
             "advisors.manage", "projects.proposals", "projects.review",
-            "admin.reports", "reports.export.excel"
+            "admin.reports", "admin.settings", "reports.export.excel"
         };
 
         var directorSlugs = new HashSet<string>
@@ -331,6 +332,16 @@ public static class DbSeeder
                 DROP VIEW IF EXISTS vw_search_advisors CASCADE;
                 DROP VIEW IF EXISTS vw_search_projects CASCADE;
                 DROP VIEW IF EXISTS vw_search_companies CASCADE;
+
+                IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='system_settings') THEN
+                    CREATE TABLE system_settings (
+                        key character varying(100) NOT NULL PRIMARY KEY,
+                        value text NOT NULL,
+                        description character varying(255) NULL,
+                        updated_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_by bigint NULL
+                    );
+                END IF;
 
                 IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='students') THEN
                     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='advisor_id') THEN

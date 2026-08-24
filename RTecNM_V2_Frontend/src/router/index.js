@@ -154,6 +154,17 @@ const routes = [
     },
   },
   {
+    path: '/admin/settings',
+    name: 'AdminSettings',
+    component: () => import('@/views/admin/SystemSettingsView.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Configuración del Sistema - Sistema de Residencias',
+      permission: 'admin.settings',
+      navActive: 'settings',
+    },
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/dashboard',
   },

@@ -8,6 +8,7 @@ using TecNM.Residency.Advisors;
 using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
 using TecNM.Residency.Common.Notifications;
+using TecNM.Residency.Common.Settings;
 using TecNM.Residency.Companies;
 using TecNM.Residency.Documents;
 using TecNM.Residency.Evaluations;
@@ -90,6 +91,7 @@ builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
 builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
 builder.Services.AddSingleton<IEmailTemplateService, EmailTemplateService>();
+builder.Services.AddScoped<ISystemSettingService, SystemSettingService>();
 builder.Services.AddHostedService<EmailBackgroundWorker>();
 
 var app = builder.Build();

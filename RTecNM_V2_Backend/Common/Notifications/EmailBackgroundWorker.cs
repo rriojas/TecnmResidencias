@@ -5,20 +5,26 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MimeKit;
 
+using Microsoft.Extensions.DependencyInjection;
+using TecNM.Residency.Common.Settings;
+
 namespace TecNM.Residency.Common.Notifications;
 
 public class EmailBackgroundWorker : BackgroundService
 {
     private readonly IEmailQueue _queue;
+    private readonly IServiceProvider _serviceProvider;
     private readonly SmtpOptions _options;
     private readonly ILogger<EmailBackgroundWorker> _logger;
 
     public EmailBackgroundWorker(
         IEmailQueue queue,
+        IServiceProvider serviceProvider,
         IOptions<SmtpOptions> options,
         ILogger<EmailBackgroundWorker> logger)
     {
         _queue = queue;
+        _serviceProvider = serviceProvider;
         _options = options.Value;
         _logger = logger;
     }
@@ -48,9 +54,16 @@ public class EmailBackgroundWorker : BackgroundService
 
     private async Task SendEmailAsync(EmailMessageDto msg, CancellationToken ct)
     {
-        _logger.LogInformation("📬 Procesando correo para '{ToEmail}' | Asunto: '{Subject}'", msg.ToEmail, msg.Subject);
+        SmtpConfigDto config;
+        using (var scope = _serviceProvider.CreateScope())
+        {
+            var settingService = scope.ServiceProvider.GetRequiredService<ISystemSettingService>();
+            config = await settingService.GetSmtpConfigAsync();
+        }
 
-        if (_options.UseMockInDev || string.IsNullOrWhiteSpace(_options.Username) || string.IsNullOrWhiteSpace(_options.Password))
+        _logger.LogInformation("📬 Procesando correo para '{ToEmail}' | Asunto: '{Subject}' | Host={Host}:{Port}", msg.ToEmail, msg.Subject, config.Host, config.Port);
+
+        if (config.UseMockInDev || string.IsNullOrWhiteSpace(config.Username) || string.IsNullOrWhiteSpace(config.Password))
         {
             _logger.LogInformation("🌐 [MOCK EMAIL DISPATCH] Correo enviado simbólicamente en desarrollo:\n  Para: {ToEmail} ({ToName})\n  Asunto: {Subject}",
                 msg.ToEmail, msg.ToName, msg.Subject);
@@ -60,7 +73,7 @@ public class EmailBackgroundWorker : BackgroundService
         try
         {
             var mime = new MimeMessage();
-            mime.From.Add(new MailboxAddress(_options.SenderName, _options.SenderEmail));
+            mime.From.Add(new MailboxAddress(config.SenderName, config.SenderEmail));
             mime.To.Add(new MailboxAddress(msg.ToName ?? msg.ToEmail, msg.ToEmail));
             mime.Subject = msg.Subject;
 
@@ -80,9 +93,9 @@ public class EmailBackgroundWorker : BackgroundService
             mime.Body = bodyBuilder.ToMessageBody();
 
             using var client = new SmtpClient();
-            var secureOption = _options.EnableSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.Auto;
-            await client.ConnectAsync(_options.Host, _options.Port, secureOption, ct);
-            await client.AuthenticateAsync(_options.Username, _options.Password, ct);
+            var secureOption = config.EnableSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.Auto;
+            await client.ConnectAsync(config.Host, config.Port, secureOption, ct);
+            await client.AuthenticateAsync(config.Username, config.Password, ct);
             await client.SendAsync(mime, ct);
             await client.DisconnectAsync(true, ct);
 
