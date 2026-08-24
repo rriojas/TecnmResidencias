@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useConfirm } from '@/composables/useConfirm'
 import TecnmPagination from '@/components/common/TecnmPagination.vue'
@@ -22,6 +22,33 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const alertMessage = ref('')
 const alertType = ref('info')
+
+const sortBy = ref('title')
+const sortDir = ref('asc')
+
+function handleSort(field) {
+  if (sortBy.value === field) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortBy.value = field
+    sortDir.value = 'asc'
+  }
+}
+
+const sortedProjects = computed(() => {
+  let list = [...projects.value]
+  const field = sortBy.value
+  const dir = sortDir.value === 'asc' ? 1 : -1
+  return list.sort((a, b) => {
+    let valA = a[field] ?? ''
+    let valB = b[field] ?? ''
+    if (typeof valA === 'string') valA = valA.toLowerCase()
+    if (typeof valB === 'string') valB = valB.toLowerCase()
+    if (valA < valB) return -1 * dir
+    if (valA > valB) return 1 * dir
+    return 0
+  })
+})
 
 // Paginación
 const pageNumber = ref(1)
@@ -220,13 +247,28 @@ onMounted(async () => {
           <table class="tecnm-table tecnm-table-striped">
             <thead>
               <tr>
-                <th>Título del Proyecto</th>
-                <th>Estudiante</th>
-                <th>No. Control</th>
-                <th>Asesor</th>
-                <th>Promedio Evaluativo</th>
+                <th class="tecnm-th-sortable" @click="handleSort('title')">
+                  Título del Proyecto
+                  <span v-if="sortBy === 'title'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleSort('studentName')">
+                  Estudiante
+                  <span v-if="sortBy === 'studentName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleSort('studentControlNumber')">
+                  N° Control
+                  <span v-if="sortBy === 'studentControlNumber'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleSort('advisorName')">
+                  Asesor
+                  <span v-if="sortBy === 'advisorName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleSort('averageScore')">
+                  Promedio Evaluativo
+                  <span v-if="sortBy === 'averageScore'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
                 <th>Estado Liberación</th>
-                <th>Acciones</th>
+                <th class="tecnm-th-actions">Acciones</th>
               </tr>
             </thead>
             <tbody id="releasableTableBody">
@@ -240,13 +282,13 @@ onMounted(async () => {
                   {{ errorMessage }}
                 </td>
               </tr>
-              <tr v-else-if="projects.length === 0">
+              <tr v-else-if="sortedProjects.length === 0">
                 <td colspan="7" class="tecnm-table-empty">
                   No se encontraron anteproyectos registrados.
                 </td>
               </tr>
               <tr
-                v-for="p in projects"
+                v-for="p in sortedProjects"
                 v-else
                 :key="p.projectId || p.id"
               >

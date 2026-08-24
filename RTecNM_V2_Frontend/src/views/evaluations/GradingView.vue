@@ -295,6 +295,33 @@ function openProjectPicker() {
   })
 }
 
+const sortBy = ref('evaluationPeriod')
+const sortDir = ref('asc')
+
+function handleSort(field) {
+  if (sortBy.value === field) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortBy.value = field
+    sortDir.value = 'asc'
+  }
+}
+
+const sortedEvaluations = computed(() => {
+  let list = [...evaluations.value]
+  const field = sortBy.value
+  const dir = sortDir.value === 'asc' ? 1 : -1
+  return list.sort((a, b) => {
+    let valA = a[field] ?? ''
+    let valB = b[field] ?? ''
+    if (typeof valA === 'string') valA = valA.toLowerCase()
+    if (typeof valB === 'string') valB = valB.toLowerCase()
+    if (valA < valB) return -1 * dir
+    if (valA > valB) return 1 * dir
+    return 0
+  })
+})
+
 function changePage(page) {
   pageNumber.value = page
   loadEvaluations()
@@ -532,12 +559,27 @@ onMounted(() => {
           <table class="tecnm-table tecnm-table-striped">
             <thead>
               <tr>
-                <th>Período Evaluado</th>
-                <th>Calificación</th>
-                <th>Estudiante</th>
-                <th>Observaciones</th>
-                <th>Fecha de Registro</th>
-                <th>Acciones</th>
+                <th class="tecnm-th-sortable" @click="handleSort('evaluationPeriod')">
+                  Período Evaluado
+                  <span v-if="sortBy === 'evaluationPeriod'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleSort('score')">
+                  Calificación
+                  <span v-if="sortBy === 'score'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleSort('studentName')">
+                  Estudiante
+                  <span v-if="sortBy === 'studentName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleSort('feedback')">
+                  Observaciones
+                  <span v-if="sortBy === 'feedback'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleSort('createdAt')">
+                  Fecha de Registro
+                  <span v-if="sortBy === 'createdAt'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th class="tecnm-th-actions">Acciones</th>
               </tr>
             </thead>
             <tbody id="evaluationsTableBody">
@@ -559,11 +601,9 @@ onMounted(() => {
                   </router-link>
                 </td>
               </tr>
-              <tr v-else-if="evaluations.length === 0">
+              <tr v-else-if="sortedEvaluations.length === 0">
                 <td colspan="6" class="tecnm-table-empty">
-                  <span v-if="isProjectCompleted">No hay calificaciones registradas en este proyecto concluido.</span>
-                  <span v-else-if="isProjectPending">Las evaluaciones se habilitarán una vez dictaminado favorablemente el anteproyecto.</span>
-                  <span v-else>No hay calificaciones registradas en la base de datos para este proyecto.</span>
+                  No hay calificaciones registradas para este anteproyecto.
                 </td>
               </tr>
               <tr

@@ -117,6 +117,44 @@ async function handleImportSubmit() {
   }
 }
 
+const sortBy = ref('name')
+const sortDir = ref('asc')
+
+function handleSort(field) {
+  if (sortBy.value === field) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortBy.value = field
+    sortDir.value = 'asc'
+  }
+}
+
+function handleIncludeInactiveChange() {
+  loadCompanies().then(() => {
+    if (includeInactive.value) {
+      const hasInactive = companies.value.some(c => !c.isActive)
+      if (!hasInactive) {
+        showAlert('No se encontraron empresas inactivas deshabilitadas en el catálogo.', 'info')
+      }
+    }
+  })
+}
+
+const sortedCompanies = computed(() => {
+  let list = [...companies.value]
+  const field = sortBy.value
+  const dir = sortDir.value === 'asc' ? 1 : -1
+  return list.sort((a, b) => {
+    let valA = a[field] ?? ''
+    let valB = b[field] ?? ''
+    if (typeof valA === 'string') valA = valA.toLowerCase()
+    if (typeof valB === 'string') valB = valB.toLowerCase()
+    if (valA < valB) return -1 * dir
+    if (valA > valB) return 1 * dir
+    return 0
+  })
+})
+
 async function loadCompanies() {
   isLoading.value = true
   try {
@@ -346,7 +384,7 @@ onMounted(() => {
                 id="companyIncludeInactiveToggle"
                 v-model="includeInactive"
                 type="checkbox"
-                @change="loadCompanies"
+                @change="handleIncludeInactiveChange"
               />
               <span class="tecnm-switch-slider"></span>
             </span>
@@ -368,13 +406,31 @@ onMounted(() => {
           <table class="tecnm-table tecnm-table-striped">
             <thead>
               <tr>
-                <th>Razón Social / Nombre</th>
-                <th>RFC</th>
-                <th>Sector</th>
-                <th>Contacto Principal</th>
-                <th>Correo / Teléfono</th>
-                <th>Estado</th>
-                <th>Acciones</th>
+                <th class="tecnm-th-sortable" @click="handleSort('name')">
+                  Razón Social / Nombre
+                  <span v-if="sortBy === 'name'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleSort('rfc')">
+                  RFC
+                  <span v-if="sortBy === 'rfc'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleSort('sector')">
+                  Sector
+                  <span v-if="sortBy === 'sector'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleSort('contactName')">
+                  Contacto Principal
+                  <span v-if="sortBy === 'contactName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleSort('contactEmail')">
+                  Correo / Teléfono
+                  <span v-if="sortBy === 'contactEmail'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleSort('isActive')">
+                  Estado
+                  <span v-if="sortBy === 'isActive'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th class="tecnm-th-actions">Acciones</th>
               </tr>
             </thead>
             <tbody id="companiesTableBody">
@@ -383,13 +439,13 @@ onMounted(() => {
                   Cargando catálogo de empresas...
                 </td>
               </tr>
-              <tr v-else-if="companies.length === 0">
+              <tr v-else-if="sortedCompanies.length === 0">
                 <td colspan="7" class="tecnm-table-empty">
                   No hay empresas receptoras registradas.
                 </td>
               </tr>
               <tr
-                v-for="c in companies"
+                v-for="c in sortedCompanies"
                 v-else
                 :key="c.id"
               >

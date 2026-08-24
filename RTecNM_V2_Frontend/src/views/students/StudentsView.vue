@@ -541,34 +541,52 @@ onMounted(() => {
 
       <div class="tecnm-card-body">
         <div class="tecnm-table-responsive">
-          <table id="studentsTable" class="tecnm-table">
+          <table class="tecnm-table tecnm-table-striped">
             <thead>
               <tr>
                 <th
-                  data-sort="ControlNumber"
-                  :class="getSortClass('ControlNumber')"
+                  class="tecnm-th-sortable"
                   @click="handleSort('ControlNumber')"
                 >
-                  No. Control
+                  N° Control
+                  <span v-if="sortBy === 'ControlNumber'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
                 </th>
                 <th
-                  data-sort="FullName"
-                  :class="getSortClass('FullName')"
+                  class="tecnm-th-sortable"
                   @click="handleSort('FullName')"
                 >
                   Nombre Completo
+                  <span v-if="sortBy === 'FullName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
                 </th>
-                <th>Carrera</th>
-                <th>Correo Institucional</th>
-                <th>Carta Presentación</th>
                 <th
-                  data-sort="IsActive"
-                  :class="getSortClass('IsActive')"
+                  class="tecnm-th-sortable"
+                  @click="handleSort('CareerId')"
+                >
+                  Programa Educativo
+                  <span v-if="sortBy === 'CareerId'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th
+                  class="tecnm-th-sortable"
+                  @click="handleSort('Email')"
+                >
+                  Correo Institucional
+                  <span v-if="sortBy === 'Email'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th
+                  class="tecnm-th-sortable"
+                  @click="handleSort('IsPresentationLetterSent')"
+                >
+                  Carta Presentación
+                  <span v-if="sortBy === 'IsPresentationLetterSent'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th
+                  class="tecnm-th-sortable"
                   @click="handleSort('IsActive')"
                 >
-                  Estado
+                  Estatus
+                  <span v-if="sortBy === 'IsActive'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
                 </th>
-                <th>Acciones</th>
+                <th class="tecnm-th-actions">Acciones</th>
               </tr>
             </thead>
             <tbody id="studentsTableBody">

@@ -591,32 +591,28 @@ onMounted(async () => {
               <thead>
                 <tr>
                   <th
-                    data-sort="Code"
-                    class="tecnm-sort-th"
-                    :class="{
-                      'tecnm-sort-asc': rolesSortBy === 'Code' && rolesSortDir === 'asc',
-                      'tecnm-sort-desc': rolesSortBy === 'Code' && rolesSortDir === 'desc',
-                    }"
-                    style="cursor: pointer;"
+                    class="tecnm-th-sortable"
                     @click="toggleRoleSort('Code')"
                   >
                     Código
+                    <span v-if="rolesSortBy === 'Code'">{{ rolesSortDir === 'asc' ? '▲' : '▼' }}</span>
                   </th>
                   <th
-                    data-sort="Name"
-                    class="tecnm-sort-th"
-                    :class="{
-                      'tecnm-sort-asc': rolesSortBy === 'Name' && rolesSortDir === 'asc',
-                      'tecnm-sort-desc': rolesSortBy === 'Name' && rolesSortDir === 'desc',
-                    }"
-                    style="cursor: pointer;"
+                    class="tecnm-th-sortable"
                     @click="toggleRoleSort('Name')"
                   >
                     Nombre
+                    <span v-if="rolesSortBy === 'Name'">{{ rolesSortDir === 'asc' ? '▲' : '▼' }}</span>
                   </th>
-                  <th>Descripción</th>
+                  <th
+                    class="tecnm-th-sortable"
+                    @click="toggleRoleSort('Description')"
+                  >
+                    Descripción
+                    <span v-if="rolesSortBy === 'Description'">{{ rolesSortDir === 'asc' ? '▲' : '▼' }}</span>
+                  </th>
                   <th>Permisos Asignados</th>
-                  <th>Acciones</th>
+                  <th class="tecnm-th-actions">Acciones</th>
                 </tr>
               </thead>
               <tbody id="rolesTableBody">
@@ -759,43 +755,34 @@ onMounted(async () => {
               <thead>
                 <tr>
                   <th
-                    data-sort="Email"
-                    class="tecnm-sort-th"
-                    :class="{
-                      'tecnm-sort-asc': usersSortBy === 'Email' && usersSortDir === 'asc',
-                      'tecnm-sort-desc': usersSortBy === 'Email' && usersSortDir === 'desc',
-                    }"
-                    style="cursor: pointer;"
+                    class="tecnm-th-sortable"
                     @click="toggleUserSort('Email')"
                   >
                     Usuario / Correo
+                    <span v-if="usersSortBy === 'Email'">{{ usersSortDir === 'asc' ? '▲' : '▼' }}</span>
                   </th>
                   <th
-                    data-sort="ControlNumber"
-                    class="tecnm-sort-th"
-                    :class="{
-                      'tecnm-sort-asc': usersSortBy === 'ControlNumber' && usersSortDir === 'asc',
-                      'tecnm-sort-desc': usersSortBy === 'ControlNumber' && usersSortDir === 'desc',
-                    }"
-                    style="cursor: pointer;"
+                    class="tecnm-th-sortable"
                     @click="toggleUserSort('ControlNumber')"
                   >
                     Matrícula
+                    <span v-if="usersSortBy === 'ControlNumber'">{{ usersSortDir === 'asc' ? '▲' : '▼' }}</span>
                   </th>
                   <th
-                    data-sort="Phone"
-                    class="tecnm-sort-th"
-                    :class="{
-                      'tecnm-sort-asc': usersSortBy === 'Phone' && usersSortDir === 'asc',
-                      'tecnm-sort-desc': usersSortBy === 'Phone' && usersSortDir === 'desc',
-                    }"
-                    style="cursor: pointer;"
+                    class="tecnm-th-sortable"
                     @click="toggleUserSort('Phone')"
                   >
                     Teléfono
+                    <span v-if="usersSortBy === 'Phone'">{{ usersSortDir === 'asc' ? '▲' : '▼' }}</span>
                   </th>
-                  <th>Rol Asignado</th>
-                  <th>Acciones</th>
+                  <th
+                    class="tecnm-th-sortable"
+                    @click="toggleUserSort('Role')"
+                  >
+                    Rol Asignado
+                    <span v-if="usersSortBy === 'Role'">{{ usersSortDir === 'asc' ? '▲' : '▼' }}</span>
+                  </th>
+                  <th class="tecnm-th-actions">Acciones</th>
                 </tr>
               </thead>
               <tbody id="usersTableBody">

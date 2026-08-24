@@ -352,43 +352,34 @@ onMounted(() => {
             <thead>
               <tr>
                 <th
-                  data-sort="Title"
-                  class="tecnm-sort-th"
-                  :class="{
-                    'tecnm-sort-asc': sortBy === 'Title' && sortDir === 'asc',
-                    'tecnm-sort-desc': sortBy === 'Title' && sortDir === 'desc',
-                  }"
-                  style="cursor: pointer;"
+                  class="tecnm-th-sortable"
                   @click="toggleSort('Title')"
                 >
                   Título del Proyecto
+                  <span v-if="sortBy === 'Title'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
                 </th>
-                <th>Estudiante</th>
                 <th
-                  data-sort="CreatedAt"
-                  class="tecnm-sort-th"
-                  :class="{
-                    'tecnm-sort-asc': sortBy === 'CreatedAt' && sortDir === 'asc',
-                    'tecnm-sort-desc': sortBy === 'CreatedAt' && sortDir === 'desc',
-                  }"
-                  style="cursor: pointer;"
+                  class="tecnm-th-sortable"
+                  @click="toggleSort('StudentName')"
+                >
+                  Estudiante
+                  <span v-if="sortBy === 'StudentName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th
+                  class="tecnm-th-sortable"
                   @click="toggleSort('CreatedAt')"
                 >
                   Fecha Registro
+                  <span v-if="sortBy === 'CreatedAt'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
                 </th>
                 <th
-                  data-sort="Status"
-                  class="tecnm-sort-th"
-                  :class="{
-                    'tecnm-sort-asc': sortBy === 'Status' && sortDir === 'asc',
-                    'tecnm-sort-desc': sortBy === 'Status' && sortDir === 'desc',
-                  }"
-                  style="cursor: pointer;"
+                  class="tecnm-th-sortable"
                   @click="toggleSort('Status')"
                 >
                   Estado
+                  <span v-if="sortBy === 'Status'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
                 </th>
-                <th>Acciones</th>
+                <th class="tecnm-th-actions">Acciones</th>
               </tr>
             </thead>
             <tbody id="projectsTableBody">

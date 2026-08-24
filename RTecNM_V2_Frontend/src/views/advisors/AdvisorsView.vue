@@ -341,24 +341,48 @@ onMounted(() => {
             <thead>
               <tr>
                 <th
-                  data-sort="FullName"
-                  :class="getSortClass('FullName')"
+                  class="tecnm-th-sortable"
                   @click="handleSort('FullName')"
                 >
                   Nombre Completo
+                  <span v-if="sortBy === 'FullName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
                 </th>
-                <th>Tipo de Asesor</th>
-                <th>Título / Grado</th>
-                <th>Departamento</th>
-                <th>Teléfono</th>
                 <th
-                  data-sort="IsActive"
-                  :class="getSortClass('IsActive')"
+                  class="tecnm-th-sortable"
+                  @click="handleSort('AdvisorType')"
+                >
+                  Tipo de Asesor
+                  <span v-if="sortBy === 'AdvisorType'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th
+                  class="tecnm-th-sortable"
+                  @click="handleSort('Title')"
+                >
+                  Título / Grado
+                  <span v-if="sortBy === 'Title'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th
+                  class="tecnm-th-sortable"
+                  @click="handleSort('DepartmentId')"
+                >
+                  Departamento
+                  <span v-if="sortBy === 'DepartmentId'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th
+                  class="tecnm-th-sortable"
+                  @click="handleSort('Phone')"
+                >
+                  Teléfono
+                  <span v-if="sortBy === 'Phone'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th
+                  class="tecnm-th-sortable"
                   @click="handleSort('IsActive')"
                 >
                   Estado
+                  <span v-if="sortBy === 'IsActive'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
                 </th>
-                <th>Acciones</th>
+                <th class="tecnm-th-actions">Acciones</th>
               </tr>
             </thead>
             <tbody id="advisorsTableBody">

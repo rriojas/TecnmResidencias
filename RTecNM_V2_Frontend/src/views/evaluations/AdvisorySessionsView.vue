@@ -599,22 +599,41 @@ onMounted(() => {
             <thead>
               <tr>
                 <th
-                  data-sort="SessionDate"
-                  class="tecnm-sort-th"
-                  :class="{
-                    'tecnm-sort-asc': sortBy === 'SessionDate' && sortDir === 'asc',
-                    'tecnm-sort-desc': sortBy === 'SessionDate' && sortDir === 'desc',
-                  }"
-                  style="cursor: pointer;"
-                  @click="toggleSort('SessionDate')"
+                  class="tecnm-th-sortable"
+                  @click="handleSort('sessionDate')"
                 >
                   Fecha
+                  <span v-if="sortBy === 'sessionDate'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
                 </th>
-                <th>Estudiante</th>
-                <th>Asesor</th>
-                <th>Temas Abordados</th>
-                <th>Acuerdos y Compromisos</th>
-                <th>Acciones</th>
+                <th
+                  class="tecnm-th-sortable"
+                  @click="handleSort('studentName')"
+                >
+                  Estudiante
+                  <span v-if="sortBy === 'studentName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th
+                  class="tecnm-th-sortable"
+                  @click="handleSort('advisorName')"
+                >
+                  Asesor
+                  <span v-if="sortBy === 'advisorName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th
+                  class="tecnm-th-sortable"
+                  @click="handleSort('topicsCovered')"
+                >
+                  Temas Abordados
+                  <span v-if="sortBy === 'topicsCovered'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th
+                  class="tecnm-th-sortable"
+                  @click="handleSort('studentAgreements')"
+                >
+                  Acuerdos y Compromisos
+                  <span v-if="sortBy === 'studentAgreements'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                </th>
+                <th class="tecnm-th-actions">Acciones</th>
               </tr>
             </thead>
             <tbody id="sessionsTableBody">
