@@ -390,7 +390,8 @@ onMounted(() => {
               </tr>
               <tr v-else-if="projects.length === 0">
                 <td colspan="5" class="tecnm-table-empty">
-                  No hay anteproyectos que coincidan con el filtro.
+                  <span v-if="includeInactive">No hay anteproyectos inactivos (deshabilitados) registrados.</span>
+                  <span v-else>No hay anteproyectos que coincidan con el filtro.</span>
                 </td>
               </tr>
               <tr

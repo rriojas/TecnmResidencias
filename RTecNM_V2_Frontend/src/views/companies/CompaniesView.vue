@@ -441,7 +441,8 @@ onMounted(() => {
               </tr>
               <tr v-else-if="sortedCompanies.length === 0">
                 <td colspan="7" class="tecnm-table-empty">
-                  No hay empresas receptoras registradas.
+                  <span v-if="includeInactive">No hay empresas inactivas (deshabilitadas) registradas.</span>
+                  <span v-else>No hay empresas receptoras registradas.</span>
                 </td>
               </tr>
               <tr

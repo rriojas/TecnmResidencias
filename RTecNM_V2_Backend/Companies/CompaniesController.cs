@@ -28,9 +28,9 @@ public class CompaniesController : ControllerBase
 
     [HttpGet]
     [Authorize(Roles = "admin,vinculacion,departmenthead,academic,director,student")]
-    public async Task<IActionResult> GetAll([FromQuery] bool activeOnly = false)
+    public async Task<IActionResult> GetAll([FromQuery] bool includeInactive = false)
     {
-        var result = await _companyService.GetAllAsync(activeOnly);
+        var result = await _companyService.GetAllAsync(includeInactive);
         return Ok(result.Data);
     }
 
@@ -38,7 +38,7 @@ public class CompaniesController : ControllerBase
     [Authorize(Roles = "admin,vinculacion,departmenthead,academic,director,student")]
     public async Task<IActionResult> GetOptions()
     {
-        var result = await _companyService.GetAllAsync(activeOnly: true);
+        var result = await _companyService.GetAllAsync(includeInactive: false);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 

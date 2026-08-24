@@ -597,7 +597,8 @@ onMounted(() => {
               </tr>
               <tr v-else-if="students.length === 0">
                 <td colspan="7" class="tecnm-table-empty">
-                  No se encontraron estudiantes registrados.
+                  <span v-if="includeInactive">No hay estudiantes inactivos (deshabilitados) registrados.</span>
+                  <span v-else>No se encontraron estudiantes activos registrados.</span>
                 </td>
               </tr>
               <tr

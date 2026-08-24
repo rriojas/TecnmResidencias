@@ -11,9 +11,9 @@ public class CompanyService : ICompanyService
         _repository = repository;
     }
 
-    public async Task<Result<IEnumerable<CompanyResponseDto>>> GetAllAsync(bool activeOnly = false)
+    public async Task<Result<IEnumerable<CompanyResponseDto>>> GetAllAsync(bool includeInactive = false)
     {
-        var companies = await _repository.GetAllAsync(activeOnly);
+        var companies = await _repository.GetAllAsync(includeInactive);
         var dtos = companies.Select(MapToResponseDto);
         return Result<IEnumerable<CompanyResponseDto>>.Success(dtos);
     }

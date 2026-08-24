@@ -393,7 +393,8 @@ onMounted(() => {
               </tr>
               <tr v-else-if="advisors.length === 0">
                 <td colspan="7" class="tecnm-table-empty">
-                  No hay asesores registrados.
+                  <span v-if="includeInactive">No hay asesores inactivos (deshabilitados) registrados.</span>
+                  <span v-else>No hay asesores registrados.</span>
                 </td>
               </tr>
               <tr

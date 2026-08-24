@@ -18,9 +18,9 @@ public class AdvisorRepository : IAdvisorRepository
 
         if (status == "active")
             q = q.Where(a => a.IsActive);
-        else if (status == "inactive")
+        else if (status == "inactive" || includeInactive)
             q = q.Where(a => !a.IsActive);
-        else if (!includeInactive)
+        else
             q = q.Where(a => a.IsActive);
 
         if (!string.IsNullOrWhiteSpace(query.Search))
