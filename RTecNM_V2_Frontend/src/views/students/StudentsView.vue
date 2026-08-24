@@ -449,7 +449,10 @@ onMounted(() => {
           class="tecnm-btn tecnm-btn-secondary"
           @click="openImportModal"
         >
-          Importar Excel
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right: 0.35rem; display: inline-block; vertical-align: middle;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+          </svg>
+          <span>Importar Excel</span>
         </button>
         <button
           v-if="authStore.isAdmin || authStore.hasRole('vinculacion')"
@@ -459,7 +462,10 @@ onMounted(() => {
           :disabled="isSendingMassLetters"
           @click="handleMassSendPresentationLetters"
         >
-          {{ isSendingMassLetters ? 'Enviando...' : 'Enviar Cartas de Presentación (Nuevos)' }}
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right: 0.35rem; display: inline-block; vertical-align: middle;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+          </svg>
+          <span>{{ isSendingMassLetters ? 'Enviando...' : 'Enviar Cartas de Presentación (Nuevos)' }}</span>
         </button>
         <span class="tecnm-page-actions-divider" aria-hidden="true"></span>
         <button
