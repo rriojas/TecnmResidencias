@@ -186,7 +186,8 @@ public static class DbSeeder
         {
             "companies.view", "companies.create", "companies.manage", "companies.import.excel",
             "documents.digital", "documents.verify", "documents.letters.generate",
-            "students.profile.view", "students.import.excel", "advisors.manage", "projects.proposals", "projects.review",
+            "students.profile.view", "students.profile.update", "students.manage", "students.eligibility.verify", "students.import.excel",
+            "advisors.manage", "projects.proposals", "projects.review",
             "admin.reports", "reports.export.excel"
         };
 

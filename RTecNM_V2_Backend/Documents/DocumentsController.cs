@@ -123,7 +123,7 @@ public class DocumentsController : ControllerBase
     /// Actualizar estado de aprobación del documento
     /// </summary>
     [HttpPatch("{id}/status")]
-    [Authorize(Roles = "admin,departmenthead,advisor")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,advisor")]
     public async Task<ActionResult<DocumentResponseDto>> UpdateStatus(long id, [FromBody] UpdateDocumentStatusDto dto)
     {
         try
@@ -145,7 +145,7 @@ public class DocumentsController : ControllerBase
     /// Desactivación lógica (Soft Delete)
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = "admin,departmenthead")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead")]
     public async Task<IActionResult> SoftDelete(long id)
     {
         var success = await _documentService.SoftDeleteAsync(id);
@@ -160,7 +160,7 @@ public class DocumentsController : ControllerBase
     /// Reactivación de documento desactivado
     /// </summary>
     [HttpPatch("{id}/activate")]
-    [Authorize(Roles = "admin,departmenthead")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead")]
     public async Task<IActionResult> Activate(long id)
     {
         var success = await _documentService.ActivateAsync(id);

@@ -75,13 +75,13 @@ const isAdminActive = computed(() => {
 const showStudents = computed(() =>
   authStore.isAdmin ||
   authStore.hasPermission('students.manage') ||
-  authStore.hasRole('admin', 'departmenthead')
+  authStore.hasRole('admin', 'vinculacion', 'departmenthead')
 )
 
 const showAdvisors = computed(() =>
   authStore.isAdmin ||
   authStore.hasPermission('advisors.manage') ||
-  authStore.hasRole('admin', 'departmenthead')
+  authStore.hasRole('admin', 'vinculacion', 'departmenthead')
 )
 
 const showCompanies = computed(() =>
@@ -101,7 +101,7 @@ const showProposal = computed(() =>
 const showReview = computed(() =>
   authStore.isAdmin ||
   authStore.hasPermission('projects.review') ||
-  authStore.hasRole('admin', 'departmenthead', 'advisor')
+  authStore.hasRole('admin', 'vinculacion', 'departmenthead', 'advisor')
 )
 
 const showSchedule = computed(() =>
@@ -133,7 +133,7 @@ const showEvaluacionGroup = computed(() =>
 const showReports = computed(() =>
   authStore.isAdmin ||
   authStore.hasPermission('admin.reports') ||
-  authStore.hasRole('admin', 'departmenthead', 'director')
+  authStore.hasRole('admin', 'vinculacion', 'departmenthead', 'director')
 )
 
 const showRoles = computed(() =>
