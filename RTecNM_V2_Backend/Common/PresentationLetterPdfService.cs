@@ -114,7 +114,7 @@ public static class PresentationLetterPdfService
                 var text = HtmlEntity.DeEntitize(node.InnerText).Trim();
                 if (!string.IsNullOrEmpty(text))
                 {
-                    col.Item().Text(text);
+                    col.Item().PaddingBottom(4).Text(text);
                 }
                 continue;
             }
@@ -125,15 +125,32 @@ public static class PresentationLetterPdfService
             {
                 var styleAttr = node.GetAttributeValue("style", "");
                 var align = ExtractStyleValue(styleAttr, "text-align")?.ToLowerInvariant();
+                var marginBottom = ExtractLengthPt(styleAttr, "margin-bottom") ?? (name.StartsWith("h") ? 10f : 6f);
+                var marginTop = ExtractLengthPt(styleAttr, "margin-top") ?? (name.StartsWith("h") ? 12f : 0f);
 
-                col.Item().PaddingBottom(4).Text(textDescriptor =>
+                var pFontSize = ExtractFontSizePt(styleAttr);
+                var pColor = ExtractStyleValue(styleAttr, "color");
+                var pFontFamily = ExtractStyleValue(styleAttr, "font-family")?.Replace("'", "")?.Replace("\"", "");
+                var pIsBold = name.StartsWith("h") || styleAttr.Contains("font-weight: bold") || styleAttr.Contains("font-weight:bold");
+                var pIsItalic = styleAttr.Contains("font-style: italic") || styleAttr.Contains("font-style:italic");
+
+                var item = col.Item().PaddingTop((float)marginTop).PaddingBottom((float)marginBottom);
+
+                item.Text(textDescriptor =>
                 {
                     if (align == "center") textDescriptor.AlignCenter();
                     else if (align == "right") textDescriptor.AlignRight();
                     else if (align == "justify" || align == "both") textDescriptor.Justify();
                     else textDescriptor.AlignLeft();
 
-                    RenderInlineNodes(textDescriptor, node);
+                    RenderInlineNodes(textDescriptor, node, new ParentStyle
+                    {
+                        FontSizePt = pFontSize,
+                        ColorHex = pColor,
+                        FontFamily = pFontFamily,
+                        IsBold = pIsBold,
+                        IsItalic = pIsItalic
+                    });
                 });
             }
             else if (name == "table")
@@ -169,45 +186,91 @@ public static class PresentationLetterPdfService
         }
     }
 
-    private static void RenderInlineNodes(TextDescriptor textDesc, HtmlNode parentNode)
+    private class ParentStyle
+    {
+        public double? FontSizePt { get; set; }
+        public string? ColorHex { get; set; }
+        public string? FontFamily { get; set; }
+        public bool IsBold { get; set; }
+        public bool IsItalic { get; set; }
+    }
+
+    private static void RenderInlineNodes(TextDescriptor textDesc, HtmlNode parentNode, ParentStyle parentStyle)
     {
         foreach (var child in parentNode.ChildNodes)
         {
+            if (child.Name.Equals("br", StringComparison.OrdinalIgnoreCase))
+            {
+                textDesc.Span("\n");
+                continue;
+            }
+
             if (child.NodeType == HtmlNodeType.Text)
             {
                 var text = HtmlEntity.DeEntitize(child.InnerText);
-                if (!string.IsNullOrEmpty(text))
-                {
-                    textDesc.Span(text);
-                }
+                if (string.IsNullOrEmpty(text)) continue;
+
+                var span = textDesc.Span(text);
+                ApplyStyleToSpan(span, parentStyle.FontSizePt, parentStyle.ColorHex, parentStyle.FontFamily, parentStyle.IsBold, parentStyle.IsItalic, false);
                 continue;
             }
 
             var tag = child.Name.ToLowerInvariant();
             var styleAttr = child.GetAttributeValue("style", "");
 
-            var fontSizePt = ExtractFontSizePt(styleAttr);
-            var colorHex = ExtractStyleValue(styleAttr, "color");
-            var fontFamily = ExtractStyleValue(styleAttr, "font-family")?.Replace("'", "")?.Replace("\"", "");
+            var fontSizePt = ExtractFontSizePt(styleAttr) ?? parentStyle.FontSizePt;
+            var colorHex = ExtractStyleValue(styleAttr, "color") ?? parentStyle.ColorHex;
+            var fontFamily = ExtractStyleValue(styleAttr, "font-family")?.Replace("'", "")?.Replace("\"", "") ?? parentStyle.FontFamily;
 
-            var isBold = tag == "strong" || tag == "b" || styleAttr.Contains("font-weight: bold") || styleAttr.Contains("font-weight:bold");
-            var isItalic = tag == "em" || tag == "i" || styleAttr.Contains("font-style: italic") || styleAttr.Contains("font-style:italic");
+            var isBold = parentStyle.IsBold || tag == "strong" || tag == "b" || styleAttr.Contains("font-weight: bold") || styleAttr.Contains("font-weight:bold");
+            var isItalic = parentStyle.IsItalic || tag == "em" || tag == "i" || styleAttr.Contains("font-style: italic") || styleAttr.Contains("font-style:italic");
             var isUnderline = tag == "u" || styleAttr.Contains("text-decoration: underline") || styleAttr.Contains("text-decoration:underline");
 
-            var rawText = HtmlEntity.DeEntitize(child.InnerText);
-            if (string.IsNullOrEmpty(rawText)) continue;
-
-            var span = textDesc.Span(rawText);
-            if (isBold) span.Bold();
-            if (isItalic) span.Italic();
-            if (isUnderline) span.Underline();
-            if (fontSizePt.HasValue) span.FontSize((float)fontSizePt.Value);
-            if (!string.IsNullOrEmpty(fontFamily)) span.FontFamily(fontFamily);
-            if (!string.IsNullOrEmpty(colorHex) && colorHex.StartsWith("#"))
+            if (child.HasChildNodes && child.ChildNodes.Any(c => c.NodeType != HtmlNodeType.Text))
             {
-                try { span.FontColor(Color.FromHex(colorHex)); } catch { }
+                RenderInlineNodes(textDesc, child, new ParentStyle
+                {
+                    FontSizePt = fontSizePt,
+                    ColorHex = colorHex,
+                    FontFamily = fontFamily,
+                    IsBold = isBold,
+                    IsItalic = isItalic
+                });
+            }
+            else
+            {
+                var rawText = HtmlEntity.DeEntitize(child.InnerText);
+                if (string.IsNullOrEmpty(rawText)) continue;
+
+                var span = textDesc.Span(rawText);
+                ApplyStyleToSpan(span, fontSizePt, colorHex, fontFamily, isBold, isItalic, isUnderline);
             }
         }
+    }
+
+    private static void ApplyStyleToSpan(TextSpanDescriptor span, double? fontSizePt, string? colorHex, string? fontFamily, bool isBold, bool isItalic, bool isUnderline)
+    {
+        if (isBold) span.Bold();
+        if (isItalic) span.Italic();
+        if (isUnderline) span.Underline();
+        if (fontSizePt.HasValue) span.FontSize((float)fontSizePt.Value);
+        if (!string.IsNullOrEmpty(fontFamily)) span.FontFamily(fontFamily);
+        if (!string.IsNullOrEmpty(colorHex) && colorHex.StartsWith("#"))
+        {
+            try { span.FontColor(Color.FromHex(colorHex)); } catch { }
+        }
+    }
+
+    private static double? ExtractLengthPt(string styleString, string key)
+    {
+        var val = ExtractStyleValue(styleString, key);
+        if (string.IsNullOrEmpty(val)) return null;
+        val = val.Replace("pt", "").Replace("px", "").Trim();
+        if (double.TryParse(val, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var pt))
+        {
+            return pt;
+        }
+        return null;
     }
 
     private static string? ExtractStyleValue(string styleString, string key)
