@@ -43,7 +43,6 @@ function showAlert(msg, type = 'success') {
 const isBatchModalOpen = ref(false)
 const selectedAdvisorId = ref('')
 const selectedStudentIds = ref([])
-const batchSearch = ref('')
 
 async function loadAdvisorsOptions() {
   try {
@@ -163,11 +162,13 @@ async function handleIndividualAssign(student, newAdvisorId) {
 
 const allStudentsForBatch = ref([])
 const isBatchLoading = ref(false)
+const batchPage = ref(1)
+const batchPageSize = ref(10)
 
 async function openBatchModal() {
   selectedAdvisorId.value = ''
   selectedStudentIds.value = []
-  batchSearch.value = ''
+  batchPage.value = 1
   isBatchModalOpen.value = true
   isBatchLoading.value = true
   try {
@@ -181,22 +182,21 @@ async function openBatchModal() {
   }
 }
 
-const filteredBatchStudents = computed(() => {
-  const base = allStudentsForBatch.value.length > 0 ? allStudentsForBatch.value : students.value
-  if (!batchSearch.value.trim()) return base
-  const term = batchSearch.value.trim().toLowerCase()
-  return base.filter(s =>
-    (s.controlNumber || '').toLowerCase().includes(term) ||
-    (s.fullName || `${s.firstName} ${s.lastName}`).toLowerCase().includes(term) ||
-    (s.career || '').toLowerCase().includes(term)
-  )
+const batchTotalCount = computed(() => allStudentsForBatch.value.length)
+const batchTotalPages = computed(() => Math.ceil(batchTotalCount.value / batchPageSize.value) || 1)
+
+const paginatedBatchStudents = computed(() => {
+  const start = (batchPage.value - 1) * batchPageSize.value
+  return allStudentsForBatch.value.slice(start, start + batchPageSize.value)
 })
 
 function toggleSelectAllBatch(event) {
+  const currentIds = paginatedBatchStudents.value.map(s => s.id)
   if (event.target.checked) {
-    selectedStudentIds.value = filteredBatchStudents.value.map(s => s.id)
+    const combined = new Set([...selectedStudentIds.value, ...currentIds])
+    selectedStudentIds.value = Array.from(combined)
   } else {
-    selectedStudentIds.value = []
+    selectedStudentIds.value = selectedStudentIds.value.filter(id => !currentIds.includes(id))
   }
 }
 
@@ -428,17 +428,21 @@ onMounted(() => {
             </select>
           </div>
 
-          <div class="tecnm-form-group" style="margin-bottom: 1rem;">
-            <label class="tecnm-label">Buscar estudiantes para asignar</label>
-            <input
-              v-model="batchSearch"
-              type="search"
-              class="tecnm-form-control"
-              placeholder="Filtrar por nombre o matrícula..."
-            />
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+            <label class="tecnm-label" style="margin-bottom: 0;">Selección de estudiantes a asignar:</label>
+            <button
+              type="button"
+              class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+              @click="openGlobalSearch({ initialSource: 'STUDENTS' })"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem; display: inline-block; vertical-align: middle;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+              </svg>
+              <span>Usar Buscador Global</span>
+            </button>
           </div>
 
-          <div class="tecnm-table-responsive" style="max-height: 280px; overflow-y: auto; border: 1px solid var(--tecnm-border-color); border-radius: 6px;">
+          <div class="tecnm-table-responsive" style="max-height: 320px; overflow-y: auto; border: 1px solid var(--tecnm-border-color); border-radius: 6px;">
             <table class="tecnm-table tecnm-table-striped" style="font-size: 0.85rem; margin-bottom: 0;">
               <thead>
                 <tr>
@@ -451,7 +455,13 @@ onMounted(() => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="st in filteredBatchStudents" :key="st.id">
+                <tr v-if="isBatchLoading">
+                  <td colspan="4" class="tecnm-table-empty">Cargando alumnos...</td>
+                </tr>
+                <tr v-else-if="paginatedBatchStudents.length === 0">
+                  <td colspan="4" class="tecnm-table-empty">No hay estudiantes disponibles.</td>
+                </tr>
+                <tr v-for="st in paginatedBatchStudents" v-else :key="st.id">
                   <td style="text-align: center;">
                     <input type="checkbox" :value="st.id" v-model="selectedStudentIds" />
                   </td>
@@ -464,6 +474,16 @@ onMounted(() => {
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <div style="margin-top: 0.75rem;">
+            <TecnmPagination
+              v-if="batchTotalCount > 0"
+              v-model:currentPage="batchPage"
+              v-model:pageSize="batchPageSize"
+              :totalPages="batchTotalPages"
+              :totalCount="batchTotalCount"
+            />
           </div>
         </div>
 
