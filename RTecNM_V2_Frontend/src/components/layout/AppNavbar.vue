@@ -83,6 +83,12 @@ const showAdvisors = computed(() =>
   authStore.hasPermission('advisors.manage')
 )
 
+const showAdvisorAssignments = computed(() =>
+  authStore.isAdmin ||
+  authStore.hasRole('admin', 'vinculacion', 'departmenthead', 'academic') ||
+  authStore.hasPermission('advisors.manage')
+)
+
 const showCompanies = computed(() =>
   authStore.isAdmin ||
   authStore.hasPermission('companies.view') ||
@@ -90,7 +96,7 @@ const showCompanies = computed(() =>
 )
 
 const showAcademicaGroup = computed(() =>
-  showStudents.value || showAdvisors.value || showCompanies.value
+  showStudents.value || showAdvisors.value || showAdvisorAssignments.value || showCompanies.value
 )
 
 const showProposal = computed(() =>
@@ -260,7 +266,7 @@ const showAdminGroup = computed(() =>
                 <router-link
                   to="/advisors"
                   class="tecnm-nav-item"
-                  :class="{ active: route.path.startsWith('/advisors') }"
+                  :class="{ active: route.path === '/advisors' }"
                   data-nav-icon="user-group"
                   @click="closeAll"
                 >
@@ -269,7 +275,23 @@ const showAdminGroup = computed(() =>
                       <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
                     </svg>
                   </span>
-                  Asesores
+                  Directorio de Asesores
+                </router-link>
+              </li>
+              <li v-if="showAdvisorAssignments">
+                <router-link
+                  to="/advisors/assignments"
+                  class="tecnm-nav-item"
+                  :class="{ active: route.path.startsWith('/advisors/assignments') }"
+                  data-nav-icon="user-plus"
+                  @click="closeAll"
+                >
+                  <span class="tecnm-nav-item-icon" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM4 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 10.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
+                    </svg>
+                  </span>
+                  Asignación de Asesores
                 </router-link>
               </li>
               <li v-if="showCompanies">

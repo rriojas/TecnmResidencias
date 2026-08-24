@@ -265,6 +265,42 @@ public class StudentService : IStudentService
         return Result<StudentResponseDto>.Success(MapToResponseDto(student));
     }
 
+    public async Task<Result<int>> BatchAssignAdvisorAsync(long advisorId, List<long> studentIds)
+    {
+        if (studentIds is null || studentIds.Count == 0)
+            return Result<int>.Failure("Debe proporcionar al menos un estudiante para asignar.", 400);
+
+        var advisor = await _advisorRepository.GetByIdAsync(advisorId);
+        if (advisor is null)
+            return Result<int>.Failure("Asesor no encontrado.", 404);
+
+        int updatedCount = 0;
+        foreach (var sid in studentIds)
+        {
+            var student = await _studentRepository.GetByIdAsync(sid);
+            if (student is not null)
+            {
+                student.AdvisorId = advisor.Id;
+                student.Advisor = advisor;
+                student.UpdatedAt = DateTime.UtcNow;
+                student.UpdatedBy = _currentUser.UserId;
+                await _studentRepository.UpdateAsync(student);
+
+                var project = await _projectRepository.GetByStudentIdAsync(sid);
+                if (project is not null)
+                {
+                    project.AdvisorId = advisor.Id;
+                    project.UpdatedAt = DateTime.UtcNow;
+                    project.UpdatedBy = _currentUser.UserId;
+                    await _projectRepository.UpdateAsync(project);
+                }
+                updatedCount++;
+            }
+        }
+
+        return Result<int>.Success(updatedCount);
+    }
+
     public async Task<Result<BatchImportResultDto>> ImportExcelAsync(Microsoft.AspNetCore.Http.IFormFile file)
     {
         if (file == null || file.Length == 0)

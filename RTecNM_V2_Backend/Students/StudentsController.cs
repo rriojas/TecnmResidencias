@@ -113,6 +113,17 @@ public class StudentsController : ControllerBase
         return Ok(result.Data);
     }
 
+    [HttpPost("batch-assign-advisor")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead")]
+    public async Task<IActionResult> BatchAssignAdvisor([FromBody] BatchAssignAdvisorDto dto)
+    {
+        var result = await _studentService.BatchAssignAdvisorAsync(dto.AdvisorId, dto.StudentIds);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(new { count = result.Data, message = $"{result.Data} estudiantes asignados correctamente." });
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "admin,vinculacion,departmenthead,director")]
     public async Task<IActionResult> SoftDelete(long id)
@@ -191,4 +202,10 @@ public class StudentsController : ControllerBase
         var bytes = System.IO.File.ReadAllBytes(filePath);
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Plantilla_Alumnos.xlsx");
     }
+}
+
+public class BatchAssignAdvisorDto
+{
+    public long AdvisorId { get; set; }
+    public List<long> StudentIds { get; set; } = new();
 }

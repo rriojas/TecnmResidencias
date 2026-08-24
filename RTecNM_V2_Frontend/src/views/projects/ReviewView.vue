@@ -73,8 +73,22 @@ const selectedProject = ref(null)
 const reviewComments = ref('')
 const isSubmitting = ref(false)
 
+const searchTerm = ref('')
+
 const sortedProjects = computed(() => {
   let list = [...projects.value]
+
+  if (searchTerm.value.trim()) {
+    const term = searchTerm.value.trim().toLowerCase()
+    list = list.filter((p) => {
+      const title = (p.title || '').toLowerCase()
+      const student = (p.studentName || '').toLowerCase()
+      const control = (p.studentControlNumber || '').toLowerCase()
+      const company = (p.companyName || '').toLowerCase()
+      return title.includes(term) || student.includes(term) || control.includes(term) || company.includes(term)
+    })
+  }
+
   const field = sortBy.value
   const dir = sortDir.value === 'asc' ? 1 : -1
 
@@ -341,6 +355,16 @@ onMounted(() => {
         <h3 class="tecnm-card-title">Lista de Anteproyectos</h3>
       </div>
       <div class="tecnm-card-toolbar">
+        <div class="tecnm-form-group tecnm-mb-0 tecnm-search-box" style="margin-bottom: 0; min-width: 300px;">
+          <input
+            id="reviewSearchInput"
+            v-model="searchTerm"
+            type="search"
+            class="tecnm-form-control"
+            placeholder="Buscar por título, alumno, matrícula o empresa..."
+          />
+        </div>
+
         <div class="tecnm-toolbar-actions">
           <label class="tecnm-switch-label">
             <span class="tecnm-switch">

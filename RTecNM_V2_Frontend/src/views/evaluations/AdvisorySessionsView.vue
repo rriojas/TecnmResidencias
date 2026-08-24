@@ -58,7 +58,8 @@ const isProjectReadOnly = computed(() => {
 
 const canRecordSession = computed(() => {
   if (authStore.isReadOnly) return false
-  if (!authStore.hasRole('admin', 'departmenthead', 'advisor')) return false
+  if (authStore.hasRole('academic', 'departmenthead') && !authStore.isAdmin) return false
+  if (!authStore.hasRole('admin', 'advisor')) return false
   if (!currentProject.value?.id) return false
   if (isAdvisor.value && isProjectReadOnly.value) return false
   return true

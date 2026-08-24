@@ -55,6 +55,17 @@ const routes = [
     },
   },
   {
+    path: '/advisors/assignments',
+    name: 'AdvisorAssignments',
+    component: () => import('@/views/advisors/AdvisorAssignmentView.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Asignación de Asesores - Sistema de Residencias',
+      permission: 'advisors.manage',
+      navActive: 'advisor-assignments',
+    },
+  },
+  {
     path: '/companies',
     name: 'Companies',
     component: () => import('@/views/companies/CompaniesView.vue'),

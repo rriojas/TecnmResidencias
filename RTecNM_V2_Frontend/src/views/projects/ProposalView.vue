@@ -89,6 +89,13 @@ function canCancelProposal(proposal) {
   return CANCELLABLE_STUDENT_STATUSES.includes(st)
 }
 
+const studentProfile = ref(null)
+
+const hasAdvisor = computed(() => {
+  if (isStaff.value) return true
+  return !!(studentProfile.value && studentProfile.value.advisorId)
+})
+
 // Para estudiantes: detectar si ya cuenta con un anteproyecto activo
 const activeProposal = computed(() => {
   if (isStaff.value) return null
@@ -101,12 +108,21 @@ const activeProposal = computed(() => {
 const canCreateProposal = computed(() => {
   if (authStore.isReadOnly) return false
   if (isStaff.value) return true
-  return !activeProposal.value
+  return !activeProposal.value && hasAdvisor.value
 })
 
 async function loadStudentProposals() {
   isLoading.value = true
   try {
+    if (authStore.hasRole('student') && !isStaff.value) {
+      try {
+        const sRes = await apiClient.get('/v1/students/me')
+        studentProfile.value = sRes.data
+      } catch {
+        studentProfile.value = null
+      }
+    }
+
     const params = {
       pageNumber: pageNumber.value,
       pageSize: pageSize.value,
@@ -399,6 +415,16 @@ onMounted(() => {
       role="alert"
     >
       <span>{{ alertMessage }}</span>
+    </div>
+
+    <!-- Alerta de Asesor No Asignado para Estudiantes -->
+    <div
+      v-if="authStore.hasRole('student') && !isStaff && !hasAdvisor"
+      class="tecnm-alert tecnm-alert-warning"
+      role="alert"
+      style="margin-bottom: 1rem;"
+    >
+      <span><strong>Aviso de Asignación de Asesor:</strong> No cuentas con un Asesor Académico asignado. Tu Jefatura de División Académica debe asignarte un asesor antes de que puedas registrar o enviar tu anteproyecto.</span>
     </div>
 
     <!-- Barra de Acciones -->

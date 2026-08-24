@@ -51,16 +51,14 @@ const form = ref({
 const canCreate = computed(() => {
   return (
     authStore.isAdmin ||
-    authStore.hasPermission('companies.manage') ||
-    authStore.hasRole('admin', 'vinculacion', 'departmenthead')
+    authStore.hasRole('admin', 'vinculacion', 'director')
   )
 })
 
 const canImport = computed(() => {
   return (
     authStore.isAdmin ||
-    authStore.hasPermission('companies.import.excel') ||
-    authStore.hasRole('admin', 'vinculacion')
+    authStore.hasRole('admin', 'vinculacion', 'director')
   )
 })
 
