@@ -418,6 +418,23 @@ async function handleDownloadPresentationLetterPdf(student) {
   }
 }
 
+async function handleDownloadStudentTemplate() {
+  try {
+    const res = await apiClient.get('/v1/students/import/template', { responseType: 'blob' })
+    const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'Plantilla_Alumnos.xlsx'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch {
+    showAlert('Error al descargar la plantilla de alumnos.', 'danger')
+  }
+}
+
 onMounted(() => {
   loadStudents()
 })
@@ -886,10 +903,21 @@ onMounted(() => {
 
         <form @submit.prevent="handleImportSubmit">
           <div class="tecnm-alert tecnm-alert-warning" style="margin-bottom: 1rem;">
-            <strong>⚠️ Requisito Estricto de Columnas:</strong><br />
-            El archivo Excel debe contener las siguientes columnas en la primera fila:<br />
-            <code>Matricula, Apellidos, Nombre, Sexo, Carrera, Semestre, Email</code><br />
-            <small>Columnas adicionales (como créditos o servicios) son omitidas automáticamente.</small>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; flex-wrap: wrap;">
+              <div>
+                <strong>Requisito Estricto de Columnas:</strong><br />
+                El archivo Excel debe contener las siguientes columnas en la primera fila:<br />
+                <code>Matricula, Apellidos, Nombre, Sexo, Carrera, Semestre, Email</code>
+              </div>
+              <button
+                type="button"
+                class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                style="margin-top: 0.25rem;"
+                @click="handleDownloadStudentTemplate"
+              >
+                Descargar Plantilla Excel
+              </button>
+            </div>
           </div>
 
           <div v-if="importError" class="tecnm-alert tecnm-alert-danger" style="margin-bottom: 1rem;" role="alert">

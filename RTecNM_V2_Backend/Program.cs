@@ -124,6 +124,9 @@ using (var scope = app.Services.CreateScope())
         }
         await DbSeeder.BootstrapSystemAsync(dbContext, adminPassword);
 
+        // Generar/Asegurar plantillas Excel por defecto (Plantilla_Alumnos.xlsx y Plantilla_Empresas.xlsx)
+        ExcelTemplateSeeder.EnsureTemplatesExist(app.Environment.ContentRootPath, app.Logger);
+
         // Datos demo (usuarios de prueba y anteproyecto con cronograma): solo desarrollo.
         var demoEnabled = app.Environment.IsDevelopment()
                           || app.Configuration.GetValue<bool>("Seed:Enabled");

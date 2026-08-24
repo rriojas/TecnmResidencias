@@ -255,6 +255,23 @@ function handleAudit(company) {
   })
 }
 
+async function handleDownloadCompanyTemplate() {
+  try {
+    const res = await apiClient.get('/v1/companies/import/template', { responseType: 'blob' })
+    const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'Plantilla_Empresas.xlsx'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch {
+    showAlert('Error al descargar la plantilla de empresas.', 'danger')
+  }
+}
+
 onMounted(() => {
   loadCompanies()
 })
@@ -599,10 +616,21 @@ onMounted(() => {
 
         <form @submit.prevent="handleImportSubmit">
           <div class="tecnm-alert tecnm-alert-warning" style="margin-bottom: 1rem;">
-            <strong>⚠️ Requisito Estricto de Columnas:</strong><br />
-            El archivo Excel debe contener exactamente las siguientes columnas en la primera fila:<br />
-            <code>Nombre, RFC, Sector, Dirección, NombreContacto, CorreoContacto, TeléfonoContacto</code><br />
-            <small>Si los nombres de columnas no coinciden exactamente, el archivo será rechazado.</small>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; flex-wrap: wrap;">
+              <div>
+                <strong>Requisito Estricto de Columnas:</strong><br />
+                El archivo Excel debe contener exactamente las siguientes columnas en la primera fila:<br />
+                <code>Nombre, RFC, Sector, Dirección, NombreContacto, CorreoContacto, TeléfonoContacto</code>
+              </div>
+              <button
+                type="button"
+                class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                style="margin-top: 0.25rem;"
+                @click="handleDownloadCompanyTemplate"
+              >
+                Descargar Plantilla Excel
+              </button>
+            </div>
           </div>
 
           <div v-if="importError" class="tecnm-alert tecnm-alert-danger" style="margin-bottom: 1rem;" role="alert">

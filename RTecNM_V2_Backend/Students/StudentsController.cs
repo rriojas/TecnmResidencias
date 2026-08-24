@@ -11,11 +11,19 @@ public class StudentsController : ControllerBase
 {
     private readonly IStudentService _studentService;
     private readonly ICurrentUserService _currentUser;
+    private readonly Microsoft.AspNetCore.Hosting.IWebHostEnvironment _env;
+    private readonly Microsoft.Extensions.Logging.ILogger<StudentsController> _logger;
 
-    public StudentsController(IStudentService studentService, ICurrentUserService currentUser)
+    public StudentsController(
+        IStudentService studentService,
+        ICurrentUserService currentUser,
+        Microsoft.AspNetCore.Hosting.IWebHostEnvironment env,
+        Microsoft.Extensions.Logging.ILogger<StudentsController> logger)
     {
         _studentService = studentService;
         _currentUser = currentUser;
+        _env = env;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -169,5 +177,18 @@ public class StudentsController : ControllerBase
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 
         return File(result.Data!, "application/pdf", $"Carta_Presentacion_{id}.pdf");
+    }
+
+    [HttpGet("import/template")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead")]
+    public IActionResult DownloadExcelTemplate()
+    {
+        var filePath = Path.Combine(_env.ContentRootPath, "Templates", "Excel", "Plantilla_Alumnos.xlsx");
+        if (!System.IO.File.Exists(filePath))
+        {
+            ExcelTemplateSeeder.EnsureTemplatesExist(_env.ContentRootPath, _logger);
+        }
+        var bytes = System.IO.File.ReadAllBytes(filePath);
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Plantilla_Alumnos.xlsx");
     }
 }

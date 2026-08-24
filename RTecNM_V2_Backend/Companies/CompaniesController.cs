@@ -11,11 +11,19 @@ public class CompaniesController : ControllerBase
 {
     private readonly ICompanyService _companyService;
     private readonly ICurrentUserService _currentUser;
+    private readonly Microsoft.AspNetCore.Hosting.IWebHostEnvironment _env;
+    private readonly Microsoft.Extensions.Logging.ILogger<CompaniesController> _logger;
 
-    public CompaniesController(ICompanyService companyService, ICurrentUserService currentUser)
+    public CompaniesController(
+        ICompanyService companyService,
+        ICurrentUserService currentUser,
+        Microsoft.AspNetCore.Hosting.IWebHostEnvironment env,
+        Microsoft.Extensions.Logging.ILogger<CompaniesController> logger)
     {
         _companyService = companyService;
         _currentUser = currentUser;
+        _env = env;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -102,5 +110,18 @@ public class CompaniesController : ControllerBase
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 
         return Ok(result.Data);
+    }
+
+    [HttpGet("import/template")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead")]
+    public IActionResult DownloadExcelTemplate()
+    {
+        var filePath = Path.Combine(_env.ContentRootPath, "Templates", "Excel", "Plantilla_Empresas.xlsx");
+        if (!System.IO.File.Exists(filePath))
+        {
+            ExcelTemplateSeeder.EnsureTemplatesExist(_env.ContentRootPath, _logger);
+        }
+        var bytes = System.IO.File.ReadAllBytes(filePath);
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Plantilla_Empresas.xlsx");
     }
 }
