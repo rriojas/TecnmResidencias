@@ -90,7 +90,7 @@ export const useAuthStore = defineStore('auth', () => {
       'documents.digital', 'documents.verify', 'documents.letters.generate',
       'students.profile.view', 'students.profile.update', 'students.manage', 'students.eligibility.verify', 'students.import.excel',
       'advisors.manage', 'projects.proposals', 'projects.review',
-      'admin.reports', 'reports.export.excel'
+      'admin.reports', 'admin.settings', 'reports.export.excel'
     ],
     departmenthead: [
       'students.manage', 'students.profile.view', 'students.profile.update', 'students.eligibility.verify',

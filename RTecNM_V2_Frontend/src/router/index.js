@@ -161,6 +161,7 @@ const routes = [
       requiresAuth: true,
       title: 'Configuración del Sistema - Sistema de Residencias',
       permission: 'admin.settings',
+      roles: ['admin', 'vinculacion'],
       navActive: 'settings',
     },
   },
@@ -201,7 +202,9 @@ router.beforeEach((to, from, next) => {
 
   // Si la ruta requiere permisos específicos
   if (to.meta.permission && !authStore.hasPermission(to.meta.permission)) {
-    return next({ path: '/dashboard' })
+    if (!to.meta.roles || !authStore.hasRole(...to.meta.roles)) {
+      return next({ path: '/dashboard' })
+    }
   }
 
   next()
