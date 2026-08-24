@@ -183,7 +183,7 @@ public class StudentsController : ControllerBase
     [Authorize(Roles = "admin,vinculacion,departmenthead")]
     public IActionResult DownloadExcelTemplate()
     {
-        var filePath = Path.Combine(_env.ContentRootPath, "Templates", "Excel", "Plantilla_Alumnos.xlsx");
+        var filePath = Path.Combine(_env.ContentRootPath, "uploads", "templates", "excel", "Plantilla_Alumnos.xlsx");
         if (!System.IO.File.Exists(filePath))
         {
             ExcelTemplateSeeder.EnsureTemplatesExist(_env.ContentRootPath, _logger);

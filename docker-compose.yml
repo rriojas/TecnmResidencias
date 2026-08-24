@@ -34,8 +34,6 @@ services:
       - Uploads__Path=uploads
     volumes:
       - uploads_v2_data:/app/uploads
-      - excel_templates_v2_data:/app/Templates/Excel
-      - ./RTecNM_V2_Backend/Templates/Excel:/app/Templates/Excel
     depends_on:
       postgres:
         condition: service_healthy
@@ -43,4 +41,3 @@ services:
 volumes:
   postgres_v2_data:
   uploads_v2_data:
-  excel_templates_v2_data:

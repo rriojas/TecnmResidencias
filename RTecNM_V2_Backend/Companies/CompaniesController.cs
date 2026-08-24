@@ -116,7 +116,7 @@ public class CompaniesController : ControllerBase
     [Authorize(Roles = "admin,vinculacion,departmenthead")]
     public IActionResult DownloadExcelTemplate()
     {
-        var filePath = Path.Combine(_env.ContentRootPath, "Templates", "Excel", "Plantilla_Empresas.xlsx");
+        var filePath = Path.Combine(_env.ContentRootPath, "uploads", "templates", "excel", "Plantilla_Empresas.xlsx");
         if (!System.IO.File.Exists(filePath))
         {
             ExcelTemplateSeeder.EnsureTemplatesExist(_env.ContentRootPath, _logger);

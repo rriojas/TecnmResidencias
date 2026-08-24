@@ -1,3 +1,4 @@
+using System.Data;
 using MiniExcelLibs;
 using Microsoft.Extensions.Logging;
 
@@ -7,67 +8,39 @@ public static class ExcelTemplateSeeder
 {
     public static void EnsureTemplatesExist(string contentRootPath, ILogger logger)
     {
-        var templatesDir = Path.Combine(contentRootPath, "Templates", "Excel");
+        var templatesDir = Path.Combine(contentRootPath, "uploads", "templates", "excel");
         if (!Directory.Exists(templatesDir))
         {
             Directory.CreateDirectory(templatesDir);
             logger.LogInformation("Creado directorio de plantillas Excel en: {TemplatesDir}", templatesDir);
         }
 
+        // 1. Plantilla Alumnos (Solo encabezados limpios sin filas de ejemplo ni colores)
         var studentTemplatePath = Path.Combine(templatesDir, "Plantilla_Alumnos.xlsx");
-        if (!File.Exists(studentTemplatePath))
-        {
-            var studentDemoRows = new[]
-            {
-                new {
-                    Matricula = "20040101",
-                    Apellidos = "García López",
-                    Nombre = "Juan Carlos",
-                    Sexo = "M",
-                    Carrera = "Sistemas Computacionales",
-                    Semestre = "9",
-                    Email = "l20040101@monclova.tecnm.mx"
-                },
-                new {
-                    Matricula = "20040102",
-                    Apellidos = "Hernández Martínez",
-                    Nombre = "María Fernanda",
-                    Sexo = "F",
-                    Carrera = "Industrial",
-                    Semestre = "9",
-                    Email = "l20040102@monclova.tecnm.mx"
-                }
-            };
-            MiniExcel.SaveAs(studentTemplatePath, studentDemoRows, overwriteFile: true);
-            logger.LogInformation("Generada plantilla por defecto para estudiantes en: {Path}", studentTemplatePath);
-        }
+        var studentTable = new DataTable();
+        studentTable.Columns.Add("Matricula");
+        studentTable.Columns.Add("Apellidos");
+        studentTable.Columns.Add("Nombre");
+        studentTable.Columns.Add("Sexo");
+        studentTable.Columns.Add("Carrera");
+        studentTable.Columns.Add("Semestre");
+        studentTable.Columns.Add("Email");
 
+        MiniExcel.SaveAs(studentTemplatePath, studentTable, overwriteFile: true);
+        logger.LogInformation("Generada plantilla limpia para estudiantes en: {Path}", studentTemplatePath);
+
+        // 2. Plantilla Empresas (Solo encabezados limpios sin filas de ejemplo ni colores)
         var companyTemplatePath = Path.Combine(templatesDir, "Plantilla_Empresas.xlsx");
-        if (!File.Exists(companyTemplatePath))
-        {
-            var companyDemoRows = new[]
-            {
-                new {
-                    Nombre = "AHMSA - Altos Hornos de México",
-                    RFC = "AHM800101AAA",
-                    Sector = "Privado",
-                    Dirección = "Av. Prolongación Juárez S/N, Monclova, Coah.",
-                    NombreContacto = "Ing. Roberto Treviño",
-                    CorreoContacto = "rtrevino@ahmsa.com",
-                    TeléfonoContacto = "866-649-2000"
-                },
-                new {
-                    Nombre = "Teksid Hierro de México",
-                    RFC = "THM950512BBB",
-                    Sector = "Privado",
-                    Dirección = "Carr. 57 Km 12, Frontera, Coah.",
-                    NombreContacto = "Lic. Ana Sofia Morales",
-                    CorreoContacto = "amorales@teksid.com",
-                    TeléfonoContacto = "866-649-5000"
-                }
-            };
-            MiniExcel.SaveAs(companyTemplatePath, companyDemoRows, overwriteFile: true);
-            logger.LogInformation("Generada plantilla por defecto para empresas en: {Path}", companyTemplatePath);
-        }
+        var companyTable = new DataTable();
+        companyTable.Columns.Add("Nombre");
+        companyTable.Columns.Add("RFC");
+        companyTable.Columns.Add("Sector");
+        companyTable.Columns.Add("Dirección");
+        companyTable.Columns.Add("NombreContacto");
+        companyTable.Columns.Add("CorreoContacto");
+        companyTable.Columns.Add("TeléfonoContacto");
+
+        MiniExcel.SaveAs(companyTemplatePath, companyTable, overwriteFile: true);
+        logger.LogInformation("Generada plantilla limpia para empresas en: {Path}", companyTemplatePath);
     }
 }
