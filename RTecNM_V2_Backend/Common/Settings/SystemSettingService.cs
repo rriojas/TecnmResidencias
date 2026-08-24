@@ -1,8 +1,10 @@
+using System.Text;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using MimeKit;
+using UglyToad.PdfPig;
 using TecNM.Residency.Common.Notifications;
 
 namespace TecNM.Residency.Common.Settings;
@@ -174,6 +176,79 @@ public class SystemSettingService : ISystemSettingService
         return Result<bool>.Success(true);
     }
 
+    public async Task<Result<string>> UploadPdfTemplateAsync(Stream pdfStream, long userId)
+    {
+        try
+        {
+            using var pdfDocument = PdfDocument.Open(pdfStream);
+            var sb = new StringBuilder();
+
+            sb.AppendLine("<!DOCTYPE html>");
+            sb.AppendLine("<html lang=\"es\">");
+            sb.AppendLine("<head>");
+            sb.AppendLine("    <meta charset=\"UTF-8\">");
+            sb.AppendLine("    <title>Carta de Presentación Oficial</title>");
+            sb.AppendLine("    <style>");
+            sb.AppendLine("        body { font-family: 'Segoe UI', Arial, sans-serif; color: #2c3e50; margin: 40px; line-height: 1.6; }");
+            sb.AppendLine("        .header { text-align: center; border-bottom: 2px solid #C5A059; padding-bottom: 15px; margin-bottom: 25px; }");
+            sb.AppendLine("        .institution { color: #1B396A; font-size: 18px; font-weight: bold; margin: 0; }");
+            sb.AppendLine("        .meta-right { text-align: right; margin-bottom: 20px; font-size: 12px; }");
+            sb.AppendLine("        .pdf-paragraph { margin-bottom: 14px; font-size: 13px; text-align: justify; }");
+            sb.AppendLine("        .pdf-heading { color: #1B396A; font-weight: bold; font-size: 14px; margin-top: 15px; margin-bottom: 10px; }");
+            sb.AppendLine("        .signature-box { text-align: center; margin-top: 50px; }");
+            sb.AppendLine("        .signature-line { border-top: 1px solid #2c3e50; width: 280px; margin: 0 auto 8px auto; }");
+            sb.AppendLine("    </style>");
+            sb.AppendLine("</head>");
+            sb.AppendLine("<body>");
+
+            foreach (var page in pdfDocument.GetPages())
+            {
+                var words = page.GetWords();
+                var lines = words
+                    .GroupBy(w => Math.Round(w.BoundingBox.Bottom, 1))
+                    .OrderByDescending(g => g.Key)
+                    .Select(g => string.Join(" ", g.OrderBy(w => w.BoundingBox.Left).Select(w => w.Text)))
+                    .ToList();
+
+                foreach (var rawLine in lines)
+                {
+                    var line = rawLine.Trim();
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+
+                    if (line.Contains("TECNOLÓGICO NACIONAL DE MÉXICO") || line.Contains("INSTITUTO TECNOLÓGICO"))
+                    {
+                        sb.AppendLine($"    <div class=\"header\">");
+                        sb.AppendLine($"        <h1 class=\"institution\">{line}</h1>");
+                        sb.AppendLine($"    </div>");
+                    }
+                    else if (line.StartsWith("Asunto:") || line.StartsWith("Folio:") || line.Contains("Monclova, Coahuila"))
+                    {
+                        sb.AppendLine($"    <div class=\"meta-right\">{line}</div>");
+                    }
+                    else if (line == line.ToUpperInvariant() && line.Length < 60 && !line.Contains("["))
+                    {
+                        sb.AppendLine($"    <h3 class=\"pdf-heading\">{line}</h3>");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"    <p class=\"pdf-paragraph\">{line}</p>");
+                    }
+                }
+            }
+
+            sb.AppendLine("</body>");
+            sb.AppendLine("</html>");
+
+            var htmlContent = sb.ToString();
+            await UpdatePresentationLetterTemplateAsync(htmlContent, userId);
+            return Result<string>.Success(htmlContent);
+        }
+        catch (Exception ex)
+        {
+            return Result<string>.Failure($"Error al procesar el archivo PDF: {ex.Message}");
+        }
+    }
+
     public async Task<Result<bool>> ResetPresentationLetterTemplateAsync(long userId)
     {
         var defaultHtml = GetDefaultPresentationLetterTemplateHtml();
@@ -211,16 +286,16 @@ public class SystemSettingService : ISystemSettingService
 
     <div class=""meta"">
         <p><span class=""subject"">Asunto:</span> Carta de Presentación de Residencia Profesional</p>
-        <p><strong>Folio:</strong> {{folio}}</p>
-        <p>Monclova, Coahuila; a {{fecha}}.</p>
+        <p><strong>Folio:</strong> [FOLIO]</p>
+        <p>Monclova, Coahuila; a [FECHA].</p>
     </div>
 
     <div class=""recipient"">
-        <p>{{empresa}}<br>PRESENTE.</p>
+        <p>[EMPRESA]<br>PRESENTE.</p>
     </div>
 
     <p class=""body-text"">
-        Por medio de la presente, el <span class=""highlight"">Instituto Tecnológico de Monclova</span> presenta formalmente al C. <strong>{{nombre_alumno}}</strong>, con número de control <strong>{{matricula}}</strong>, alumno(a) inscrito(a) en el programa educativo de <strong>{{carrera}}</strong>.
+        Por medio de la presente, el <span class=""highlight"">Instituto Tecnológico de Monclova</span> presenta formalmente al C. <strong>[NOMBRE_ALUMNO]</strong>, con número de control <strong>[MATRICULA]</strong>, alumno(a) inscrito(a) en el programa educativo de <strong>[CARRERA]</strong>.
     </p>
 
     <p class=""body-text"">

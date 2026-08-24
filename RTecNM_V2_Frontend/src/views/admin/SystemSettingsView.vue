@@ -84,6 +84,13 @@ async function handleTestSmtp() {
   }
 }
 
+const templateHtml = ref('')
+const isLoadingTemplate = ref(false)
+const isSavingTemplate = ref(false)
+const fileInputRef = ref(null)
+const pdfFileInputRef = ref(null)
+const isUploadingPdf = ref(false)
+
 async function loadTemplate() {
   isLoadingTemplate.value = true
   try {
@@ -102,9 +109,9 @@ async function handleSaveTemplate() {
     await apiClient.put('/v1/system/settings/template/presentation-letter', {
       templateHtml: templateHtml.value
     })
-    showAlert('Plantilla HTML guardada y actualizada correctamente.', 'success')
+    showAlert('Plantilla guardada y actualizada correctamente.', 'success')
   } catch (err) {
-    showAlert(err.response?.data?.message || 'Error al guardar la plantilla HTML.', 'danger')
+    showAlert(err.response?.data?.message || 'Error al guardar la plantilla.', 'danger')
   } finally {
     isSavingTemplate.value = false
   }
@@ -120,6 +127,34 @@ function handleDownloadTemplate() {
   a.click()
   document.body.removeChild(a)
   window.URL.revokeObjectURL(url)
+}
+
+function triggerPdfUpload() {
+  if (pdfFileInputRef.value) {
+    pdfFileInputRef.value.click()
+  }
+}
+
+async function handlePdfFileUpload(event) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  isUploadingPdf.value = true
+  try {
+    const res = await apiClient.post('/v1/system/settings/template/presentation-letter/upload-pdf', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    templateHtml.value = res.data.templateHtml || templateHtml.value
+    showAlert(res.data.message || 'Plantilla PDF procesada y desglosada correctamente.', 'success')
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al procesar el archivo PDF.', 'danger')
+  } finally {
+    isUploadingPdf.value = false
+    event.target.value = ''
+  }
 }
 
 function triggerFileUpload() {
@@ -292,16 +327,20 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Tab 2: Plantilla HTML -->
+    <!-- Tab 2: Plantilla HTML / PDF -->
     <div v-if="activeTab === 'template'" class="tecnm-card">
       <div class="tecnm-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
         <h3 class="tecnm-card-title">Plantilla Oficial para Carta de Presentación</h3>
         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <button type="button" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm" :disabled="isUploadingPdf" @click="triggerPdfUpload">
+            {{ isUploadingPdf ? '⌛ Procesando PDF...' : '📄 Cargar PDF Oficial (.pdf)' }}
+          </button>
+          <input ref="pdfFileInputRef" type="file" accept=".pdf" style="display: none;" @change="handlePdfFileUpload" />
           <button type="button" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" @click="handleDownloadTemplate">
             📥 Descargar .html
           </button>
           <button type="button" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" @click="triggerFileUpload">
-            📤 Subir Archivo .html
+            📤 Subir .html
           </button>
           <input ref="fileInputRef" type="file" accept=".html,.htm" style="display: none;" @change="handleFileUpload" />
           <button type="button" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" @click="handleResetTemplate">
@@ -311,19 +350,22 @@ onMounted(() => {
       </div>
 
       <div class="tecnm-card-body">
-        <!-- Panel de Variables Disponibles -->
-        <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 1rem; margin-bottom: 1.25rem;">
-          <p style="margin: 0 0 0.5rem 0; font-weight: bold; color: #1e40af;">🏷️ Variables Dinámicas Disponibles:</p>
-          <p style="margin: 0; font-size: 0.85rem; color: #1e3a8a; line-height: 1.5;">
-            Puedes utilizar las siguientes etiquetas en el código HTML. El sistema las reemplazará automáticamente con los datos del estudiante:
+        <!-- Panel de Carga PDF y Variables -->
+        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 1rem; margin-bottom: 1.25rem;">
+          <p style="margin: 0 0 0.5rem 0; font-weight: bold; color: #166534;">📄 Carga Dinámica desde Archivo PDF:</p>
+          <p style="margin: 0; font-size: 0.85rem; color: #15803d; line-height: 1.5;">
+            Puedes subir directamente la carta membretada en formato <strong>PDF (.pdf)</strong>. El sistema extraerá el contenido, lo desglosará a estructura HTML y aplicará las etiquetas variables entre corchetes <code>[...]</code>.
           </p>
-          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.5rem; font-family: monospace; font-size: 0.85rem;">
-            <span style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #93c5fd;">&#123;&#123;nombre_alumno&#125;&#125;</span>
-            <span style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #93c5fd;">&#123;&#123;matricula&#125;&#125;</span>
-            <span style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #93c5fd;">&#123;&#123;carrera&#125;&#125;</span>
-            <span style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #93c5fd;">&#123;&#123;empresa&#125;&#125;</span>
-            <span style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #93c5fd;">&#123;&#123;fecha&#125;&#125;</span>
-            <span style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #93c5fd;">&#123;&#123;folio&#125;&#125;</span>
+          <div style="margin-top: 0.75rem; border-top: 1px dashed #86efac; padding-top: 0.75rem;">
+            <p style="margin: 0 0 0.35rem 0; font-weight: bold; font-size: 0.85rem; color: #166534;">🏷️ Variables dinámicas reconocidas entre corchetes [ ]:</p>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; font-family: monospace; font-size: 0.85rem;">
+              <span style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #86efac; font-weight: bold;">[NOMBRE_ALUMNO]</span>
+              <span style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #86efac; font-weight: bold;">[MATRICULA]</span>
+              <span style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #86efac; font-weight: bold;">[CARRERA]</span>
+              <span style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #86efac; font-weight: bold;">[EMPRESA]</span>
+              <span style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #86efac; font-weight: bold;">[FECHA]</span>
+              <span style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #86efac; font-weight: bold;">[FOLIO]</span>
+            </div>
           </div>
         </div>
 
