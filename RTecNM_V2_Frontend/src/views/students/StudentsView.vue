@@ -77,6 +77,12 @@ const form = ref({
   gpa: '',
 })
 
+const canCreate = computed(() => {
+  if (authStore.isReadOnly) return false
+  if (authStore.hasRole('academic', 'departmenthead') && !authStore.isAdmin) return false
+  return authStore.isAdmin || authStore.hasRole('vinculacion', 'director') || authStore.hasPermission('students.manage')
+})
+
 const canImport = computed(() => {
   return (
     authStore.isAdmin ||
@@ -529,7 +535,7 @@ onMounted(() => {
         </button>
         <span class="tecnm-page-actions-divider" aria-hidden="true"></span>
         <button
-          v-if="!authStore.isReadOnly"
+          v-if="canCreate"
           id="openCreateModalBtn"
           type="button"
           class="tecnm-btn tecnm-btn-primary"

@@ -64,7 +64,7 @@ const canCreate = computed(() => {
   return (
     authStore.isAdmin ||
     authStore.hasPermission('advisors.manage') ||
-    authStore.hasRole('admin', 'vinculacion', 'departmenthead')
+    authStore.hasRole('admin', 'vinculacion', 'departmenthead', 'academic')
   )
 })
 
