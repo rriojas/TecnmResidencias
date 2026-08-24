@@ -249,23 +249,33 @@ onMounted(async () => {
               <tr>
                 <th class="tecnm-th-sortable" @click="handleSort('title')">
                   Título del Proyecto
-                  <span v-if="sortBy === 'title'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'title' }">
+                    {{ sortBy === 'title' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('studentName')">
                   Estudiante
-                  <span v-if="sortBy === 'studentName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'studentName' }">
+                    {{ sortBy === 'studentName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('studentControlNumber')">
                   N° Control
-                  <span v-if="sortBy === 'studentControlNumber'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'studentControlNumber' }">
+                    {{ sortBy === 'studentControlNumber' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('advisorName')">
                   Asesor
-                  <span v-if="sortBy === 'advisorName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'advisorName' }">
+                    {{ sortBy === 'advisorName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('averageScore')">
                   Promedio Evaluativo
-                  <span v-if="sortBy === 'averageScore'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'averageScore' }">
+                    {{ sortBy === 'averageScore' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th>Estado Liberación</th>
                 <th class="tecnm-th-actions">Acciones</th>

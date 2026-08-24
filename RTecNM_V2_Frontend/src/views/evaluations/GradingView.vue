@@ -561,23 +561,33 @@ onMounted(() => {
               <tr>
                 <th class="tecnm-th-sortable" @click="handleSort('evaluationPeriod')">
                   Período Evaluado
-                  <span v-if="sortBy === 'evaluationPeriod'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'evaluationPeriod' }">
+                    {{ sortBy === 'evaluationPeriod' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('score')">
                   Calificación
-                  <span v-if="sortBy === 'score'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'score' }">
+                    {{ sortBy === 'score' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('studentName')">
                   Estudiante
-                  <span v-if="sortBy === 'studentName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'studentName' }">
+                    {{ sortBy === 'studentName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('feedback')">
                   Observaciones
-                  <span v-if="sortBy === 'feedback'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'feedback' }">
+                    {{ sortBy === 'feedback' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('createdAt')">
                   Fecha de Registro
-                  <span v-if="sortBy === 'createdAt'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'createdAt' }">
+                    {{ sortBy === 'createdAt' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-actions">Acciones</th>
               </tr>

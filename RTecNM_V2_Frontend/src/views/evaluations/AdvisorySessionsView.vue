@@ -603,35 +603,45 @@ onMounted(() => {
                   @click="handleSort('sessionDate')"
                 >
                   Fecha
-                  <span v-if="sortBy === 'sessionDate'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'sessionDate' }">
+                    {{ sortBy === 'sessionDate' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
                   @click="handleSort('studentName')"
                 >
                   Estudiante
-                  <span v-if="sortBy === 'studentName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'studentName' }">
+                    {{ sortBy === 'studentName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
                   @click="handleSort('advisorName')"
                 >
                   Asesor
-                  <span v-if="sortBy === 'advisorName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'advisorName' }">
+                    {{ sortBy === 'advisorName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
                   @click="handleSort('topicsCovered')"
                 >
                   Temas Abordados
-                  <span v-if="sortBy === 'topicsCovered'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'topicsCovered' }">
+                    {{ sortBy === 'topicsCovered' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
                   @click="handleSort('studentAgreements')"
                 >
                   Acuerdos y Compromisos
-                  <span v-if="sortBy === 'studentAgreements'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'studentAgreements' }">
+                    {{ sortBy === 'studentAgreements' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-actions">Acciones</th>
               </tr>

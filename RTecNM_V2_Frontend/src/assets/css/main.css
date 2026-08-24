@@ -692,6 +692,37 @@ textarea.tecnm-form-control {
 .tecnm-table-responsive {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  min-height: 200px;
+}
+
+.tecnm-th-sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.tecnm-th-sortable:hover {
+  background-color: var(--tecnm-blue-hover, #001f3f) !important;
+}
+
+.tecnm-sort-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.35rem;
+  font-size: 0.85rem;
+  vertical-align: middle;
+  opacity: 0.45;
+  transition: opacity 0.15s ease;
+}
+
+.tecnm-th-sortable:hover .tecnm-sort-icon {
+  opacity: 0.85;
+}
+
+.tecnm-sort-icon.active {
+  opacity: 1;
+  color: #fbbf24;
+  font-weight: bold;
 }
 
 .tecnm-table-empty {

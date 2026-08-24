@@ -73,8 +73,43 @@ const selectedProject = ref(null)
 const reviewComments = ref('')
 const isSubmitting = ref(false)
 
-async function loadProjects() {
-  isLoading.value = true
+const sortedProjects = computed(() => {
+  let list = [...projects.value]
+  const field = sortBy.value
+  const dir = sortDir.value === 'asc' ? 1 : -1
+
+  return list.sort((a, b) => {
+    let valA = ''
+    let valB = ''
+
+    if (field === 'Title') {
+      valA = a.title || ''
+      valB = b.title || ''
+    } else if (field === 'StudentName') {
+      valA = a.studentName || ''
+      valB = b.studentName || ''
+    } else if (field === 'CreatedAt') {
+      valA = a.createdAt || ''
+      valB = b.createdAt || ''
+    } else if (field === 'Status') {
+      valA = a.status || ''
+      valB = b.status || ''
+    } else {
+      valA = a[field] ?? ''
+      valB = b[field] ?? ''
+    }
+
+    if (typeof valA === 'string') valA = valA.toLowerCase()
+    if (typeof valB === 'string') valB = valB.toLowerCase()
+
+    if (valA < valB) return -1 * dir
+    if (valA > valB) return 1 * dir
+    return 0
+  })
+})
+
+async function loadProjects({ silent = false } = {}) {
+  if (!silent) isLoading.value = true
   try {
     const params = {
       pageNumber: pageNumber.value,
@@ -93,12 +128,14 @@ async function loadProjects() {
     totalCount.value = data.totalCount || 0
     totalPages.value = data.totalPages || 0
   } catch (err) {
-    showAlert(err.response?.data?.message || 'Error al cargar lista de anteproyectos.', 'danger')
-    projects.value = []
-    totalCount.value = 0
-    totalPages.value = 0
+    if (!silent) {
+      showAlert(err.response?.data?.message || 'Error al cargar lista de anteproyectos.', 'danger')
+      projects.value = []
+      totalCount.value = 0
+      totalPages.value = 0
+    }
   } finally {
-    isLoading.value = false
+    if (!silent) isLoading.value = false
   }
 }
 
@@ -110,7 +147,7 @@ function toggleSort(field) {
     sortDir.value = 'asc'
   }
   pageNumber.value = 1
-  loadProjects()
+  loadProjects({ silent: true })
 }
 
 async function openReviewModal(project) {
@@ -356,28 +393,36 @@ onMounted(() => {
                   @click="toggleSort('Title')"
                 >
                   Título del Proyecto
-                  <span v-if="sortBy === 'Title'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'Title' }">
+                    {{ sortBy === 'Title' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
                   @click="toggleSort('StudentName')"
                 >
                   Estudiante
-                  <span v-if="sortBy === 'StudentName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'StudentName' }">
+                    {{ sortBy === 'StudentName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
                   @click="toggleSort('CreatedAt')"
                 >
                   Fecha Registro
-                  <span v-if="sortBy === 'CreatedAt'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'CreatedAt' }">
+                    {{ sortBy === 'CreatedAt' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
                   @click="toggleSort('Status')"
                 >
                   Estado
-                  <span v-if="sortBy === 'Status'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'Status' }">
+                    {{ sortBy === 'Status' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-actions">Acciones</th>
               </tr>
@@ -388,14 +433,14 @@ onMounted(() => {
                   Cargando anteproyectos...
                 </td>
               </tr>
-              <tr v-else-if="projects.length === 0">
+              <tr v-else-if="sortedProjects.length === 0">
                 <td colspan="5" class="tecnm-table-empty">
                   <span v-if="includeInactive">No hay anteproyectos inactivos (deshabilitados) registrados.</span>
                   <span v-else>No hay anteproyectos que coincidan con el filtro.</span>
                 </td>
               </tr>
               <tr
-                v-for="p in projects"
+                v-for="p in sortedProjects"
                 v-else
                 :key="p.id"
               >

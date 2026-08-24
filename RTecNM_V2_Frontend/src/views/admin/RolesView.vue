@@ -595,21 +595,27 @@ onMounted(async () => {
                     @click="toggleRoleSort('Code')"
                   >
                     Código
-                    <span v-if="rolesSortBy === 'Code'">{{ rolesSortDir === 'asc' ? '▲' : '▼' }}</span>
+                    <span class="tecnm-sort-icon" :class="{ active: rolesSortBy === 'Code' }">
+                      {{ rolesSortBy === 'Code' ? (rolesSortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                    </span>
                   </th>
                   <th
                     class="tecnm-th-sortable"
                     @click="toggleRoleSort('Name')"
                   >
                     Nombre
-                    <span v-if="rolesSortBy === 'Name'">{{ rolesSortDir === 'asc' ? '▲' : '▼' }}</span>
+                    <span class="tecnm-sort-icon" :class="{ active: rolesSortBy === 'Name' }">
+                      {{ rolesSortBy === 'Name' ? (rolesSortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                    </span>
                   </th>
                   <th
                     class="tecnm-th-sortable"
                     @click="toggleRoleSort('Description')"
                   >
                     Descripción
-                    <span v-if="rolesSortBy === 'Description'">{{ rolesSortDir === 'asc' ? '▲' : '▼' }}</span>
+                    <span class="tecnm-sort-icon" :class="{ active: rolesSortBy === 'Description' }">
+                      {{ rolesSortBy === 'Description' ? (rolesSortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                    </span>
                   </th>
                   <th>Permisos Asignados</th>
                   <th class="tecnm-th-actions">Acciones</th>
@@ -759,28 +765,36 @@ onMounted(async () => {
                     @click="toggleUserSort('Email')"
                   >
                     Usuario / Correo
-                    <span v-if="usersSortBy === 'Email'">{{ usersSortDir === 'asc' ? '▲' : '▼' }}</span>
+                    <span class="tecnm-sort-icon" :class="{ active: usersSortBy === 'Email' }">
+                      {{ usersSortBy === 'Email' ? (usersSortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                    </span>
                   </th>
                   <th
                     class="tecnm-th-sortable"
                     @click="toggleUserSort('ControlNumber')"
                   >
                     Matrícula
-                    <span v-if="usersSortBy === 'ControlNumber'">{{ usersSortDir === 'asc' ? '▲' : '▼' }}</span>
+                    <span class="tecnm-sort-icon" :class="{ active: usersSortBy === 'ControlNumber' }">
+                      {{ usersSortBy === 'ControlNumber' ? (usersSortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                    </span>
                   </th>
                   <th
                     class="tecnm-th-sortable"
                     @click="toggleUserSort('Phone')"
                   >
                     Teléfono
-                    <span v-if="usersSortBy === 'Phone'">{{ usersSortDir === 'asc' ? '▲' : '▼' }}</span>
+                    <span class="tecnm-sort-icon" :class="{ active: usersSortBy === 'Phone' }">
+                      {{ usersSortBy === 'Phone' ? (usersSortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                    </span>
                   </th>
                   <th
                     class="tecnm-th-sortable"
                     @click="toggleUserSort('Role')"
                   >
                     Rol Asignado
-                    <span v-if="usersSortBy === 'Role'">{{ usersSortDir === 'asc' ? '▲' : '▼' }}</span>
+                    <span class="tecnm-sort-icon" :class="{ active: usersSortBy === 'Role' }">
+                      {{ usersSortBy === 'Role' ? (usersSortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                    </span>
                   </th>
                   <th class="tecnm-th-actions">Acciones</th>
                 </tr>

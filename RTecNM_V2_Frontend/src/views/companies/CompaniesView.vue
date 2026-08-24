@@ -408,27 +408,39 @@ onMounted(() => {
               <tr>
                 <th class="tecnm-th-sortable" @click="handleSort('name')">
                   Razón Social / Nombre
-                  <span v-if="sortBy === 'name'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'name' }">
+                    {{ sortBy === 'name' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('rfc')">
                   RFC
-                  <span v-if="sortBy === 'rfc'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'rfc' }">
+                    {{ sortBy === 'rfc' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('sector')">
                   Sector
-                  <span v-if="sortBy === 'sector'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'sector' }">
+                    {{ sortBy === 'sector' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('contactName')">
                   Contacto Principal
-                  <span v-if="sortBy === 'contactName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'contactName' }">
+                    {{ sortBy === 'contactName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('contactEmail')">
                   Correo / Teléfono
-                  <span v-if="sortBy === 'contactEmail'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'contactEmail' }">
+                    {{ sortBy === 'contactEmail' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('isActive')">
                   Estado
-                  <span v-if="sortBy === 'isActive'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'isActive' }">
+                    {{ sortBy === 'isActive' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-actions">Acciones</th>
               </tr>

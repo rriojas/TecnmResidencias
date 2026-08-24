@@ -68,8 +68,49 @@ const canCreate = computed(() => {
   )
 })
 
-async function loadAdvisors() {
-  isLoading.value = true
+const sortedAdvisors = computed(() => {
+  let list = [...advisors.value]
+  const field = sortBy.value
+  const dir = sortDir.value === 'asc' ? 1 : -1
+
+  return list.sort((a, b) => {
+    let valA = ''
+    let valB = ''
+
+    if (field === 'FullName') {
+      valA = a.fullName || a.name || ''
+      valB = b.fullName || b.name || ''
+    } else if (field === 'AdvisorType') {
+      valA = a.advisorType || 0
+      valB = b.advisorType || 0
+    } else if (field === 'Title') {
+      valA = a.title || ''
+      valB = b.title || ''
+    } else if (field === 'DepartmentId') {
+      valA = a.departmentName || a.departmentId || ''
+      valB = b.departmentName || b.departmentId || ''
+    } else if (field === 'Phone') {
+      valA = a.phone || ''
+      valB = b.phone || ''
+    } else if (field === 'IsActive') {
+      valA = a.isActive ? 1 : 0
+      valB = b.isActive ? 1 : 0
+    } else {
+      valA = a[field] ?? ''
+      valB = b[field] ?? ''
+    }
+
+    if (typeof valA === 'string') valA = valA.toLowerCase()
+    if (typeof valB === 'string') valB = valB.toLowerCase()
+
+    if (valA < valB) return -1 * dir
+    if (valA > valB) return 1 * dir
+    return 0
+  })
+})
+
+async function loadAdvisors({ silent = false } = {}) {
+  if (!silent) isLoading.value = true
   try {
     const params = {
       pageNumber: pageNumber.value,
@@ -84,10 +125,12 @@ async function loadAdvisors() {
     totalCount.value = data.totalCount || advisors.value.length
     totalPages.value = data.totalPages || Math.ceil(totalCount.value / pageSize.value) || 1
   } catch (err) {
-    showAlert(err.response?.data?.message || 'Error al cargar directorio de asesores.', 'danger')
-    advisors.value = []
+    if (!silent) {
+      showAlert(err.response?.data?.message || 'Error al cargar directorio de asesores.', 'danger')
+      advisors.value = []
+    }
   } finally {
-    isLoading.value = false
+    if (!silent) isLoading.value = false
   }
 }
 
@@ -98,7 +141,7 @@ function handleSort(col) {
     sortBy.value = col
     sortDir.value = 'asc'
   }
-  loadAdvisors()
+  loadAdvisors({ silent: true })
 }
 
 function getSortClass(col) {
@@ -345,42 +388,54 @@ onMounted(() => {
                   @click="handleSort('FullName')"
                 >
                   Nombre Completo
-                  <span v-if="sortBy === 'FullName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'FullName' }">
+                    {{ sortBy === 'FullName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
                   @click="handleSort('AdvisorType')"
                 >
                   Tipo de Asesor
-                  <span v-if="sortBy === 'AdvisorType'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'AdvisorType' }">
+                    {{ sortBy === 'AdvisorType' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
                   @click="handleSort('Title')"
                 >
                   Título / Grado
-                  <span v-if="sortBy === 'Title'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'Title' }">
+                    {{ sortBy === 'Title' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
                   @click="handleSort('DepartmentId')"
                 >
                   Departamento
-                  <span v-if="sortBy === 'DepartmentId'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'DepartmentId' }">
+                    {{ sortBy === 'DepartmentId' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
                   @click="handleSort('Phone')"
                 >
                   Teléfono
-                  <span v-if="sortBy === 'Phone'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'Phone' }">
+                    {{ sortBy === 'Phone' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
                   @click="handleSort('IsActive')"
                 >
                   Estado
-                  <span v-if="sortBy === 'IsActive'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'IsActive' }">
+                    {{ sortBy === 'IsActive' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-actions">Acciones</th>
               </tr>
@@ -391,14 +446,14 @@ onMounted(() => {
                   Cargando catálogo de asesores...
                 </td>
               </tr>
-              <tr v-else-if="advisors.length === 0">
+              <tr v-else-if="sortedAdvisors.length === 0">
                 <td colspan="7" class="tecnm-table-empty">
                   <span v-if="includeInactive">No hay asesores inactivos (deshabilitados) registrados.</span>
                   <span v-else>No hay asesores registrados.</span>
                 </td>
               </tr>
               <tr
-                v-for="a in advisors"
+                v-for="a in sortedAdvisors"
                 v-else
                 :key="a.id"
               >

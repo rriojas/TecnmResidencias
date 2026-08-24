@@ -138,8 +138,49 @@ async function handleImportSubmit() {
   }
 }
 
-async function loadStudents() {
-  isLoading.value = true
+const sortedStudents = computed(() => {
+  let list = [...students.value]
+  const field = sortBy.value
+  const dir = sortDir.value === 'asc' ? 1 : -1
+
+  return list.sort((a, b) => {
+    let valA = ''
+    let valB = ''
+
+    if (field === 'ControlNumber') {
+      valA = a.controlNumber || ''
+      valB = b.controlNumber || ''
+    } else if (field === 'FullName') {
+      valA = a.fullName || `${a.firstName} ${a.lastName}`
+      valB = b.fullName || `${b.firstName} ${b.lastName}`
+    } else if (field === 'CareerId') {
+      valA = a.career || a.careerId || ''
+      valB = b.career || b.careerId || ''
+    } else if (field === 'Email') {
+      valA = a.email || (a.user ? a.user.email : '')
+      valB = b.email || (b.user ? b.user.email : '')
+    } else if (field === 'IsPresentationLetterSent') {
+      valA = a.isPresentationLetterSent ? 1 : 0
+      valB = b.isPresentationLetterSent ? 1 : 0
+    } else if (field === 'IsActive') {
+      valA = a.isActive ? 1 : 0
+      valB = b.isActive ? 1 : 0
+    } else {
+      valA = a[field] ?? ''
+      valB = b[field] ?? ''
+    }
+
+    if (typeof valA === 'string') valA = valA.toLowerCase()
+    if (typeof valB === 'string') valB = valB.toLowerCase()
+
+    if (valA < valB) return -1 * dir
+    if (valA > valB) return 1 * dir
+    return 0
+  })
+})
+
+async function loadStudents({ silent = false } = {}) {
+  if (!silent) isLoading.value = true
   try {
     const params = {
       pageNumber: pageNumber.value,
@@ -155,10 +196,12 @@ async function loadStudents() {
     totalCount.value = data.totalCount || students.value.length
     totalPages.value = data.totalPages || Math.ceil(totalCount.value / pageSize.value) || 1
   } catch (err) {
-    showAlert(err.response?.data?.message || 'Error al cargar estudiantes.', 'danger')
-    students.value = []
+    if (!silent) {
+      showAlert(err.response?.data?.message || 'Error al cargar estudiantes.', 'danger')
+      students.value = []
+    }
   } finally {
-    isLoading.value = false
+    if (!silent) isLoading.value = false
   }
 }
 
@@ -169,7 +212,7 @@ function handleSort(col) {
     sortBy.value = col
     sortDir.value = 'asc'
   }
-  loadStudents()
+  loadStudents({ silent: true })
 }
 
 function getSortClass(col) {
@@ -549,42 +592,54 @@ onMounted(() => {
                   @click="handleSort('ControlNumber')"
                 >
                   N° Control
-                  <span v-if="sortBy === 'ControlNumber'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'ControlNumber' }">
+                    {{ sortBy === 'ControlNumber' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
                   @click="handleSort('FullName')"
                 >
                   Nombre Completo
-                  <span v-if="sortBy === 'FullName'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'FullName' }">
+                    {{ sortBy === 'FullName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
                   @click="handleSort('CareerId')"
                 >
                   Programa Educativo
-                  <span v-if="sortBy === 'CareerId'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'CareerId' }">
+                    {{ sortBy === 'CareerId' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
                   @click="handleSort('Email')"
                 >
                   Correo Institucional
-                  <span v-if="sortBy === 'Email'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'Email' }">
+                    {{ sortBy === 'Email' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
                   @click="handleSort('IsPresentationLetterSent')"
                 >
                   Carta Presentación
-                  <span v-if="sortBy === 'IsPresentationLetterSent'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'IsPresentationLetterSent' }">
+                    {{ sortBy === 'IsPresentationLetterSent' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
                   @click="handleSort('IsActive')"
                 >
                   Estatus
-                  <span v-if="sortBy === 'IsActive'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'IsActive' }">
+                    {{ sortBy === 'IsActive' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
                 </th>
                 <th class="tecnm-th-actions">Acciones</th>
               </tr>
@@ -595,14 +650,14 @@ onMounted(() => {
                   Cargando catálogo de estudiantes...
                 </td>
               </tr>
-              <tr v-else-if="students.length === 0">
+              <tr v-else-if="sortedStudents.length === 0">
                 <td colspan="7" class="tecnm-table-empty">
                   <span v-if="includeInactive">No hay estudiantes inactivos (deshabilitados) registrados.</span>
                   <span v-else>No se encontraron estudiantes activos registrados.</span>
                 </td>
               </tr>
               <tr
-                v-for="s in students"
+                v-for="s in sortedStudents"
                 v-else
                 :key="s.id"
               >
