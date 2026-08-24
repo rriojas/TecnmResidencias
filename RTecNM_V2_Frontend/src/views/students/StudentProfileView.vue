@@ -5,15 +5,73 @@ import apiClient from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import TecnmBadge from '@/components/common/TecnmBadge.vue'
 
+import { useConfirm } from '@/composables/useConfirm'
+
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { confirm } = useConfirm()
 
 const student = ref(null)
 const project = ref(null)
 const isLoading = ref(true)
 const isLoadingProject = ref(false)
 const errorMessage = ref('')
+const alertMessage = ref('')
+const alertType = ref('success')
+const isSendingLetter = ref(false)
+
+function showAlert(msg, type = 'success') {
+  alertMessage.value = msg
+  alertType.value = type
+  setTimeout(() => { alertMessage.value = '' }, 4500)
+}
+
+const canSendPresentationLetter = computed(() => {
+  return authStore.isAdmin || authStore.hasRole('vinculacion')
+})
+
+async function handleSendPresentationLetter() {
+  if (!student.value?.id) return
+  const confirmed = await confirm({
+    title: 'Enviar Carta de Presentación',
+    message: `¿Desea generar y enviar la Carta de Presentación Oficial en PDF al correo (${student.value.email}) del alumno ${fullName.value}?`,
+    okText: 'Enviar Carta PDF',
+    cancelText: 'Cancelar',
+  })
+  if (!confirmed) return
+
+  isSendingLetter.value = true
+  try {
+    await apiClient.post(`/v1/students/${student.value.id}/presentation-letter/send`)
+    showAlert(`Carta de presentación enviada exitosamente a ${student.value.email}.`, 'success')
+    await loadProfile()
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al enviar la carta de presentación.', 'danger')
+  } finally {
+    isSendingLetter.value = false
+  }
+}
+
+async function handleDownloadPresentationLetterPdf() {
+  if (!student.value?.id) return
+  try {
+    const res = await apiClient.get(`/v1/students/${student.value.id}/presentation-letter/pdf`, {
+      responseType: 'blob'
+    })
+    const blob = new Blob([res.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `Carta_Presentacion_${student.value.controlNumber}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch {
+    showAlert('Error al descargar el PDF de la carta de presentación.', 'danger')
+  }
+}
 
 const CAREERS = {
   1: 'Ingeniería Informática',
@@ -132,6 +190,23 @@ onMounted(() => {
       </div>
       <div class="tecnm-page-actions">
         <button
+          v-if="canSendPresentationLetter"
+          type="button"
+          class="tecnm-btn tecnm-btn-secondary"
+          :disabled="isSendingLetter"
+          @click="handleSendPresentationLetter"
+        >
+          {{ isSendingLetter ? '⌛ Enviando...' : (student?.isPresentationLetterSent ? '✉️ Reenviar Carta' : '✉️ Enviar Carta de Presentación') }}
+        </button>
+        <button
+          v-if="authStore.isAdmin || authStore.hasRole('vinculacion') || authStore.hasRole('departmenthead') || authStore.hasRole('director')"
+          type="button"
+          class="tecnm-btn tecnm-btn-secondary"
+          @click="handleDownloadPresentationLetterPdf"
+        >
+          📄 PDF Carta
+        </button>
+        <button
           type="button"
           class="tecnm-btn tecnm-btn-secondary"
           @click="handleGoBack"
@@ -142,6 +217,17 @@ onMounted(() => {
           Volver
         </button>
       </div>
+    </div>
+
+    <!-- Alert de Notificación -->
+    <div
+      v-if="alertMessage"
+      id="alertContainer"
+      class="tecnm-alert"
+      :class="`tecnm-alert-${alertType}`"
+      role="alert"
+    >
+      <span>{{ alertMessage }}</span>
     </div>
 
     <!-- Error State -->
@@ -269,6 +355,17 @@ onMounted(() => {
               <div class="tecnm-info-tile">
                 <span class="tecnm-info-tile-label">Fecha de Registro</span>
                 <span class="tecnm-info-tile-value">{{ formattedCreatedAt }}</span>
+              </div>
+
+              <!-- Carta de Presentación -->
+              <div class="tecnm-info-tile">
+                <span class="tecnm-info-tile-label">Carta de Presentación</span>
+                <span v-if="student.isPresentationLetterSent" style="color: #10b981; font-weight: 600; font-size: 0.9rem;">
+                  ✓ Enviada {{ student.presentationLetterSentAt ? `(${new Date(student.presentationLetterSentAt).toLocaleDateString()})` : '' }}
+                </span>
+                <span v-else style="color: #d97706; font-weight: 600; font-size: 0.9rem;">
+                  ⏳ Pendiente de envío
+                </span>
               </div>
             </div>
           </div>
