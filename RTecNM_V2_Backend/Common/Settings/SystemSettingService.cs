@@ -1,4 +1,6 @@
 using System.Text;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Mammoth;
@@ -180,31 +182,24 @@ public class SystemSettingService : ISystemSettingService
     {
         try
         {
-            var converter = new DocumentConverter();
-            var result = converter.ConvertToHtml(wordStream);
-            var extractedHtml = result.Value;
+            using var memoryStream = new MemoryStream();
+            await wordStream.CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
 
-            var sb = new StringBuilder();
-            sb.AppendLine("<!DOCTYPE html>");
-            sb.AppendLine("<html lang=\"es\">");
-            sb.AppendLine("<head>");
-            sb.AppendLine("    <meta charset=\"UTF-8\">");
-            sb.AppendLine("    <title>Carta de Presentación Oficial</title>");
-            sb.AppendLine("    <style>");
-            sb.AppendLine("        body { font-family: 'Segoe UI', Arial, sans-serif; color: #2c3e50; margin: 40px; line-height: 1.6; }");
-            sb.AppendLine("        h1, h2, h3 { color: #1B396A; margin-top: 15px; margin-bottom: 10px; }");
-            sb.AppendLine("        p { margin-bottom: 14px; text-align: justify; }");
-            sb.AppendLine("        strong, b { color: #1B396A; }");
-            sb.AppendLine("        table { width: 100%; border-collapse: collapse; margin: 20px 0; }");
-            sb.AppendLine("        td, th { padding: 8px; border: 1px solid #cbd5e1; }");
-            sb.AppendLine("    </style>");
-            sb.AppendLine("</head>");
-            sb.AppendLine("<body>");
-            sb.AppendLine(extractedHtml);
-            sb.AppendLine("</body>");
-            sb.AppendLine("</html>");
+            string htmlContent;
+            try
+            {
+                htmlContent = ConvertWordDocumentToHtmlWithExactStyles(memoryStream);
+            }
+            catch
+            {
+                // Fallback to Mammoth if OpenXml stream parsing encounters complex non-standard elements
+                memoryStream.Position = 0;
+                var converter = new DocumentConverter();
+                var result = converter.ConvertToHtml(memoryStream);
+                htmlContent = $"<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"UTF-8\"><style>body{{font-family:'Segoe UI',Arial,sans-serif;margin:40px;line-height:1.6;}}</style></head><body>{result.Value}</body></html>";
+            }
 
-            var htmlContent = sb.ToString();
             await UpdatePresentationLetterTemplateAsync(htmlContent, userId);
             return Result<string>.Success(htmlContent);
         }
@@ -212,6 +207,161 @@ public class SystemSettingService : ISystemSettingService
         {
             return Result<string>.Failure($"Error al procesar el archivo Word (.docx): {ex.Message}");
         }
+    }
+
+    private static string ConvertWordDocumentToHtmlWithExactStyles(MemoryStream stream)
+    {
+        using var doc = WordprocessingDocument.Open(stream, false);
+        var body = doc.MainDocumentPart?.Document.Body;
+        if (body == null) return "<!DOCTYPE html><html><body></body></html>";
+
+        var sb = new StringBuilder();
+        sb.AppendLine("<!DOCTYPE html>");
+        sb.AppendLine("<html lang=\"es\">");
+        sb.AppendLine("<head>");
+        sb.AppendLine("    <meta charset=\"UTF-8\">");
+        sb.AppendLine("    <title>Carta de Presentación Oficial</title>");
+        sb.AppendLine("    <style>");
+        sb.AppendLine("        body { font-family: 'Segoe UI', Arial, sans-serif; color: #2c3e50; margin: 40px; line-height: 1.6; }");
+        sb.AppendLine("        p { margin-bottom: 10pt; margin-top: 0; }");
+        sb.AppendLine("        table { width: 100%; border-collapse: collapse; margin: 15px 0; }");
+        sb.AppendLine("        td, th { border: 1px solid #cbd5e1; padding: 8px; vertical-align: top; }");
+        sb.AppendLine("    </style>");
+        sb.AppendLine("</head>");
+        sb.AppendLine("<body>");
+
+        foreach (var element in body.ChildElements)
+        {
+            if (element is Paragraph p)
+            {
+                sb.AppendLine(ConvertParagraphToHtmlWithStyles(p));
+            }
+            else if (element is Table tbl)
+            {
+                sb.AppendLine(ConvertTableToHtmlWithStyles(tbl));
+            }
+        }
+
+        sb.AppendLine("</body>");
+        sb.AppendLine("</html>");
+        return sb.ToString();
+    }
+
+    private static string ConvertParagraphToHtmlWithStyles(Paragraph p)
+    {
+        var pPr = p.ParagraphProperties;
+        var styles = new List<string>();
+
+        if (pPr?.Justification?.Val?.Value != null)
+        {
+            var align = pPr.Justification.Val.Value.ToString()?.ToLowerInvariant();
+            if (align == "center") styles.Add("text-align: center;");
+            else if (align == "right") styles.Add("text-align: right;");
+            else if (align == "both" || align == "justify") styles.Add("text-align: justify;");
+            else if (align == "left") styles.Add("text-align: left;");
+        }
+
+        if (pPr?.SpacingBetweenLines != null)
+        {
+            if (pPr.SpacingBetweenLines.After?.Value != null && int.TryParse(pPr.SpacingBetweenLines.After.Value, out var afterVal))
+            {
+                styles.Add($"margin-bottom: {afterVal / 20.0}pt;");
+            }
+            if (pPr.SpacingBetweenLines.Before?.Value != null && int.TryParse(pPr.SpacingBetweenLines.Before.Value, out var beforeVal))
+            {
+                styles.Add($"margin-top: {beforeVal / 20.0}pt;");
+            }
+        }
+
+        var styleAttr = styles.Count > 0 ? $" style=\"{string.Join(" ", styles)}\"" : "";
+        var innerHtml = new StringBuilder();
+
+        foreach (var child in p.ChildElements)
+        {
+            if (child is Run run)
+            {
+                innerHtml.Append(ConvertRunToHtmlWithStyles(run));
+            }
+            else if (child is SimpleField field)
+            {
+                foreach (var fieldRun in field.Elements<Run>())
+                {
+                    innerHtml.Append(ConvertRunToHtmlWithStyles(fieldRun));
+                }
+            }
+        }
+
+        var content = innerHtml.ToString();
+        if (string.IsNullOrWhiteSpace(content)) return "<p>&nbsp;</p>";
+
+        return $"<p{styleAttr}>{content}</p>";
+    }
+
+    private static string ConvertRunToHtmlWithStyles(Run run)
+    {
+        var rPr = run.RunProperties;
+        var rawText = string.Join("", run.Elements<Text>().Select(t => t.Text));
+
+        if (string.IsNullOrEmpty(rawText)) return "";
+        var text = System.Net.WebUtility.HtmlEncode(rawText);
+
+        var runStyles = new List<string>();
+
+        if (rPr?.RunFonts?.Ascii?.Value != null)
+        {
+            runStyles.Add($"font-family: '{rPr.RunFonts.Ascii.Value}', sans-serif;");
+        }
+
+        if (rPr?.FontSize?.Val?.Value != null && double.TryParse(rPr.FontSize.Val.Value, out var halfPts))
+        {
+            runStyles.Add($"font-size: {halfPts / 2.0}pt;");
+        }
+
+        if (rPr?.Color?.Val?.Value != null && rPr.Color.Val.Value != "auto")
+        {
+            var hexColor = rPr.Color.Val.Value;
+            if (!hexColor.StartsWith("#")) hexColor = "#" + hexColor;
+            runStyles.Add($"color: {hexColor};");
+        }
+
+        var isBold = rPr?.Bold != null && (rPr.Bold.Val == null || rPr.Bold.Val.Value);
+        var isItalic = rPr?.Italic != null && (rPr.Italic.Val == null || rPr.Italic.Val.Value);
+        var isUnderline = rPr?.Underline != null;
+
+        if (isBold) runStyles.Add("font-weight: bold;");
+        if (isItalic) runStyles.Add("font-style: italic;");
+        if (isUnderline) runStyles.Add("text-decoration: underline;");
+
+        if (runStyles.Count > 0)
+        {
+            return $"<span style=\"{string.Join(" ", runStyles)}\">{text}</span>";
+        }
+
+        return text;
+    }
+
+    private static string ConvertTableToHtmlWithStyles(Table tbl)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<table>");
+
+        foreach (var row in tbl.Elements<TableRow>())
+        {
+            sb.AppendLine("  <tr>");
+            foreach (var cell in row.Elements<TableCell>())
+            {
+                sb.Append("    <td>");
+                foreach (var p in cell.Elements<Paragraph>())
+                {
+                    sb.Append(ConvertParagraphToHtmlWithStyles(p));
+                }
+                sb.AppendLine("</td>");
+            }
+            sb.AppendLine("  </tr>");
+        }
+
+        sb.AppendLine("</table>");
+        return sb.ToString();
     }
 
     public async Task<Result<bool>> ResetPresentationLetterTemplateAsync(long userId)
