@@ -783,9 +783,9 @@ onMounted(() => {
         <form @submit.prevent="handleImportSubmit">
           <div class="tecnm-alert tecnm-alert-warning" style="margin-bottom: 1rem;">
             <strong>⚠️ Requisito Estricto de Columnas:</strong><br />
-            El archivo Excel debe contener exactamente las siguientes columnas en la primera fila:<br />
-            <code>NumeroControl, Nombre, ApellidoPaterno, ApellidoMaterno, Correo, CURP, Genero, CarreraId, PeriodoAcademicoId, Promedio</code><br />
-            <small>Si los nombres de columnas no coinciden exactamente, el archivo será rechazado.</small>
+            El archivo Excel debe contener las siguientes columnas en la primera fila:<br />
+            <code>Matricula, Apellidos, Nombre, Sexo, Carrera, Semestre, Email</code><br />
+            <small>Columnas adicionales (como créditos o servicios) son omitidas automáticamente.</small>
           </div>
 
           <div v-if="importError" class="tecnm-alert tecnm-alert-danger" style="margin-bottom: 1rem;" role="alert">

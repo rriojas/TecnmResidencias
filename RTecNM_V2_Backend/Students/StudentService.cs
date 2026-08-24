@@ -253,7 +253,7 @@ public class StudentService : IStudentService
 
         var expectedColumns = new List<string>
         {
-            "NumeroControl", "Nombre", "ApellidoPaterno", "ApellidoMaterno", "Correo", "CURP", "Genero", "CarreraId", "PeriodoAcademicoId", "Promedio"
+            "Matricula", "Apellidos", "Nombre", "Sexo", "Carrera", "Semestre", "Email"
         };
 
         using var stream = file.OpenReadStream();
@@ -273,40 +273,58 @@ public class StudentService : IStudentService
         foreach (var row in rows)
         {
             rowNum++;
-            var controlNum = row.GetValueOrDefault("NumeroControl");
+            var controlNum = row.GetValueOrDefault("Matricula");
+            var apellidosStr = row.GetValueOrDefault("Apellidos");
             var firstName = row.GetValueOrDefault("Nombre");
-            var lastName1 = row.GetValueOrDefault("ApellidoPaterno");
-            var lastName2 = row.GetValueOrDefault("ApellidoMaterno");
-            var email = row.GetValueOrDefault("Correo");
-            var curp = row.GetValueOrDefault("CURP");
-            var gender = row.GetValueOrDefault("Genero");
-            var careerStr = row.GetValueOrDefault("CarreraId");
-            var periodStr = row.GetValueOrDefault("PeriodoAcademicoId");
-            var gpaStr = row.GetValueOrDefault("Promedio");
+            var sexoStr = row.GetValueOrDefault("Sexo");
+            var carreraStr = row.GetValueOrDefault("Carrera");
+            var semestreStr = row.GetValueOrDefault("Semestre");
+            var emailStr = row.GetValueOrDefault("Email");
 
             if (string.IsNullOrWhiteSpace(controlNum))
             {
                 result.ErrorCount++;
-                result.Errors.Add($"Fila {rowNum}: El número de control es obligatorio.");
+                result.Errors.Add($"Fila {rowNum}: La matrícula (N° de Control) es obligatoria.");
                 continue;
             }
 
-            if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName1))
+            if (string.IsNullOrWhiteSpace(firstName))
             {
                 result.ErrorCount++;
-                result.Errors.Add($"Fila {rowNum}: El nombre y el primer apellido son obligatorios.");
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(email) || !InstitutionalEmail.IsValid(email))
-            {
-                result.ErrorCount++;
-                result.Errors.Add($"Fila {rowNum}: El correo institucional '{email}' no es válido.");
+                result.Errors.Add($"Fila {rowNum}: El nombre del estudiante es obligatorio.");
                 continue;
             }
 
             var cleanControlNum = controlNum.Trim().ToUpperInvariant();
-            var cleanEmail = email.Trim().ToLowerInvariant();
+
+            // Split surnames
+            string lastName1 = "SN";
+            string? lastName2 = null;
+            if (!string.IsNullOrWhiteSpace(apellidosStr))
+            {
+                var parts = apellidosStr.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 1)
+                {
+                    lastName1 = parts[0];
+                }
+                else if (parts.Length == 2)
+                {
+                    lastName1 = parts[0];
+                    lastName2 = parts[1];
+                }
+                else if (parts.Length > 2)
+                {
+                    lastName1 = string.Join(" ", parts.Take(parts.Length - 1));
+                    lastName2 = parts.Last();
+                }
+            }
+
+            // Resolve email (ensure valid institutional domain)
+            string cleanEmail = !string.IsNullOrWhiteSpace(emailStr) ? emailStr.Trim().ToLowerInvariant() : string.Empty;
+            if (string.IsNullOrWhiteSpace(cleanEmail) || !InstitutionalEmail.IsValid(cleanEmail))
+            {
+                cleanEmail = $"{cleanControlNum.ToLowerInvariant()}@monclova.tecnm.mx";
+            }
 
             var existingStudent = await _studentRepository.GetByControlNumberAsync(cleanControlNum);
             if (existingStudent != null)
@@ -324,16 +342,23 @@ public class StudentService : IStudentService
                 continue;
             }
 
-            long.TryParse(careerStr, out var careerId);
-            if (careerId <= 0) careerId = 1;
-
-            int? periodId = null;
-            if (int.TryParse(periodStr, out var parsedPeriod) && parsedPeriod > 0)
+            // Map Gender
+            string? gender = null;
+            if (!string.IsNullOrWhiteSpace(sexoStr))
             {
-                periodId = parsedPeriod;
+                var s = sexoStr.Trim().ToUpperInvariant();
+                gender = s.StartsWith("M") ? "Masculino" : s.StartsWith("F") ? "Femenino" : sexoStr.Trim();
             }
 
-            decimal.TryParse(gpaStr, out var gpa);
+            // Map Career
+            long careerId = MapCareerNameToId(carreraStr);
+
+            // Map Academic Semester
+            int? periodId = null;
+            if (int.TryParse(semestreStr, out var parsedSem) && parsedSem > 0)
+            {
+                periodId = parsedSem;
+            }
 
             var defaultPasswordHash = BCrypt.Net.BCrypt.HashPassword(cleanControlNum);
             var newUser = new User
@@ -354,12 +379,11 @@ public class StudentService : IStudentService
                 ControlNumber = cleanControlNum,
                 FirstName = firstName.Trim(),
                 LastName = lastName1.Trim(),
-                LastName2 = !string.IsNullOrWhiteSpace(lastName2) ? lastName2.Trim() : null,
-                Curp = !string.IsNullOrWhiteSpace(curp) ? curp.Trim().ToUpperInvariant() : null,
-                Gender = !string.IsNullOrWhiteSpace(gender) ? gender.Trim() : null,
+                LastName2 = lastName2?.Trim(),
+                Gender = gender,
                 CareerId = careerId,
                 AcademicPeriodId = periodId,
-                Gpa = gpa,
+                Gpa = 0.0m,
                 IsActive = true,
                 CreatedBy = _currentUser.UserId,
                 User = createdUser
@@ -370,6 +394,19 @@ public class StudentService : IStudentService
         }
 
         return Result<BatchImportResultDto>.Success(result);
+    }
+
+    private static long MapCareerNameToId(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return 1;
+        var clean = name.Trim().ToUpperInvariant();
+        if (clean.Contains("SISTEMA") || clean.Contains("ISC")) return 4;
+        if (clean.Contains("INDUSTRIAL")) return 2;
+        if (clean.Contains("MECATRONICA") || clean.Contains("MECATRÓNICA")) return 3;
+        if (clean.Contains("INFORMATICA") || clean.Contains("INFORMÁTICA")) return 1;
+        if (clean.Contains("ELECTRONICA") || clean.Contains("ELECTRÓNICA")) return 1;
+        if (clean.Contains("RENOVABLE") || clean.Contains("ENERGIA")) return 2;
+        return 1;
     }
 
     private static StudentResponseDto MapToResponseDto(Student student)
