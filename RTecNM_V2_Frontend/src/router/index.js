@@ -61,6 +61,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Asignación de Asesores - Sistema de Residencias',
+      roles: ['admin', 'vinculacion', 'departmenthead', 'academic'],
       permission: 'advisors.manage',
       navActive: 'advisor-assignments',
     },
