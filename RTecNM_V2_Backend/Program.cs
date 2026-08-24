@@ -7,6 +7,7 @@ using TecNM.Residency.Admin;
 using TecNM.Residency.Advisors;
 using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
+using TecNM.Residency.Common.Notifications;
 using TecNM.Residency.Companies;
 using TecNM.Residency.Documents;
 using TecNM.Residency.Evaluations;
@@ -84,6 +85,12 @@ builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddSingleton<SearchRegistry>();
 builder.Services.AddScoped<ISearchService, SearchService>();
+
+// Email Notification Services
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
+builder.Services.AddSingleton<IEmailTemplateService, EmailTemplateService>();
+builder.Services.AddHostedService<EmailBackgroundWorker>();
 
 var app = builder.Build();
 

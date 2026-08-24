@@ -1,5 +1,7 @@
 using TecNM.Residency.Common;
+using TecNM.Residency.Common.Notifications;
 using TecNM.Residency.Projects;
+using TecNM.Residency.Students;
 
 namespace TecNM.Residency.Documents;
 
@@ -7,13 +9,25 @@ public class DocumentService : IDocumentService
 {
     private readonly IDocumentRepository _repository;
     private readonly IProjectRepository _projectRepository;
+    private readonly IStudentRepository _studentRepository;
     private readonly ICurrentUserService _currentUser;
+    private readonly IEmailQueue _emailQueue;
+    private readonly IEmailTemplateService _emailTemplateService;
 
-    public DocumentService(IDocumentRepository repository, IProjectRepository projectRepository, ICurrentUserService currentUser)
+    public DocumentService(
+        IDocumentRepository repository,
+        IProjectRepository projectRepository,
+        IStudentRepository studentRepository,
+        ICurrentUserService currentUser,
+        IEmailQueue emailQueue,
+        IEmailTemplateService emailTemplateService)
     {
         _repository = repository;
         _projectRepository = projectRepository;
+        _studentRepository = studentRepository;
         _currentUser = currentUser;
+        _emailQueue = emailQueue;
+        _emailTemplateService = emailTemplateService;
     }
 
     public async Task<DocumentResponseDto> UploadDocumentAsync(UploadDocumentDto dto, string uploadsRootPath)
@@ -90,6 +104,8 @@ public class DocumentService : IDocumentService
         await _repository.AddAsync(document);
         await _repository.SaveChangesAsync();
 
+        TrySendDocumentNotification(project, document.DocumentType);
+
         return MapToDto(document);
     }
 
@@ -149,7 +165,58 @@ public class DocumentService : IDocumentService
         await _repository.UpdateAsync(document);
         await _repository.SaveChangesAsync();
 
+        if (dto.Status.Equals(DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase) ||
+            dto.Status.Equals(DocumentStatus.Uploaded, StringComparison.OrdinalIgnoreCase))
+        {
+            var project = await _projectRepository.GetByIdAsync(document.ProjectId);
+            if (project != null)
+            {
+                TrySendDocumentNotification(project, document.DocumentType);
+            }
+        }
+
         return MapToDto(document);
+    }
+
+    private void TrySendDocumentNotification(Project project, string documentType)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var student = await _studentRepository.GetByIdAsync(project.StudentId);
+                if (student != null && student.User != null && !string.IsNullOrWhiteSpace(student.User.Email))
+                {
+                    var friendlyName = GetFriendlyDocumentTypeName(documentType);
+                    var loginUrl = "http://localhost:5000/auth/login";
+                    var email = _emailTemplateService.BuildLetterAvailableEmail(
+                        $"{student.FirstName} {student.LastName}".Trim(),
+                        friendlyName,
+                        loginUrl
+                    );
+                    email.ToEmail = student.User.Email;
+                    email.ToName = $"{student.FirstName} {student.LastName}".Trim();
+                    _emailQueue.Enqueue(email);
+                }
+            }
+            catch
+            {
+                // Silent catch for background notification dispatch
+            }
+        });
+    }
+
+    private static string GetFriendlyDocumentTypeName(string type)
+    {
+        return type.ToLowerInvariant() switch
+        {
+            "carta_presentacion" => "Carta de Presentación",
+            "carta_aceptacion" => "Carta de Aceptación",
+            "carta_liberacion" => "Carta de Liberación de Residencias",
+            "solicitud" => "Solicitud de Residencia Profesional",
+            "anteproyecto" => "Documento de Anteproyecto",
+            _ => "Documento Oficial de Residencia"
+        };
     }
 
     public async Task<bool> SoftDeleteAsync(long id)

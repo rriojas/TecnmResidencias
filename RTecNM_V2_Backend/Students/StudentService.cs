@@ -1,6 +1,7 @@
 using TecNM.Residency.Advisors;
 using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
+using TecNM.Residency.Common.Notifications;
 using TecNM.Residency.Projects;
 
 namespace TecNM.Residency.Students;
@@ -13,6 +14,8 @@ public class StudentService : IStudentService
     private readonly IAuthRepository _authRepository;
     private readonly IRoleRepository _roleRepository;
     private readonly ICurrentUserService _currentUser;
+    private readonly IEmailQueue _emailQueue;
+    private readonly IEmailTemplateService _emailTemplateService;
 
     public StudentService(
         IStudentRepository studentRepository,
@@ -20,7 +23,9 @@ public class StudentService : IStudentService
         IProjectRepository projectRepository,
         IAuthRepository authRepository,
         IRoleRepository roleRepository,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser,
+        IEmailQueue emailQueue,
+        IEmailTemplateService emailTemplateService)
     {
         _studentRepository = studentRepository;
         _advisorRepository = advisorRepository;
@@ -28,6 +33,8 @@ public class StudentService : IStudentService
         _authRepository = authRepository;
         _roleRepository = roleRepository;
         _currentUser = currentUser;
+        _emailQueue = emailQueue;
+        _emailTemplateService = emailTemplateService;
     }
 
     public async Task<Result<PaginatedResult<StudentResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
@@ -143,6 +150,17 @@ public class StudentService : IStudentService
         };
 
         var createdStudent = await _studentRepository.AddAsync(newStudent);
+
+        // Enqueue Welcome Email
+        var loginUrl = "http://localhost:5000/auth/login";
+        var welcomeEmail = _emailTemplateService.BuildWelcomeEmail(
+            $"{newStudent.FirstName} {newStudent.LastName}".Trim(),
+            newStudent.ControlNumber,
+            newUser.Email,
+            loginUrl
+        );
+        _emailQueue.Enqueue(welcomeEmail);
+
         return Result<StudentResponseDto>.Success(MapToResponseDto(createdStudent));
     }
 
@@ -391,6 +409,16 @@ public class StudentService : IStudentService
 
             await _studentRepository.AddAsync(newStudent);
             result.SuccessCount++;
+
+            // Enqueue Welcome Email
+            var loginUrl = "http://localhost:5000/auth/login";
+            var welcomeEmail = _emailTemplateService.BuildWelcomeEmail(
+                $"{newStudent.FirstName} {lastName1}".Trim(),
+                newStudent.ControlNumber,
+                cleanEmail,
+                loginUrl
+            );
+            _emailQueue.Enqueue(welcomeEmail);
         }
 
         return Result<BatchImportResultDto>.Success(result);
