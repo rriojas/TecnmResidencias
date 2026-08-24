@@ -33,11 +33,10 @@ services:
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=residency_v2;Username=residency_user;Password=SecurePassword2026!
       - Uploads__Path=uploads
     volumes:
-      - uploads_v2_data:/app/uploads
+      - ./RTecNM_V2_Backend/uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
 
 volumes:
   postgres_v2_data:
-  uploads_v2_data:
