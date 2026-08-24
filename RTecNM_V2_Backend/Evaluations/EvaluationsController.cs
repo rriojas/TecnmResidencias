@@ -21,7 +21,7 @@ public class EvaluationsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "admin,departmenthead,advisor")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,advisor")]
     public async Task<IActionResult> Grade([FromBody] GradeEvaluationDto dto)
     {
         var access = await _projectService.CanAccessProjectAsync(dto.ProjectId);
@@ -36,7 +36,7 @@ public class EvaluationsController : ControllerBase
     }
 
     [HttpDelete("{id:long}")]
-    [Authorize(Roles = "admin,departmenthead")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico")]
     public async Task<IActionResult> DeleteEvaluation(long id)
     {
         var result = await _evaluationService.DeleteEvaluationAsync(id);
@@ -61,7 +61,7 @@ public class EvaluationsController : ControllerBase
     }
 
     [HttpPost("sessions")]
-    [Authorize(Roles = "admin,departmenthead,advisor")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,advisor")]
     [RequirePermission("advisories.session.record")]
     public async Task<IActionResult> RecordSession([FromBody] CreateAdvisorySessionDto dto)
     {
@@ -77,7 +77,7 @@ public class EvaluationsController : ControllerBase
     }
 
     [HttpPut("sessions/{id:long}")]
-    [Authorize(Roles = "admin,departmenthead")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico")]
     public async Task<IActionResult> UpdateSession(long id, [FromBody] UpdateAdvisorySessionDto dto)
     {
         var result = await _evaluationService.UpdateAdvisorySessionAsync(id, dto);
@@ -88,7 +88,7 @@ public class EvaluationsController : ControllerBase
     }
 
     [HttpDelete("sessions/{id:long}")]
-    [Authorize(Roles = "admin,departmenthead")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico")]
     public async Task<IActionResult> DeleteSession(long id)
     {
         var result = await _evaluationService.DeleteAdvisorySessionAsync(id);
@@ -99,7 +99,7 @@ public class EvaluationsController : ControllerBase
     }
 
     [HttpGet("sessions")]
-    [Authorize(Roles = "admin,departmenthead")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico")]
     public async Task<IActionResult> GetAllSessions([FromQuery] PaginationQuery query, [FromQuery] long? projectId, [FromQuery] bool includeInactive = false)
     {
         var result = await _evaluationService.GetAllAdvisorySessionsPagedAsync(query, projectId, includeInactive);
@@ -110,7 +110,7 @@ public class EvaluationsController : ControllerBase
     }
 
     [HttpGet("sessions/export")]
-    [Authorize(Roles = "admin,departmenthead")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico")]
     public async Task<IActionResult> ExportSessionsPdf([FromQuery] long? projectId, [FromQuery] string? search, [FromQuery] string? sortBy, [FromQuery] string? sortDir, [FromQuery] bool includeInactive = false)
     {
         var result = await _evaluationService.ExportSessionsPdfAsync(projectId, search, sortBy, sortDir, includeInactive);

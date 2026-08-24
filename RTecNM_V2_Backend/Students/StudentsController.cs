@@ -27,7 +27,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,director")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director")]
     public async Task<IActionResult> GetAll([FromQuery] PaginationQuery query, [FromQuery] string? status, [FromQuery] bool includeInactive = false)
     {
         var result = await _studentService.GetPagedAsync(query, status, includeInactive);
@@ -38,7 +38,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpGet("export")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,director")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director")]
     public async Task<IActionResult> ExportPdf([FromQuery] string? search, [FromQuery] string? sortBy, [FromQuery] string? sortDir, [FromQuery] bool includeInactive = false)
     {
         var result = await _studentService.ExportPdfAsync(search, sortBy, sortDir, includeInactive);
@@ -49,7 +49,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpGet("options")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,director")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director")]
     public async Task<IActionResult> GetOptions()
     {
         var result = await _studentService.GetOptionsAsync();
@@ -70,7 +70,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,director")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director")]
     public async Task<IActionResult> GetById(long id)
     {
         var result = await _studentService.GetByIdAsync(id);
@@ -81,7 +81,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,director")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director")]
     public async Task<IActionResult> Create([FromBody] CreateStudentDto dto)
     {
         var result = await _studentService.CreateAsync(dto);
@@ -92,7 +92,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,director")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director")]
     public async Task<IActionResult> Update(long id, [FromBody] UpdateStudentDto dto)
     {
         var result = await _studentService.UpdateAsync(id, dto);
@@ -103,7 +103,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpPut("{id}/advisor")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico")]
     public async Task<IActionResult> AssignAdvisor(long id, [FromBody] AssignAdvisorDto dto)
     {
         var result = await _studentService.AssignAdvisorAsync(id, dto.AdvisorId);
@@ -114,7 +114,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpPost("batch-assign-advisor")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico")]
     public async Task<IActionResult> BatchAssignAdvisor([FromBody] BatchAssignAdvisorDto dto)
     {
         var result = await _studentService.BatchAssignAdvisorAsync(dto.AdvisorId, dto.StudentIds);
@@ -125,7 +125,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,director")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director")]
     public async Task<IActionResult> SoftDelete(long id)
     {
         var result = await _studentService.SoftDeleteAsync(id, _currentUser.UserId);
@@ -136,7 +136,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpPatch("{id}/activate")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,director")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director")]
     public async Task<IActionResult> Activate(long id)
     {
         var result = await _studentService.ReactivateAsync(id);

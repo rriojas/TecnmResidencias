@@ -26,7 +26,7 @@ public class AdvisorsController : ControllerBase
     }
 
     [HttpGet("export")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,director")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director")]
     public async Task<IActionResult> ExportPdf([FromQuery] string? search, [FromQuery] string? sortBy, [FromQuery] string? sortDir, [FromQuery] bool includeInactive = false)
     {
         var result = await _advisorService.ExportPdfAsync(search, sortBy, sortDir, includeInactive);
@@ -65,7 +65,7 @@ public class AdvisorsController : ControllerBase
     }
 
     [HttpPost("assign")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico")]
     public async Task<IActionResult> Assign([FromBody] AssignAdvisorDto dto)
     {
         var result = await _advisorService.AssignAdvisorAsync(dto);
