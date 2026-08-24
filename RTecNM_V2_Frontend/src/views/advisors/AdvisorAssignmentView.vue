@@ -161,17 +161,31 @@ async function handleIndividualAssign(student, newAdvisorId) {
   }
 }
 
-function openBatchModal() {
+const allStudentsForBatch = ref([])
+const isBatchLoading = ref(false)
+
+async function openBatchModal() {
   selectedAdvisorId.value = ''
   selectedStudentIds.value = []
   batchSearch.value = ''
   isBatchModalOpen.value = true
+  isBatchLoading.value = true
+  try {
+    const res = await apiClient.get('/v1/students', { params: { pageNumber: 1, pageSize: 500, includeInactive: false } })
+    const data = res.data
+    allStudentsForBatch.value = Array.isArray(data) ? data : (data.items || [])
+  } catch {
+    allStudentsForBatch.value = [...students.value]
+  } finally {
+    isBatchLoading.value = false
+  }
 }
 
 const filteredBatchStudents = computed(() => {
-  if (!batchSearch.value.trim()) return students.value
+  const base = allStudentsForBatch.value.length > 0 ? allStudentsForBatch.value : students.value
+  if (!batchSearch.value.trim()) return base
   const term = batchSearch.value.trim().toLowerCase()
-  return students.value.filter(s =>
+  return base.filter(s =>
     (s.controlNumber || '').toLowerCase().includes(term) ||
     (s.fullName || `${s.firstName} ${s.lastName}`).toLowerCase().includes(term) ||
     (s.career || '').toLowerCase().includes(term)
@@ -373,11 +387,12 @@ onMounted(() => {
 
       <div class="tecnm-card-footer">
         <TecnmPagination
-          :current-page="pageNumber"
-          :total-pages="totalPages"
-          :total-count="totalCount"
-          :page-size="pageSize"
-          @update:current-page="(p) => { pageNumber = p; loadStudents(); }"
+          v-if="totalCount > 0"
+          v-model:currentPage="pageNumber"
+          v-model:pageSize="pageSize"
+          :totalPages="totalPages"
+          :totalCount="totalCount"
+          @page-change="loadStudents"
         />
       </div>
     </div>
