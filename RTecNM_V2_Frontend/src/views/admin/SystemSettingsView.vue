@@ -198,7 +198,17 @@ async function handleResetTemplate() {
   }
 }
 
+import { useAuthStore } from '@/stores/auth'
+import { useRouter } from 'vue-router'
+
+const authStore = useAuthStore()
+const router = useRouter()
+
 onMounted(() => {
+  if (!authStore.isAdmin) {
+    router.replace('/dashboard')
+    return
+  }
   loadSmtpConfig()
   loadTemplate()
 })

@@ -141,15 +141,9 @@ const showReports = computed(() =>
   authStore.hasPermission('admin.reports')
 )
 
-const showRoles = computed(() =>
-  authStore.isAdmin ||
-  authStore.hasPermission('admin.roles')
-)
+const showRoles = computed(() => authStore.isAdmin)
 
-const showSettings = computed(() =>
-  authStore.isAdmin ||
-  authStore.hasPermission('admin.settings')
-)
+const showSettings = computed(() => authStore.isAdmin)
 
 const showAdminGroup = computed(() =>
   showReports.value || showRoles.value || showSettings.value
