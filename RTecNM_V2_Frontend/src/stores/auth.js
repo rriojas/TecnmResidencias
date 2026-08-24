@@ -84,10 +84,70 @@ export const useAuthStore = defineStore('auth', () => {
     )
   }
 
+  const DEFAULT_ROLE_PERMISSIONS = {
+    vinculacion: [
+      'companies.view', 'companies.create', 'companies.manage', 'companies.import.excel',
+      'documents.digital', 'documents.verify', 'documents.letters.generate',
+      'students.profile.view', 'students.profile.update', 'students.manage', 'students.eligibility.verify', 'students.import.excel',
+      'advisors.manage', 'projects.proposals', 'projects.review',
+      'admin.reports', 'reports.export.excel'
+    ],
+    departmenthead: [
+      'students.manage', 'students.profile.view', 'students.profile.update', 'students.eligibility.verify',
+      'advisors.manage',
+      'companies.view', 'companies.manage',
+      'projects.proposals', 'projects.review', 'projects.delete',
+      'activities.schedule',
+      'evaluations.advisories', 'evaluations.grading',
+      'documents.digital', 'documents.verify',
+      'admin.reports'
+    ],
+    director: [
+      'students.profile.view', 'advisors.manage', 'projects.proposals', 'activities.schedule',
+      'advisories.session.view', 'evaluations.summary.view', 'documents.digital', 'companies.view',
+      'admin.reports', 'reports.export.excel', 'admin.roles'
+    ],
+    advisor: [
+      'projects.review', 'projects.advisor',
+      'activities.schedule', 'activities.progress.validate',
+      'evaluations.advisories', 'advisories.session.record', 'advisories.session.view',
+      'evaluations.grading', 'evaluations.grade.partial', 'evaluations.grade.final', 'evaluations.summary.view',
+      'documents.digital', 'documents.verify', 'companies.view'
+    ],
+    student: [
+      'students.profile.view', 'students.profile.update',
+      'projects.proposals', 'projects.proposal.create', 'projects.proposal.update', 'projects.my',
+      'activities.schedule', 'activities.progress.report',
+      'evaluations.advisories', 'advisories.session.view', 'advisories.evidence.upload',
+      'documents.digital', 'documents.upload', 'documents.my',
+      'companies.view'
+    ],
+    academic: [
+      'companies.view', 'companies.manage', 'documents.digital', 'documents.verify', 'projects.proposals', 'projects.review'
+    ]
+  }
+
   function hasPermission(permission) {
     if (!permission) return true
     if (isAdmin.value) return true
-    return permissions.value.some(
+
+    // 1. Permisos cargados dinámicamente del backend
+    if (Array.isArray(permissions.value) && permissions.value.length > 0) {
+      if (
+        permissions.value.some(
+          (p) =>
+            p === permission ||
+            permission.startsWith(p + '.') ||
+            p.startsWith(permission + '.')
+        )
+      ) {
+        return true
+      }
+    }
+
+    // 2. Respaldo por matriz oficial de rol si el token en sesión no contiene aún todos los permisos
+    const defaultPerms = DEFAULT_ROLE_PERMISSIONS[currentRole.value] || []
+    return defaultPerms.some(
       (p) =>
         p === permission ||
         permission.startsWith(p + '.') ||
