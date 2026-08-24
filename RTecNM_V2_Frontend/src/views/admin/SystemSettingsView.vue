@@ -35,10 +35,6 @@ const testEmail = ref('')
 const isTestingSmtp = ref(false)
 
 // Template State
-const templateHtml = ref('')
-const isLoadingTemplate = ref(false)
-const isSavingTemplate = ref(false)
-const fileInputRef = ref(null)
 
 async function loadSmtpConfig() {
   isLoadingSmtp.value = true
