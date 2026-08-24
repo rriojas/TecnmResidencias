@@ -71,23 +71,22 @@ const isAdminActive = computed(() => {
   return p.startsWith('/admin')
 })
 
-// Visibilidad por rol y permiso
+// Visibilidad por permiso estricto (RBAC)
 const showStudents = computed(() =>
   authStore.isAdmin ||
   authStore.hasPermission('students.manage') ||
-  authStore.hasRole('admin', 'vinculacion', 'departmenthead')
+  authStore.hasPermission('students.profile.view')
 )
 
 const showAdvisors = computed(() =>
   authStore.isAdmin ||
-  authStore.hasPermission('advisors.manage') ||
-  authStore.hasRole('admin', 'vinculacion', 'departmenthead')
+  authStore.hasPermission('advisors.manage')
 )
 
 const showCompanies = computed(() =>
   authStore.isAdmin ||
   authStore.hasPermission('companies.view') ||
-  authStore.hasRole('admin', 'vinculacion', 'departmenthead', 'academic', 'director', 'student')
+  authStore.hasPermission('companies.manage')
 )
 
 const showAcademicaGroup = computed(() =>
@@ -95,17 +94,18 @@ const showAcademicaGroup = computed(() =>
 )
 
 const showProposal = computed(() =>
-  authStore.isAdmin || authStore.hasPermission('projects.proposals')
+  authStore.isAdmin ||
+  authStore.hasPermission('projects.proposals')
 )
 
 const showReview = computed(() =>
   authStore.isAdmin ||
-  authStore.hasPermission('projects.review') ||
-  authStore.hasRole('admin', 'vinculacion', 'departmenthead', 'advisor')
+  authStore.hasPermission('projects.review')
 )
 
 const showSchedule = computed(() =>
-  authStore.isAdmin || authStore.hasPermission('activities.schedule')
+  authStore.isAdmin ||
+  authStore.hasPermission('activities.schedule')
 )
 
 const showResidenciaGroup = computed(() =>
@@ -113,17 +113,18 @@ const showResidenciaGroup = computed(() =>
 )
 
 const showAdvisories = computed(() =>
-  authStore.isAdmin || authStore.hasPermission('evaluations.advisories')
+  authStore.isAdmin ||
+  authStore.hasPermission('evaluations.advisories')
 )
 
 const showGrading = computed(() =>
   authStore.isAdmin ||
-  authStore.hasPermission('evaluations.grading') ||
-  authStore.hasRole('admin', 'departmenthead', 'advisor')
+  authStore.hasPermission('evaluations.grading')
 )
 
 const showDocuments = computed(() =>
-  authStore.isAdmin || authStore.hasPermission('documents.digital')
+  authStore.isAdmin ||
+  authStore.hasPermission('documents.digital')
 )
 
 const showEvaluacionGroup = computed(() =>
@@ -132,14 +133,12 @@ const showEvaluacionGroup = computed(() =>
 
 const showReports = computed(() =>
   authStore.isAdmin ||
-  authStore.hasPermission('admin.reports') ||
-  authStore.hasRole('admin', 'vinculacion', 'departmenthead', 'director')
+  authStore.hasPermission('admin.reports')
 )
 
 const showRoles = computed(() =>
   authStore.isAdmin ||
-  authStore.hasPermission('admin.roles') ||
-  authStore.hasRole('admin', 'departmenthead', 'director')
+  authStore.hasPermission('admin.roles')
 )
 
 const showAdminGroup = computed(() =>
