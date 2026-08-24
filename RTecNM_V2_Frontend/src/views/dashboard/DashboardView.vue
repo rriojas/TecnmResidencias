@@ -439,6 +439,89 @@ onMounted(() => {
         <!-- VISTA ESTUDIANTE: COLUMNA PRINCIPAL (RESIDENCIA Y AVANCE) -->
         <!-- ======================================================== -->
         <template v-else-if="authStore.currentRole === 'student'">
+          <!-- Card: Guía Oficial del Proceso de Residencia Profesional (1er y 2do Paso) -->
+          <div class="tecnm-card" style="border-left: 4px solid var(--tecnm-blue-primary, #1b396a); margin-bottom: 1.25rem;">
+            <div class="tecnm-card-header" style="background-color: var(--tecnm-bg-subtle, #f8fafc);">
+              <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: var(--tecnm-gold, #d97706);">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18c-2.305 0-4.408.867-6 2.292m0-14.25v14.25" />
+                </svg>
+                <h3 class="tecnm-card-title">Guía Oficial del Proceso de Residencia Profesional</h3>
+              </div>
+            </div>
+            <div class="tecnm-card-body" style="padding: 1.25rem;">
+              <!-- 1ER PASO -->
+              <div style="margin-bottom: 1.25rem; border-bottom: 1px solid var(--tecnm-border-color, #e2e8f0); padding-bottom: 1rem;">
+                <h4 style="color: var(--tecnm-blue-primary, #1b396a); font-size: 0.98rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                  <span class="tecnm-badge tecnm-badge-primary">1ER PASO</span>
+                  <span>Condiciones, Carta de Presentación y Requisitos Iniciales</span>
+                </h4>
+                <ul style="margin: 0.5rem 0 0.75rem 1.25rem; font-size: 0.88rem; line-height: 1.5; color: var(--tecnm-text-main);">
+                  <li>Verifica estar en condiciones de realizar tu residencia en el <strong>Listado de Estudiantes Inscritos en Tiempo y Forma</strong>.</li>
+                  <li>La <strong>Carta de Presentación</strong> oficial llegará a tu correo institucional.</li>
+                </ul>
+
+                <div style="background-color: var(--tecnm-bg-subtle, #f8fafc); border-radius: 6px; padding: 0.75rem; font-size: 0.85rem; margin-top: 0.5rem; border: 1px solid var(--tecnm-border-color);">
+                  <strong style="display: block; margin-bottom: 0.4rem; color: var(--tecnm-blue-primary);">Entregables Obligatorios:</strong>
+                  <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <div>
+                      <strong>1. En la empresa deberás entregar:</strong>
+                      <ul style="margin: 0.2rem 0 0 1.25rem;">
+                        <li>Carta de Presentación oficial.</li>
+                        <li>
+                          Constancia de Vigencia de Derechos IMSS (Vigente a la fecha de entrega):
+                          <a href="https://serviciosdigitales.imss.gob.mx/gestionAsegurados-web-externo/vigencia" target="_blank" rel="noopener noreferrer" style="color: var(--tecnm-blue-primary); text-decoration: underline; margin-left: 0.25rem;">
+                            Descargar Constancia IMSS &rarr;
+                          </a>
+                        </li>
+                        <li>
+                          Copia de tu Póliza de Seguro Contra Accidentes:
+                          <a href="https://itmonclova.sharepoint.com/:b:/s/areaAcadmica/ESuQH7ejRUxFv7co-VdfMzQBS3Xdo8ck-DDLDgJRrdg-HQ?e=OJBnya" target="_blank" rel="noopener noreferrer" style="color: var(--tecnm-blue-primary); text-decoration: underline; margin-left: 0.25rem;">
+                            Descargar Póliza de Seguro &rarr;
+                          </a>
+                        </li>
+                      </ul>
+                    </div>
+                    <div>
+                      <strong>2. La empresa te deberá entregar:</strong>
+                      <ul style="margin: 0.2rem 0 0 1.25rem;">
+                        <li>
+                          Carta de Aceptación (Dirigida al <strong>Lic. Jesús Roberto de la Garza de Luna</strong>):
+                          <a href="https://itmonclova.sharepoint.com/:w:/s/areaAcadmica/IQBdNvj03iT1SYAeH51KOSgHAU6IDfch33lwItuTb-y1Xyg?e=AWlQeD" target="_blank" rel="noopener noreferrer" style="color: var(--tecnm-blue-primary); text-decoration: underline; margin-left: 0.25rem;">
+                            Ver Formato de Ejemplo &rarr;
+                          </a>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2DO PASO -->
+              <div>
+                <h4 style="color: var(--tecnm-blue-primary, #1b396a); font-size: 0.98rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                  <span class="tecnm-badge tecnm-badge-success">2DO PASO</span>
+                  <span>Envío Digital por la Plataforma</span>
+                </h4>
+                <p style="font-size: 0.88rem; margin: 0 0 0.5rem 0;">Envía a través del portal los siguientes componentes obligatorios para dictamen:</p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.75rem; font-size: 0.85rem;">
+                  <div style="border: 1px solid var(--tecnm-border-color); border-radius: 6px; padding: 0.75rem; background: var(--tecnm-card-bg);">
+                    <strong style="color: var(--tecnm-blue-primary); display: block; margin-bottom: 0.25rem;">📄 Carta de Aceptación</strong>
+                    <span>Firmada y sellada por la empresa con: Nombre, Matrícula, Carrera, Semestre, Nombre del proyecto y Asesor externo.</span>
+                  </div>
+                  <div style="border: 1px solid var(--tecnm-border-color); border-radius: 6px; padding: 0.75rem; background: var(--tecnm-card-bg);">
+                    <strong style="color: var(--tecnm-blue-primary); display: block; margin-bottom: 0.25rem;">📝 Anteproyecto Completo</strong>
+                    <span>Portada, Nombre y Objetivo del proyecto, Delimitación, Objetivos, Justificación, Lugar e Información de la Empresa.</span>
+                  </div>
+                  <div style="border: 1px solid var(--tecnm-border-color); border-radius: 6px; padding: 0.75rem; background: var(--tecnm-card-bg);">
+                    <strong style="color: var(--tecnm-blue-primary); display: block; margin-bottom: 0.25rem;">📅 Cronograma de Actividades</strong>
+                    <span>Listado de actividades para desarrollar el proyecto indicando el desglose temporal por meses.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Card 1: Expediente de Residencia Profesional y Línea Temporal -->
           <div class="tecnm-card">
             <div class="tecnm-card-header">
