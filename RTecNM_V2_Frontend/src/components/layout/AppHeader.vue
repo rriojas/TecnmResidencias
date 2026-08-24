@@ -2,13 +2,11 @@
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useGlobalSearch } from '@/composables/useGlobalSearch'
 import isologoPath from '@/assets/images/tecnm-isologo.svg'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
-const { open: openSearch } = useGlobalSearch()
 
 const isPublicRoute = computed(() => route.meta.isPublic === true)
 
@@ -45,21 +43,6 @@ function handleLogout() {
           <!-- Vista Autenticada -->
           <template v-else>
             <div class="user-menu">
-              <!-- Botón Búsqueda Universal (Ctrl + K) -->
-              <button
-                v-if="authStore.currentRole !== 'student'"
-                type="button"
-                id="globalSearchTriggerBtn"
-                class="tecnm-btn tecnm-btn-sm tecnm-btn-outline"
-                title="Búsqueda Universal (Ctrl + K)"
-                @click="openSearch()"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-                </svg>
-                <span>Buscar (Ctrl+K)</span>
-              </button>
-
               <!-- Perfil de Usuario -->
               <div class="user-profile">
                 <span id="userAvatar" class="user-avatar" aria-hidden="true">{{ authStore.userAvatarInitials }}</span>
