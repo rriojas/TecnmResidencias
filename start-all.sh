@@ -58,8 +58,15 @@ echo -e "\n${CYAN}⚙️  Ejecutando start-backend.sh en segundo plano...${NC}"
 "$BACKEND_SCRIPT" &
 BACKEND_PID=$!
 
-# Esperar 3 segundos para que PostgreSQL y Backend inicien
-sleep 3
+# Esperar a que el Backend API (.NET) escuche en el puerto 5144
+echo -e "   ${YELLOW}⏳ Esperando a que el Backend API esté listo en puerto 5144...${NC}"
+for i in {1..25}; do
+    if curl -s http://localhost:5144 >/dev/null 2>&1 || (exec 3<>/dev/tcp/localhost/5144) 2>/dev/null; then
+        echo -e "   ${GREEN}✅ Backend API listo y respondiendo.${NC}"
+        break
+    fi
+    sleep 1
+done
 
 # 2. Iniciar Frontend usando start-frontend.sh
 echo -e "\n${CYAN}⚙️  Ejecutando start-frontend.sh en segundo plano...${NC}"
