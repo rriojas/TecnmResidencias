@@ -84,8 +84,8 @@ const templateHtml = ref('')
 const isLoadingTemplate = ref(false)
 const isSavingTemplate = ref(false)
 const fileInputRef = ref(null)
-const pdfFileInputRef = ref(null)
-const isUploadingPdf = ref(false)
+const wordFileInputRef = ref(null)
+const isUploadingWord = ref(false)
 
 async function loadTemplate() {
   isLoadingTemplate.value = true
@@ -93,7 +93,7 @@ async function loadTemplate() {
     const res = await apiClient.get('/v1/system/settings/template/presentation-letter')
     templateHtml.value = res.data.templateHtml
   } catch (err) {
-    showAlert(err.response?.data?.message || 'Error al cargar la plantilla HTML.', 'danger')
+    showAlert(err.response?.data?.message || 'Error al cargar la plantilla.', 'danger')
   } finally {
     isLoadingTemplate.value = false
   }
@@ -125,30 +125,30 @@ function handleDownloadTemplate() {
   window.URL.revokeObjectURL(url)
 }
 
-function triggerPdfUpload() {
-  if (pdfFileInputRef.value) {
-    pdfFileInputRef.value.click()
+function triggerWordUpload() {
+  if (wordFileInputRef.value) {
+    wordFileInputRef.value.click()
   }
 }
 
-async function handlePdfFileUpload(event) {
+async function handleWordFileUpload(event) {
   const file = event.target.files[0]
   if (!file) return
 
   const formData = new FormData()
   formData.append('file', file)
 
-  isUploadingPdf.value = true
+  isUploadingWord.value = true
   try {
-    const res = await apiClient.post('/v1/system/settings/template/presentation-letter/upload-pdf', formData, {
+    const res = await apiClient.post('/v1/system/settings/template/presentation-letter/upload-word', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
     templateHtml.value = res.data.templateHtml || templateHtml.value
-    showAlert(res.data.message || 'Plantilla PDF procesada y desglosada correctamente.', 'success')
+    showAlert(res.data.message || 'Plantilla Word (.docx) procesada y desglosada correctamente.', 'success')
   } catch (err) {
-    showAlert(err.response?.data?.message || 'Error al procesar el archivo PDF.', 'danger')
+    showAlert(err.response?.data?.message || 'Error al procesar el archivo Word.', 'danger')
   } finally {
-    isUploadingPdf.value = false
+    isUploadingWord.value = false
     event.target.value = ''
   }
 }
@@ -323,15 +323,15 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Tab 2: Plantilla HTML / PDF -->
+    <!-- Tab 2: Plantilla Word / HTML -->
     <div v-if="activeTab === 'template'" class="tecnm-card">
       <div class="tecnm-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
         <h3 class="tecnm-card-title">Plantilla Oficial para Carta de Presentación</h3>
         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-          <button type="button" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm" :disabled="isUploadingPdf" @click="triggerPdfUpload">
-            {{ isUploadingPdf ? '⌛ Procesando PDF...' : '📄 Cargar PDF Oficial (.pdf)' }}
+          <button type="button" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm" :disabled="isUploadingWord" @click="triggerWordUpload">
+            {{ isUploadingWord ? '⌛ Procesando Word...' : '📄 Cargar Plantilla Word (.docx)' }}
           </button>
-          <input ref="pdfFileInputRef" type="file" accept=".pdf" style="display: none;" @change="handlePdfFileUpload" />
+          <input ref="wordFileInputRef" type="file" accept=".docx,.doc" style="display: none;" @change="handleWordFileUpload" />
           <button type="button" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" @click="handleDownloadTemplate">
             📥 Descargar .html
           </button>
@@ -346,14 +346,14 @@ onMounted(() => {
       </div>
 
       <div class="tecnm-card-body">
-        <!-- Panel de Carga PDF y Variables -->
+        <!-- Panel de Carga Word y Variables -->
         <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 1rem; margin-bottom: 1.25rem;">
-          <p style="margin: 0 0 0.5rem 0; font-weight: bold; color: #166534;">📄 Carga Dinámica desde Archivo PDF:</p>
+          <p style="margin: 0 0 0.5rem 0; font-weight: bold; color: #166534;">📝 Carga Oficial desde Documento de Word (.docx):</p>
           <p style="margin: 0; font-size: 0.85rem; color: #15803d; line-height: 1.5;">
-            Puedes subir directamente la carta membretada en formato <strong>PDF (.pdf)</strong>. El sistema extraerá el contenido, lo desglosará a estructura HTML y aplicará las etiquetas variables entre corchetes <code>[...]</code>.
+            Sube directamente la carta membretada oficial en formato <strong>Word (.docx)</strong>. El sistema la convertirá automáticamente a estructura HTML conservando estilos, formato y los marcadores variables entre corchetes <code>[...]</code>.
           </p>
           <div style="margin-top: 0.75rem; border-top: 1px dashed #86efac; padding-top: 0.75rem;">
-            <p style="margin: 0 0 0.35rem 0; font-weight: bold; font-size: 0.85rem; color: #166534;">🏷️ Variables dinámicas reconocidas entre corchetes [ ]:</p>
+            <p style="margin: 0 0 0.35rem 0; font-weight: bold; font-size: 0.85rem; color: #166534;">🏷️ Variables dinámicas a colocar en el archivo Word entre corchetes [ ]:</p>
             <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; font-family: monospace; font-size: 0.85rem;">
               <span style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #86efac; font-weight: bold;">[NOMBRE_ALUMNO]</span>
               <span style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #86efac; font-weight: bold;">[MATRICULA]</span>

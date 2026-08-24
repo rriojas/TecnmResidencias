@@ -94,22 +94,22 @@ public class SystemSettingsController : ControllerBase
         return Ok(new { message = "Archivo de plantilla cargado y aplicado exitosamente." });
     }
 
-    [HttpPost("template/presentation-letter/upload-pdf")]
-    public async Task<IActionResult> UploadPresentationLetterPdfTemplate(IFormFile file)
+    [HttpPost("template/presentation-letter/upload-word")]
+    public async Task<IActionResult> UploadPresentationLetterWordTemplate(IFormFile file)
     {
         if (file == null || file.Length == 0)
-            return BadRequest(new { message = "Debe seleccionar un archivo PDF válido." });
+            return BadRequest(new { message = "Debe seleccionar un archivo Word (.docx) válido." });
 
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (ext != ".pdf")
-            return BadRequest(new { message = "El archivo debe ser un documento PDF (.pdf)." });
+        if (ext != ".docx" && ext != ".doc")
+            return BadRequest(new { message = "El archivo debe ser un documento Word (.docx)." });
 
         using var stream = file.OpenReadStream();
-        var result = await _settingService.UploadPdfTemplateAsync(stream, _currentUser.UserId);
+        var result = await _settingService.UploadWordTemplateAsync(stream, _currentUser.UserId);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 
-        return Ok(new { message = "Plantilla PDF procesada y desglosada correctamente.", templateHtml = result.Data });
+        return Ok(new { message = "Plantilla Word (.docx) procesada y desglosada correctamente a HTML.", templateHtml = result.Data });
     }
 
     [HttpPost("template/presentation-letter/reset")]

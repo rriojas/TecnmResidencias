@@ -7,6 +7,6 @@ public interface ISystemSettingService
     Task<Result<bool>> TestSmtpConnectionAsync(string recipientEmail, SmtpConfigDto? testConfig = null);
     Task<string> GetPresentationLetterTemplateAsync();
     Task<Result<bool>> UpdatePresentationLetterTemplateAsync(string htmlContent, long userId);
-    Task<Result<string>> UploadPdfTemplateAsync(Stream pdfStream, long userId);
+    Task<Result<string>> UploadWordTemplateAsync(Stream wordStream, long userId);
     Task<Result<bool>> ResetPresentationLetterTemplateAsync(long userId);
 }

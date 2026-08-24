@@ -1,10 +1,10 @@
 using System.Text;
 using MailKit.Net.Smtp;
 using MailKit.Security;
+using Mammoth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using MimeKit;
-using UglyToad.PdfPig;
 using TecNM.Residency.Common.Notifications;
 
 namespace TecNM.Residency.Common.Settings;
@@ -176,13 +176,15 @@ public class SystemSettingService : ISystemSettingService
         return Result<bool>.Success(true);
     }
 
-    public async Task<Result<string>> UploadPdfTemplateAsync(Stream pdfStream, long userId)
+    public async Task<Result<string>> UploadWordTemplateAsync(Stream wordStream, long userId)
     {
         try
         {
-            using var pdfDocument = PdfDocument.Open(pdfStream);
-            var sb = new StringBuilder();
+            var converter = new DocumentConverter();
+            var result = converter.ConvertToHtml(wordStream);
+            var extractedHtml = result.Value;
 
+            var sb = new StringBuilder();
             sb.AppendLine("<!DOCTYPE html>");
             sb.AppendLine("<html lang=\"es\">");
             sb.AppendLine("<head>");
@@ -190,52 +192,15 @@ public class SystemSettingService : ISystemSettingService
             sb.AppendLine("    <title>Carta de Presentación Oficial</title>");
             sb.AppendLine("    <style>");
             sb.AppendLine("        body { font-family: 'Segoe UI', Arial, sans-serif; color: #2c3e50; margin: 40px; line-height: 1.6; }");
-            sb.AppendLine("        .header { text-align: center; border-bottom: 2px solid #C5A059; padding-bottom: 15px; margin-bottom: 25px; }");
-            sb.AppendLine("        .institution { color: #1B396A; font-size: 18px; font-weight: bold; margin: 0; }");
-            sb.AppendLine("        .meta-right { text-align: right; margin-bottom: 20px; font-size: 12px; }");
-            sb.AppendLine("        .pdf-paragraph { margin-bottom: 14px; font-size: 13px; text-align: justify; }");
-            sb.AppendLine("        .pdf-heading { color: #1B396A; font-weight: bold; font-size: 14px; margin-top: 15px; margin-bottom: 10px; }");
-            sb.AppendLine("        .signature-box { text-align: center; margin-top: 50px; }");
-            sb.AppendLine("        .signature-line { border-top: 1px solid #2c3e50; width: 280px; margin: 0 auto 8px auto; }");
+            sb.AppendLine("        h1, h2, h3 { color: #1B396A; margin-top: 15px; margin-bottom: 10px; }");
+            sb.AppendLine("        p { margin-bottom: 14px; text-align: justify; }");
+            sb.AppendLine("        strong, b { color: #1B396A; }");
+            sb.AppendLine("        table { width: 100%; border-collapse: collapse; margin: 20px 0; }");
+            sb.AppendLine("        td, th { padding: 8px; border: 1px solid #cbd5e1; }");
             sb.AppendLine("    </style>");
             sb.AppendLine("</head>");
             sb.AppendLine("<body>");
-
-            foreach (var page in pdfDocument.GetPages())
-            {
-                var words = page.GetWords();
-                var lines = words
-                    .GroupBy(w => Math.Round(w.BoundingBox.Bottom, 1))
-                    .OrderByDescending(g => g.Key)
-                    .Select(g => string.Join(" ", g.OrderBy(w => w.BoundingBox.Left).Select(w => w.Text)))
-                    .ToList();
-
-                foreach (var rawLine in lines)
-                {
-                    var line = rawLine.Trim();
-                    if (string.IsNullOrWhiteSpace(line)) continue;
-
-                    if (line.Contains("TECNOLÓGICO NACIONAL DE MÉXICO") || line.Contains("INSTITUTO TECNOLÓGICO"))
-                    {
-                        sb.AppendLine($"    <div class=\"header\">");
-                        sb.AppendLine($"        <h1 class=\"institution\">{line}</h1>");
-                        sb.AppendLine($"    </div>");
-                    }
-                    else if (line.StartsWith("Asunto:") || line.StartsWith("Folio:") || line.Contains("Monclova, Coahuila"))
-                    {
-                        sb.AppendLine($"    <div class=\"meta-right\">{line}</div>");
-                    }
-                    else if (line == line.ToUpperInvariant() && line.Length < 60 && !line.Contains("["))
-                    {
-                        sb.AppendLine($"    <h3 class=\"pdf-heading\">{line}</h3>");
-                    }
-                    else
-                    {
-                        sb.AppendLine($"    <p class=\"pdf-paragraph\">{line}</p>");
-                    }
-                }
-            }
-
+            sb.AppendLine(extractedHtml);
             sb.AppendLine("</body>");
             sb.AppendLine("</html>");
 
@@ -245,7 +210,7 @@ public class SystemSettingService : ISystemSettingService
         }
         catch (Exception ex)
         {
-            return Result<string>.Failure($"Error al procesar el archivo PDF: {ex.Message}");
+            return Result<string>.Failure($"Error al procesar el archivo Word (.docx): {ex.Message}");
         }
     }
 
