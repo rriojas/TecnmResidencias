@@ -287,11 +287,21 @@ public class ProjectService : IProjectService
         if (_currentUser.IsInRole(UserRole.Student))
             return await GetMyProjectsPagedAsync(query);
 
-        // Vista Asesor: únicamente los anteproyectos bajo su asesoría.
+        // Vista Administradores / Jefes de División / Vinculación / Dirección: ven todos los anteproyectos.
+        if (_currentUser.IsInRole(UserRole.Admin) ||
+            _currentUser.IsInRole(UserRole.Vinculacion) ||
+            _currentUser.IsInRole(UserRole.DepartmentHead) ||
+            _currentUser.IsInRole(UserRole.Director))
+        {
+            var pagedAll = await _repository.GetPagedAsync(query, status, includeInactive);
+            return Result<PaginatedResult<ProjectResponseDto>>.Success(MapPaged(pagedAll));
+        }
+
+        // Vista Asesor exclusivo: únicamente los anteproyectos bajo su asesoría.
         if (_currentUser.IsInRole(UserRole.Advisor))
             return await GetAdvisorProjectsPagedAsync(query);
 
-        // Vista Administrador: todos los registros.
+        // Fallback general: todos los registros.
         var paged = await _repository.GetPagedAsync(query, status, includeInactive);
         return Result<PaginatedResult<ProjectResponseDto>>.Success(MapPaged(paged));
     }

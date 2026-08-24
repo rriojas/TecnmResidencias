@@ -88,6 +88,9 @@ const sortedProjects = computed(() => {
     } else if (field === 'StudentName') {
       valA = a.studentName || ''
       valB = b.studentName || ''
+    } else if (field === 'CompanyName') {
+      valA = a.companyName || ''
+      valB = b.companyName || ''
     } else if (field === 'CreatedAt') {
       valA = a.createdAt || ''
       valB = b.createdAt || ''
@@ -117,9 +120,6 @@ async function loadProjects({ silent = false } = {}) {
       sortBy: sortBy.value,
       sortDir: sortDir.value,
       includeInactive: includeInactive.value,
-    }
-    if (statusFilter.value && statusFilter.value !== 'all') {
-      params.status = statusFilter.value
     }
 
     const res = await apiClient.get('/v1/projects', { params })
@@ -341,24 +341,6 @@ onMounted(() => {
         <h3 class="tecnm-card-title">Lista de Anteproyectos</h3>
       </div>
       <div class="tecnm-card-toolbar">
-        <div class="tecnm-form-group tecnm-mb-0 tecnm-filter-group" style="margin-bottom: 0;">
-          <label for="statusFilter" class="tecnm-label tecnm-sr-only">Filtrar por Estatus</label>
-          <select
-            id="statusFilter"
-            v-model="statusFilter"
-            class="tecnm-form-control"
-            @change="loadProjects"
-          >
-            <option value="all">Todos los Estatus</option>
-            <option value="pending">Pendientes de Dictamen</option>
-            <option value="approved">Aprobados</option>
-            <option value="in_progress">En Residencia / En Curso</option>
-            <option value="rejected">Devueltos / Correcciones</option>
-            <option value="completed">Concluidos</option>
-            <option value="cancelled">Cancelados</option>
-          </select>
-        </div>
-
         <div class="tecnm-toolbar-actions">
           <label class="tecnm-switch-label">
             <span class="tecnm-switch">
@@ -408,6 +390,15 @@ onMounted(() => {
                 </th>
                 <th
                   class="tecnm-th-sortable"
+                  @click="toggleSort('CompanyName')"
+                >
+                  Empresa / Institución
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'CompanyName' }">
+                    {{ sortBy === 'CompanyName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
+                </th>
+                <th
+                  class="tecnm-th-sortable"
                   @click="toggleSort('CreatedAt')"
                 >
                   Fecha Registro
@@ -429,12 +420,12 @@ onMounted(() => {
             </thead>
             <tbody id="projectsTableBody">
               <tr v-if="isLoading">
-                <td colspan="5" class="tecnm-table-empty">
+                <td colspan="6" class="tecnm-table-empty">
                   Cargando anteproyectos...
                 </td>
               </tr>
               <tr v-else-if="sortedProjects.length === 0">
-                <td colspan="5" class="tecnm-table-empty">
+                <td colspan="6" class="tecnm-table-empty">
                   <span v-if="includeInactive">No hay anteproyectos inactivos (deshabilitados) registrados.</span>
                   <span v-else>No hay anteproyectos que coincidan con el filtro.</span>
                 </td>
@@ -446,6 +437,7 @@ onMounted(() => {
               >
                 <td><strong>{{ p.title }}</strong></td>
                 <td>{{ p.studentName || '—' }}</td>
+                <td>{{ p.companyName || '—' }}</td>
                 <td>{{ formatTecNMDate(p.createdAt) }}</td>
                 <td>
                   <TecnmBadge :status="p.status" />
