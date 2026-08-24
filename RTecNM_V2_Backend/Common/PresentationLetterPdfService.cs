@@ -1,3 +1,4 @@
+using HtmlAgilityPack;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -19,10 +20,225 @@ public static class PresentationLetterPdfService
     private static readonly Color TecnmBlue = Color.FromHex("#1B396A");
     private static readonly Color TecnmGold = Color.FromHex("#C5A059");
 
-    public static byte[] GeneratePresentationLetterPdf(PresentationLetterData data)
+    public static byte[] GeneratePresentationLetterPdf(PresentationLetterData data, string? templateHtml = null)
     {
         QuestPDF.Settings.License = LicenseType.Community;
 
+        if (!string.IsNullOrWhiteSpace(templateHtml))
+        {
+            try
+            {
+                var replacedHtml = ReplaceTemplateVariables(templateHtml, data);
+                return GeneratePdfFromHtml(replacedHtml);
+            }
+            catch
+            {
+                // Fallback to default layout if dynamic parsing fails
+            }
+        }
+
+        return GenerateDefaultPdf(data);
+    }
+
+    public static string ReplaceTemplateVariables(string templateHtml, PresentationLetterData data)
+    {
+        if (string.IsNullOrWhiteSpace(templateHtml)) return templateHtml;
+
+        var dateStr = $"{data.IssueDate:dd} de {GetMonthName(data.IssueDate.Month)} de {data.IssueDate:yyyy}";
+
+        return templateHtml
+            .Replace("[NOMBRE_ALUMNO]", data.StudentFullName.ToUpper(), StringComparison.OrdinalIgnoreCase)
+            .Replace("[nombre_alumno]", data.StudentFullName.ToUpper(), StringComparison.OrdinalIgnoreCase)
+            .Replace("[ALUMNO]", data.StudentFullName.ToUpper(), StringComparison.OrdinalIgnoreCase)
+            .Replace("[NOMBRE]", data.StudentFullName.ToUpper(), StringComparison.OrdinalIgnoreCase)
+            .Replace("[MATRICULA]", data.ControlNumber, StringComparison.OrdinalIgnoreCase)
+            .Replace("[matricula]", data.ControlNumber, StringComparison.OrdinalIgnoreCase)
+            .Replace("[CONTROL]", data.ControlNumber, StringComparison.OrdinalIgnoreCase)
+            .Replace("[NO_CONTROL]", data.ControlNumber, StringComparison.OrdinalIgnoreCase)
+            .Replace("[CARRERA]", data.CareerName.ToUpper(), StringComparison.OrdinalIgnoreCase)
+            .Replace("[carrera]", data.CareerName.ToUpper(), StringComparison.OrdinalIgnoreCase)
+            .Replace("[EMPRESA]", data.CompanyName.ToUpper(), StringComparison.OrdinalIgnoreCase)
+            .Replace("[empresa]", data.CompanyName.ToUpper(), StringComparison.OrdinalIgnoreCase)
+            .Replace("[FECHA]", dateStr, StringComparison.OrdinalIgnoreCase)
+            .Replace("[fecha]", dateStr, StringComparison.OrdinalIgnoreCase)
+            .Replace("[FOLIO]", data.FolioNumber, StringComparison.OrdinalIgnoreCase)
+            .Replace("[folio]", data.FolioNumber, StringComparison.OrdinalIgnoreCase)
+            .Replace("{{nombre_alumno}}", data.StudentFullName.ToUpper(), StringComparison.OrdinalIgnoreCase)
+            .Replace("{{matricula}}", data.ControlNumber, StringComparison.OrdinalIgnoreCase)
+            .Replace("{{carrera}}", data.CareerName.ToUpper(), StringComparison.OrdinalIgnoreCase)
+            .Replace("{{empresa}}", data.CompanyName.ToUpper(), StringComparison.OrdinalIgnoreCase)
+            .Replace("{{fecha}}", dateStr, StringComparison.OrdinalIgnoreCase)
+            .Replace("{{folio}}", data.FolioNumber, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static byte[] GeneratePdfFromHtml(string html)
+    {
+        var doc = new HtmlDocument();
+        doc.LoadHtml(html);
+
+        var body = doc.DocumentNode.SelectSingleNode("//body") ?? doc.DocumentNode;
+
+        var pdf = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.Letter);
+                page.Margin(40);
+                page.PageColor(Colors.White);
+                page.DefaultTextStyle(x => x.FontSize(11).FontFamily("Arial").FontColor(Colors.Grey.Darken4));
+
+                page.Content().Column(col =>
+                {
+                    RenderNodeToQuestPdf(col, body);
+                });
+
+                page.Footer().AlignRight().Text(x =>
+                {
+                    x.Span("Página ");
+                    x.CurrentPageNumber();
+                    x.Span(" de ");
+                    x.TotalPages();
+                });
+            });
+        });
+
+        return pdf.GeneratePdf();
+    }
+
+    private static void RenderNodeToQuestPdf(ColumnDescriptor col, HtmlNode rootNode)
+    {
+        foreach (var node in rootNode.ChildNodes)
+        {
+            if (node.NodeType == HtmlNodeType.Text)
+            {
+                var text = HtmlEntity.DeEntitize(node.InnerText).Trim();
+                if (!string.IsNullOrEmpty(text))
+                {
+                    col.Item().Text(text);
+                }
+                continue;
+            }
+
+            var name = node.Name.ToLowerInvariant();
+
+            if (name == "p" || name == "div" || name.StartsWith("h"))
+            {
+                var styleAttr = node.GetAttributeValue("style", "");
+                var align = ExtractStyleValue(styleAttr, "text-align")?.ToLowerInvariant();
+
+                col.Item().PaddingBottom(4).Text(textDescriptor =>
+                {
+                    if (align == "center") textDescriptor.AlignCenter();
+                    else if (align == "right") textDescriptor.AlignRight();
+                    else if (align == "justify" || align == "both") textDescriptor.Justify();
+                    else textDescriptor.AlignLeft();
+
+                    RenderInlineNodes(textDescriptor, node);
+                });
+            }
+            else if (name == "table")
+            {
+                col.Item().PaddingVertical(8).Table(table =>
+                {
+                    var rows = node.SelectNodes(".//tr");
+                    if (rows == null) return;
+
+                    var firstRow = rows.FirstOrDefault();
+                    var colCount = firstRow?.SelectNodes("./td|./th")?.Count ?? 1;
+
+                    table.ColumnsDefinition(columns =>
+                    {
+                        for (int i = 0; i < colCount; i++) columns.RelativeColumn();
+                    });
+
+                    foreach (var row in rows)
+                    {
+                        var cells = row.SelectNodes("./td|./th");
+                        if (cells == null) continue;
+
+                        foreach (var cell in cells)
+                        {
+                            table.Cell().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(6).Column(cellCol =>
+                            {
+                                RenderNodeToQuestPdf(cellCol, cell);
+                            });
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    private static void RenderInlineNodes(TextDescriptor textDesc, HtmlNode parentNode)
+    {
+        foreach (var child in parentNode.ChildNodes)
+        {
+            if (child.NodeType == HtmlNodeType.Text)
+            {
+                var text = HtmlEntity.DeEntitize(child.InnerText);
+                if (!string.IsNullOrEmpty(text))
+                {
+                    textDesc.Span(text);
+                }
+                continue;
+            }
+
+            var tag = child.Name.ToLowerInvariant();
+            var styleAttr = child.GetAttributeValue("style", "");
+
+            var fontSizePt = ExtractFontSizePt(styleAttr);
+            var colorHex = ExtractStyleValue(styleAttr, "color");
+            var fontFamily = ExtractStyleValue(styleAttr, "font-family")?.Replace("'", "")?.Replace("\"", "");
+
+            var isBold = tag == "strong" || tag == "b" || styleAttr.Contains("font-weight: bold") || styleAttr.Contains("font-weight:bold");
+            var isItalic = tag == "em" || tag == "i" || styleAttr.Contains("font-style: italic") || styleAttr.Contains("font-style:italic");
+            var isUnderline = tag == "u" || styleAttr.Contains("text-decoration: underline") || styleAttr.Contains("text-decoration:underline");
+
+            var rawText = HtmlEntity.DeEntitize(child.InnerText);
+            if (string.IsNullOrEmpty(rawText)) continue;
+
+            var span = textDesc.Span(rawText);
+            if (isBold) span.Bold();
+            if (isItalic) span.Italic();
+            if (isUnderline) span.Underline();
+            if (fontSizePt.HasValue) span.FontSize((float)fontSizePt.Value);
+            if (!string.IsNullOrEmpty(fontFamily)) span.FontFamily(fontFamily);
+            if (!string.IsNullOrEmpty(colorHex) && colorHex.StartsWith("#"))
+            {
+                try { span.FontColor(Color.FromHex(colorHex)); } catch { }
+            }
+        }
+    }
+
+    private static string? ExtractStyleValue(string styleString, string key)
+    {
+        if (string.IsNullOrEmpty(styleString)) return null;
+        var parts = styleString.Split(';');
+        foreach (var part in parts)
+        {
+            var kv = part.Split(':');
+            if (kv.Length == 2 && kv[0].Trim().Equals(key, StringComparison.OrdinalIgnoreCase))
+            {
+                return kv[1].Trim();
+            }
+        }
+        return null;
+    }
+
+    private static double? ExtractFontSizePt(string styleString)
+    {
+        var val = ExtractStyleValue(styleString, "font-size");
+        if (string.IsNullOrEmpty(val)) return null;
+        val = val.Replace("pt", "").Replace("px", "").Trim();
+        if (double.TryParse(val, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var pt))
+        {
+            return pt;
+        }
+        return null;
+    }
+
+    private static byte[] GenerateDefaultPdf(PresentationLetterData data)
+    {
         var document = Document.Create(container =>
         {
             container.Page(page =>
@@ -32,7 +248,6 @@ public static class PresentationLetterPdfService
                 page.PageColor(Colors.White);
                 page.DefaultTextStyle(x => x.FontSize(11).FontColor(Colors.Grey.Darken4).FontFamily("Arial"));
 
-                // Header institucional
                 page.Header().Column(header =>
                 {
                     header.Item().Row(row =>
@@ -51,7 +266,6 @@ public static class PresentationLetterPdfService
                     header.Item().PaddingTop(12).LineHorizontal(1.5f).LineColor(TecnmGold);
                 });
 
-                // Contenido oficial de la Carta de Presentación
                 page.Content().Column(content =>
                 {
                     content.Spacing(14);
@@ -97,7 +311,6 @@ public static class PresentationLetterPdfService
 
                     content.Item().PaddingTop(10).Text("Sin otro particular por el momento, aprovecho la ocasión para enviarle un cordial y respetuoso saludo.");
 
-                    // Atentamente y Firmas
                     content.Item().PaddingTop(30).AlignCenter().Column(col =>
                     {
                         col.Item().Text("ATENTAMENTE").FontSize(10).Bold().FontColor(TecnmBlue).AlignCenter();
@@ -108,7 +321,6 @@ public static class PresentationLetterPdfService
                     });
                 });
 
-                // Pie de página
                 page.Footer().AlignRight().Text(x =>
                 {
                     x.Span("Página ");

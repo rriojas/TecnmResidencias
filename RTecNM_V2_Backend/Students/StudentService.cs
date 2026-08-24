@@ -5,6 +5,8 @@ using TecNM.Residency.Common;
 using TecNM.Residency.Common.Notifications;
 using TecNM.Residency.Projects;
 
+using TecNM.Residency.Common.Settings;
+
 namespace TecNM.Residency.Students;
 
 public class StudentService : IStudentService
@@ -17,6 +19,7 @@ public class StudentService : IStudentService
     private readonly ICurrentUserService _currentUser;
     private readonly IEmailQueue _emailQueue;
     private readonly IEmailTemplateService _emailTemplateService;
+    private readonly ISystemSettingService _settingService;
     private readonly AppDbContext _context;
 
     public StudentService(
@@ -28,6 +31,7 @@ public class StudentService : IStudentService
         ICurrentUserService currentUser,
         IEmailQueue emailQueue,
         IEmailTemplateService emailTemplateService,
+        ISystemSettingService settingService,
         AppDbContext context)
     {
         _studentRepository = studentRepository;
@@ -38,6 +42,7 @@ public class StudentService : IStudentService
         _currentUser = currentUser;
         _emailQueue = emailQueue;
         _emailTemplateService = emailTemplateService;
+        _settingService = settingService;
         _context = context;
     }
 
@@ -453,6 +458,8 @@ public class StudentService : IStudentService
             return Result<int>.Success(0);
         }
 
+        var activeTemplateHtml = await _settingService.GetPresentationLetterTemplateAsync();
+
         int sentCount = 0;
         foreach (var student in unsentStudents)
         {
@@ -478,7 +485,7 @@ public class StudentService : IStudentService
                 IssueDate = DateTime.UtcNow
             };
 
-            var pdfBytes = PresentationLetterPdfService.GeneratePresentationLetterPdf(letterData);
+            var pdfBytes = PresentationLetterPdfService.GeneratePresentationLetterPdf(letterData, activeTemplateHtml);
             var emailMsg = _emailTemplateService.BuildPresentationLetterEmail(
                 studentName,
                 student.ControlNumber,
@@ -534,7 +541,8 @@ public class StudentService : IStudentService
             IssueDate = DateTime.UtcNow
         };
 
-        var pdfBytes = PresentationLetterPdfService.GeneratePresentationLetterPdf(letterData);
+        var activeTemplateHtml = await _settingService.GetPresentationLetterTemplateAsync();
+        var pdfBytes = PresentationLetterPdfService.GeneratePresentationLetterPdf(letterData, activeTemplateHtml);
         var emailMsg = _emailTemplateService.BuildPresentationLetterEmail(
             studentName,
             student.ControlNumber,
@@ -582,7 +590,8 @@ public class StudentService : IStudentService
             IssueDate = DateTime.UtcNow
         };
 
-        var pdfBytes = PresentationLetterPdfService.GeneratePresentationLetterPdf(letterData);
+        var activeTemplateHtml = await _settingService.GetPresentationLetterTemplateAsync();
+        var pdfBytes = PresentationLetterPdfService.GeneratePresentationLetterPdf(letterData, activeTemplateHtml);
         return Result<byte[]>.Success(pdfBytes);
     }
 
