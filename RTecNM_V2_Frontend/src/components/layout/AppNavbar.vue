@@ -143,7 +143,6 @@ const showRoles = computed(() =>
 
 const showSettings = computed(() =>
   authStore.isAdmin ||
-  authStore.hasRole('vinculacion') ||
   authStore.hasPermission('admin.settings')
 )
 

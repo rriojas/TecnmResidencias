@@ -7,7 +7,7 @@ namespace TecNM.Residency.Common.Settings;
 
 [ApiController]
 [Route("api/v1/system/settings")]
-[Authorize(Roles = "admin,vinculacion")]
+[Authorize(Roles = "admin")]
 public class SystemSettingsController : ControllerBase
 {
     private readonly ISystemSettingService _settingService;

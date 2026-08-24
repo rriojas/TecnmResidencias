@@ -161,7 +161,7 @@ const routes = [
       requiresAuth: true,
       title: 'Configuración del Sistema - Sistema de Residencias',
       permission: 'admin.settings',
-      roles: ['admin', 'vinculacion'],
+      roles: ['admin'],
       navActive: 'settings',
     },
   },
