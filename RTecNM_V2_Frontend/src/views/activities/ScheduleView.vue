@@ -48,6 +48,7 @@ const isProjectReadOnly = computed(() => {
 })
 
 const canAddActivity = computed(() => {
+  if (authStore.hasRole('academic', 'departmenthead') && !authStore.isAdmin) return false
   if (isAdvisor.value) return false
   if (!currentProject.value?.id) return false
   return !isProjectReadOnly.value
@@ -361,12 +362,10 @@ onMounted(() => {
         <p class="tecnm-page-subtitle">Seguimiento semanal del plan de trabajo de residencia profesional</p>
       </div>
       <button
-        v-if="!isAdvisor"
+        v-if="canAddActivity"
         id="addActivityBtn"
         type="button"
         class="tecnm-btn tecnm-btn-primary"
-        :disabled="!canAddActivity"
-        :title="isProjectReadOnly ? 'El cronograma está en modo solo lectura' : ''"
         @click="openAddModal"
       >
         + Nueva Actividad

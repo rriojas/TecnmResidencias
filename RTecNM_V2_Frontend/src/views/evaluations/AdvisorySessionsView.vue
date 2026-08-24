@@ -511,11 +511,10 @@ onMounted(() => {
         </button>
         <span v-if="!isStudent" class="tecnm-page-actions-divider" aria-hidden="true"></span>
         <button
-          v-if="canRecordSession"
+          v-if="canRecordSession && currentProject?.id"
           id="openAdvisoryModalBtn"
           type="button"
           class="tecnm-btn tecnm-btn-primary"
-          :disabled="!currentProject?.id"
           @click="openCreateModal"
         >
           + Registrar Sesión de Asesoría
