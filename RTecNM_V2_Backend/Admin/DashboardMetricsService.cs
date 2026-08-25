@@ -13,20 +13,43 @@ public class DashboardMetricsService : IDashboardMetricsService
         _context = context;
     }
 
-    public async Task<Result<DashboardMetricsResponseDto>> GetDashboardMetricsAsync()
+    public async Task<Result<DashboardMetricsResponseDto>> GetDashboardMetricsAsync(long? careerId = null)
     {
-        var totalStudents = await _context.Students.CountAsync(s => s.IsActive);
-        var activeAdvisors = await _context.Advisors.CountAsync(a => a.IsActive);
-        var totalProjects = await _context.Projects.CountAsync(p => p.IsActive);
-        var approvedProjects = await _context.Projects.CountAsync(p => p.IsActive && p.Status == ProjectStatus.Approved);
-        var pendingProjects = await _context.Projects.CountAsync(p => p.IsActive && (p.Status == ProjectStatus.Pending || p.Status == ProjectStatus.Proposed || p.Status == ProjectStatus.UnderReview));
-        
-        // Count residencies that have a release letter
-        var completedResidencies = await _context.Evaluations
-            .Where(e => e.IsActive)
-            .GroupBy(e => e.ProjectId)
-            .Where(g => g.Average(e => e.Score) >= 70)
-            .CountAsync();
+        int totalStudents;
+        int activeAdvisors;
+        int totalProjects;
+        int approvedProjects;
+        int pendingProjects;
+        int completedResidencies;
+        int activeCompanies = await _context.Companies.CountAsync(c => c.IsActive);
+
+        if (careerId.HasValue && careerId.Value > 0)
+        {
+            var cid = careerId.Value;
+            totalStudents = await _context.Students.CountAsync(s => s.IsActive && s.CareerId == cid);
+            activeAdvisors = await _context.Advisors.CountAsync(a => a.IsActive && a.DepartmentId == cid);
+            totalProjects = await _context.Projects.CountAsync(p => p.IsActive && p.Student != null && p.Student.CareerId == cid);
+            approvedProjects = await _context.Projects.CountAsync(p => p.IsActive && p.Status == ProjectStatus.Approved && p.Student != null && p.Student.CareerId == cid);
+            pendingProjects = await _context.Projects.CountAsync(p => p.IsActive && (p.Status == ProjectStatus.Pending || p.Status == ProjectStatus.Proposed || p.Status == ProjectStatus.UnderReview) && p.Student != null && p.Student.CareerId == cid);
+            completedResidencies = await _context.Evaluations
+                .Where(e => e.IsActive && e.Project != null && e.Project.Student != null && e.Project.Student.CareerId == cid)
+                .GroupBy(e => e.ProjectId)
+                .Where(g => g.Average(e => e.Score) >= 70)
+                .CountAsync();
+        }
+        else
+        {
+            totalStudents = await _context.Students.CountAsync(s => s.IsActive);
+            activeAdvisors = await _context.Advisors.CountAsync(a => a.IsActive);
+            totalProjects = await _context.Projects.CountAsync(p => p.IsActive);
+            approvedProjects = await _context.Projects.CountAsync(p => p.IsActive && p.Status == ProjectStatus.Approved);
+            pendingProjects = await _context.Projects.CountAsync(p => p.IsActive && (p.Status == ProjectStatus.Pending || p.Status == ProjectStatus.Proposed || p.Status == ProjectStatus.UnderReview));
+            completedResidencies = await _context.Evaluations
+                .Where(e => e.IsActive)
+                .GroupBy(e => e.ProjectId)
+                .Where(g => g.Average(e => e.Score) >= 70)
+                .CountAsync();
+        }
 
         var metrics = new DashboardMetricsResponseDto(
             totalStudents,
@@ -34,9 +57,11 @@ public class DashboardMetricsService : IDashboardMetricsService
             totalProjects,
             approvedProjects,
             pendingProjects,
-            completedResidencies
+            completedResidencies,
+            activeCompanies
         );
 
         return Result<DashboardMetricsResponseDto>.Success(metrics);
     }
 }
+

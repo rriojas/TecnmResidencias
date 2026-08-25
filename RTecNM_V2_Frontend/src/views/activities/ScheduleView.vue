@@ -227,12 +227,6 @@ function getStatusClass(status) {
   return 'pending'
 }
 
-function getStatusSymbol(status) {
-  const s = String(status || '').toLowerCase()
-  if (s === 'completed' || s === 'completado') return '✓'
-  if (s === 'in_progress' || s === 'en_proceso' || s === 'en_progreso') return '•'
-  return ''
-}
 
 function getStatusLabelSpanish(status) {
   const s = String(status || '').toLowerCase()
@@ -375,19 +369,19 @@ onMounted(() => {
     <!-- Banner Contextual según Estado del Proyecto (Solo para Estudiante) -->
     <template v-if="isStudent">
       <div v-if="isProjectCompleted" class="tecnm-alert tecnm-alert-success" role="alert" style="margin-bottom: 1rem;">
-        <span><strong>✓ Residencia Profesional Concluida y Acreditada:</strong> El cronograma se encuentra en modo histórico de solo lectura.</span>
+        <span><strong>Residencia Profesional Concluida y Acreditada:</strong> El cronograma se encuentra en modo histórico de solo lectura.</span>
       </div>
       <div v-else-if="isProjectPending" class="tecnm-alert tecnm-alert-warning" role="alert" style="margin-bottom: 1rem;">
-        <span><strong>⏳ Anteproyecto en Dictamen:</strong> Tu solicitud se encuentra en revisión por la Academia/División. Una vez dictaminada favorablemente, podrás capturar actividades.</span>
+        <span><strong>Anteproyecto en Dictamen:</strong> Tu solicitud se encuentra en revisión por la Academia/División. Una vez dictaminada favorablemente, podrás capturar actividades.</span>
       </div>
       <div v-else-if="isProjectDraft" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
-        <span><strong>📝 Anteproyecto en Borrador:</strong> Envía tu solicitud a revisión en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link> para habilitar tu cronograma.</span>
+        <span><strong>Anteproyecto en Borrador:</strong> Envía tu solicitud a revisión en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link> para habilitar tu cronograma.</span>
       </div>
       <div v-else-if="isProjectRejected" class="tecnm-alert tecnm-alert-danger" role="alert" style="margin-bottom: 1rem;">
-        <span><strong>⚠️ Anteproyecto con Observaciones:</strong> Realiza las correcciones solicitadas en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
+        <span><strong>Anteproyecto con Observaciones:</strong> Realiza las correcciones solicitadas en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
       </div>
       <div v-else-if="!currentProject && !isLoading" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-        <span><strong>ℹ️ Sin Anteproyecto Registrado:</strong> Aún no cuentas con un anteproyecto registrado en el sistema.</span>
+        <span><strong>Sin Anteproyecto Registrado:</strong> Aún no cuentas con un anteproyecto registrado en el sistema.</span>
         <router-link to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm">
           + Registrar Solicitud de Anteproyecto
         </router-link>
@@ -496,7 +490,7 @@ onMounted(() => {
                 <td><strong>{{ act.activityNumber }}</strong></td>
                 <td class="act-title-col">{{ act.title }}</td>
                 <td
-                  v-for="w in 26"
+                  v-for="w in TOTAL_WEEKS"
                   :key="w"
                   class="week-cell"
                   :class="getStatusClass(getWeekProgress(act, w).status)"
@@ -506,7 +500,10 @@ onMounted(() => {
                   :title="isProjectReadOnly ? `Actividad: ${act.title} - Semana ${w} (${getStatusLabelSpanish(getWeekProgress(act, w).status)})` : `Actividad: ${act.title} - Semana ${w} (${getStatusLabelSpanish(getWeekProgress(act, w).status)}) - Haga clic para cambiar`"
                   @click="cycleWeekStatus(act, w)"
                 >
-                  {{ getStatusSymbol(getWeekProgress(act, w).status) }}
+                  <svg v-if="getStatusClass(getWeekProgress(act, w).status) === 'completed'" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" style="display: block; margin: auto;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                  <span v-else-if="getStatusClass(getWeekProgress(act, w).status) === 'in_progress'" style="display: block; width: 6px; height: 6px; border-radius: 50%; background-color: currentColor; margin: auto;"></span>
                 </td>
               </tr>
             </tbody>

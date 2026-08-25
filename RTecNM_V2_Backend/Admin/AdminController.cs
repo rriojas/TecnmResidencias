@@ -21,9 +21,9 @@ public class AdminController : ControllerBase
     }
 
     [HttpGet("dashboard")]
-    public async Task<IActionResult> GetDashboard()
+    public async Task<IActionResult> GetDashboard([FromQuery] long? careerId = null)
     {
-        var result = await _metricsService.GetDashboardMetricsAsync();
+        var result = await _metricsService.GetDashboardMetricsAsync(careerId);
         return Ok(result.Data);
     }
 

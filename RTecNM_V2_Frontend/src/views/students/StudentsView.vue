@@ -1002,7 +1002,7 @@ onMounted(() => {
     >
       <div class="modal-card" style="max-width: 600px;">
         <div class="tecnm-modal-header">
-          <h3 class="tecnm-modal-title">📊 Carga Masiva de Estudiantes vía Excel</h3>
+          <h3 class="tecnm-modal-title">Carga Masiva de Estudiantes vía Excel</h3>
           <button
             type="button"
             class="tecnm-modal-close"

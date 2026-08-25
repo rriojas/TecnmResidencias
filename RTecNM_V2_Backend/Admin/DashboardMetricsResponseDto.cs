@@ -6,5 +6,6 @@ public record DashboardMetricsResponseDto(
     int TotalProjects,
     int ApprovedProjects,
     int PendingProjects,
-    int CompletedResidencies
+    int CompletedResidencies,
+    int ActiveCompanies = 0
 );

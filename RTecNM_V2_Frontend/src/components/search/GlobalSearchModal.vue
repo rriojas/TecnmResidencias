@@ -300,7 +300,7 @@ onUnmounted(() => {
               :disabled="!selectedRow"
               @click="handleAccept"
             >
-              Aceptar ✓
+              Aceptar
             </button>
 
             <!-- Menu desplegable de Columnas -->
