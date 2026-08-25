@@ -28,6 +28,7 @@ public class AdminController : ControllerBase
     }
 
     [HttpGet("reports/releasable")]
+    [Authorize(Roles = "admin,departmenthead,director")]
     public async Task<IActionResult> GetReleasableProjects([FromQuery] PaginationQuery query)
     {
         var result = await _reportService.GetReleasableProjectsAsync(query);
@@ -38,6 +39,7 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost("reports/release-letter/{projectId:long}")]
+    [Authorize(Roles = "admin,departmenthead,director")]
     public async Task<IActionResult> IssueReleaseLetter(long projectId)
     {
         var result = await _reportService.IssueReleaseLetterAsync(projectId);

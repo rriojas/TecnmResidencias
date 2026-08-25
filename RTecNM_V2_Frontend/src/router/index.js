@@ -50,6 +50,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Asesores - Sistema de Residencias',
+      roles: ['admin', 'vinculacion', 'departmenthead', 'academic', 'director'],
       permission: 'advisors.manage',
       navActive: 'advisors',
     },
@@ -84,6 +85,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Solicitud de Anteproyecto - Sistema de Residencias',
+      roles: ['admin', 'vinculacion', 'departmenthead', 'advisor', 'director', 'student'],
       permission: 'projects.proposals',
       navActive: 'proposal',
     },
@@ -95,6 +97,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Dictamen de División - Sistema de Residencias',
+      roles: ['admin', 'vinculacion', 'departmenthead', 'advisor', 'director'],
       permission: 'projects.review',
       navActive: 'review',
     },
@@ -150,6 +153,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Reportes y Liberación - Sistema de Residencias',
+      roles: ['admin', 'departmenthead', 'director'],
       permission: 'admin.reports',
       navActive: 'reports',
     },

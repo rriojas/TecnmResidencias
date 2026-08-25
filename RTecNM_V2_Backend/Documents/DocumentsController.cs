@@ -47,13 +47,16 @@ public class DocumentsController : ControllerBase
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> Upload([FromForm] UploadDocumentDto dto)
     {
+        if (User.IsInRole("vinculacion"))
+            return StatusCode(403, new { message = "El rol Vinculación sólo tiene acceso de lectura al expediente digital." });
+
         var denied = await EnsureProjectAccessAsync(dto.ProjectId);
         if (denied is not null) return denied;
 
         var projectResult = await _projectService.GetProjectByIdAsync(dto.ProjectId);
         if (projectResult.IsSuccess && projectResult.Data != null)
         {
-            var isStaff = User.IsInRole("admin") || User.IsInRole("departmenthead") || User.IsInRole("director") || User.IsInRole("academic") || User.IsInRole("vinculacion");
+            var isStaff = User.IsInRole("admin") || User.IsInRole("departmenthead") || User.IsInRole("director") || User.IsInRole("academic");
             if (projectResult.Data.IsCompleted && !isStaff)
                 return StatusCode(400, new { message = "El proyecto de residencia se encuentra concluido. No se permiten nuevas cargas al expediente digital." });
             if (!projectResult.Data.CanUploadDocuments && !isStaff)
@@ -145,7 +148,7 @@ public class DocumentsController : ControllerBase
     /// Desactivación lógica (Soft Delete)
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico")]
     public async Task<IActionResult> SoftDelete(long id)
     {
         var success = await _documentService.SoftDeleteAsync(id);
@@ -160,7 +163,7 @@ public class DocumentsController : ControllerBase
     /// Reactivación de documento desactivado
     /// </summary>
     [HttpPatch("{id}/activate")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico")]
     public async Task<IActionResult> Activate(long id)
     {
         var success = await _documentService.ActivateAsync(id);

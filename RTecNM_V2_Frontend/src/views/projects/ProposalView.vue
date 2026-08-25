@@ -81,7 +81,7 @@ const isStaff = computed(() => {
 })
 
 function canCancelProposal(proposal) {
-  if (!proposal || authStore.isReadOnly) return false
+  if (!proposal || authStore.isReadOnly || authStore.hasRole('vinculacion')) return false
   const st = String(proposal.status || '').toLowerCase()
   if (!proposal.isActive || st === 'cancelled' || st === 'completed') return false
   if (isStaff.value) return true
@@ -106,7 +106,7 @@ const activeProposal = computed(() => {
 })
 
 const canCreateProposal = computed(() => {
-  if (authStore.isReadOnly) return false
+  if (authStore.isReadOnly || authStore.hasRole('vinculacion')) return false
   if (isStaff.value) return true
   return !activeProposal.value && hasAdvisor.value
 })
@@ -567,7 +567,7 @@ onMounted(() => {
                       Ver detalle
                     </button>
                     <button
-                      v-if="!authStore.isReadOnly && (isStaff ? !['completed', 'cancelled'].includes((p.status||'').toLowerCase()) : DRAFT_STATUSES.includes((p.status||'').toLowerCase()))"
+                      v-if="!authStore.isReadOnly && !authStore.hasRole('vinculacion') && (isStaff ? !['completed', 'cancelled'].includes((p.status||'').toLowerCase()) : DRAFT_STATUSES.includes((p.status||'').toLowerCase()))"
                       type="button"
                       class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                       @click="openEditModal(p)"
@@ -575,7 +575,7 @@ onMounted(() => {
                       {{ isStaff ? 'Editar' : 'Editar borrador' }}
                     </button>
                     <button
-                      v-if="!authStore.isReadOnly && ['draft', 'rejected'].includes((p.status||'').toLowerCase())"
+                      v-if="!authStore.isReadOnly && !authStore.hasRole('vinculacion') && ['draft', 'rejected'].includes((p.status||'').toLowerCase())"
                       type="button"
                       class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
                       @click="submitProposal(p)"
@@ -607,7 +607,7 @@ onMounted(() => {
                       Cancelar solicitud
                     </button>
                     <button
-                      v-if="(!p.isActive || (p.status||'').toLowerCase() === 'cancelled') && authStore.canManageRegistry && !authStore.isReadOnly"
+                      v-if="(!p.isActive || (p.status||'').toLowerCase() === 'cancelled') && authStore.canManageRegistry && !authStore.isReadOnly && !authStore.hasRole('vinculacion')"
                       type="button"
                       class="tecnm-btn tecnm-btn-success tecnm-btn-sm"
                       @click="reactivateProposal(p)"

@@ -58,7 +58,7 @@ function isDictaminable(status) {
 function getActionLabel(project) {
   if (!project) return 'Ver Detalle'
   const st = (project.status || '').toLowerCase()
-  if (!authStore.isReadOnly && isDictaminable(st)) {
+  if (!authStore.isReadOnly && !authStore.hasRole('vinculacion') && isDictaminable(st)) {
     return 'Revisar y Dictaminar'
   }
   if (st === 'rejected' || st === 'rechazado') {
@@ -699,7 +699,7 @@ onMounted(() => {
         <div class="tecnm-modal-footer">
           <!-- Botón de Soft Delete (solo admin/jefatura y si no es read-only) -->
           <button
-            v-if="authStore.canManageRegistry && !authStore.isReadOnly"
+            v-if="authStore.canManageRegistry && !authStore.isReadOnly && !authStore.hasRole('vinculacion')"
             id="modalSoftDeleteBtn"
             type="button"
             class="tecnm-btn tecnm-btn-danger"
@@ -729,7 +729,7 @@ onMounted(() => {
           </router-link>
 
           <!-- Botones de Dictamen solo si está Pendiente/En Revisión y usuario tiene permisos operativos -->
-          <template v-if="isDictaminable(selectedProject.status) && !authStore.isReadOnly">
+          <template v-if="isDictaminable(selectedProject.status) && !authStore.isReadOnly && !authStore.hasRole('vinculacion')">
             <button
               id="rejectBtn"
               type="button"

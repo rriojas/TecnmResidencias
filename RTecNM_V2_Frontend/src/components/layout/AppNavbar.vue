@@ -137,8 +137,8 @@ const showEvaluacionGroup = computed(() =>
 )
 
 const showReports = computed(() =>
-  authStore.isAdmin ||
-  authStore.hasPermission('admin.reports')
+  !authStore.hasRole('vinculacion') &&
+  (authStore.isAdmin || authStore.hasPermission('admin.reports'))
 )
 
 const showRoles = computed(() => authStore.isAdmin)

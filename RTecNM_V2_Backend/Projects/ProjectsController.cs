@@ -22,6 +22,9 @@ public class ProjectsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateProjectDto dto)
     {
+        if (_currentUser.IsInRole(UserRole.Vinculacion))
+            return StatusCode(403, new { message = "El rol Vinculación no tiene permisos para crear anteproyectos." });
+
         var result = await _projectService.CreateProjectAsync(dto);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
@@ -117,6 +120,9 @@ public class ProjectsController : ControllerBase
     [RequirePermission("projects.review")]
     public async Task<IActionResult> UpdateStatus(long id, [FromBody] UpdateProjectStatusDto dto)
     {
+        if (_currentUser.IsInRole(UserRole.Vinculacion))
+            return StatusCode(403, new { message = "El rol Vinculación no tiene permisos para dictaminar anteproyectos." });
+
         var result = await _projectService.UpdateStatusAsync(id, dto);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
@@ -127,6 +133,9 @@ public class ProjectsController : ControllerBase
     [HttpPut("{id:long}")]
     public async Task<IActionResult> Update(long id, [FromBody] UpdateProjectDto dto)
     {
+        if (_currentUser.IsInRole(UserRole.Vinculacion))
+            return StatusCode(403, new { message = "El rol Vinculación no tiene permisos para modificar anteproyectos." });
+
         var result = await _projectService.UpdateProjectAsync(id, dto);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
@@ -137,6 +146,9 @@ public class ProjectsController : ControllerBase
     [HttpPatch("{id:long}/submit")]
     public async Task<IActionResult> Submit(long id)
     {
+        if (_currentUser.IsInRole(UserRole.Vinculacion))
+            return StatusCode(403, new { message = "El rol Vinculación no tiene permisos para enviar anteproyectos a revisión." });
+
         var result = await _projectService.SendToReviewAsync(id);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
@@ -157,6 +169,9 @@ public class ProjectsController : ControllerBase
     [HttpPatch("{id:long}/cancel")]
     public async Task<IActionResult> Cancel(long id)
     {
+        if (_currentUser.IsInRole(UserRole.Vinculacion))
+            return StatusCode(403, new { message = "El rol Vinculación no tiene permisos para cancelar anteproyectos." });
+
         var result = await _projectService.CancelProjectAsync(id);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });

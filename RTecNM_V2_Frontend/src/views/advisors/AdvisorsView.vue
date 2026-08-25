@@ -61,10 +61,11 @@ const form = ref({
 const selectedUserInitial = ref(null)
 
 const canCreate = computed(() => {
+  if (authStore.hasRole('vinculacion')) return false
   return (
     authStore.isAdmin ||
     authStore.hasPermission('advisors.manage') ||
-    authStore.hasRole('admin', 'vinculacion', 'departmenthead', 'academic')
+    authStore.hasRole('admin', 'departmenthead', 'academic')
   )
 })
 

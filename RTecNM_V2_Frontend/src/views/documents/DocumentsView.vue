@@ -61,6 +61,7 @@ const isProjectReadOnly = computed(() => {
 })
 
 const canUploadDocument = computed(() => {
+  if (authStore.hasRole('vinculacion')) return false
   if (isStaff.value) return true
   if (isAdvisor.value) return false
   if (!currentProject.value?.id) return false
@@ -787,7 +788,7 @@ onMounted(() => {
                       Auditoría
                     </button>
                     <button
-                      v-if="isStaff"
+                      v-if="isStaff && !authStore.hasRole('vinculacion')"
                       type="button"
                       class="tecnm-btn tecnm-btn-danger tecnm-btn-sm"
                       @click="handleDeleteDocument(doc)"
