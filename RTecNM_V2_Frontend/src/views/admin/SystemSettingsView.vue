@@ -29,12 +29,12 @@ function showAlert(msg, type = 'success') {
 const smtpForm = ref({
   host: 'smtp.gmail.com',
   port: 587,
-  senderName: 'TecNM Residencias Monclova',
-  senderEmail: 'residencias@monclova.tecnm.mx',
+  senderName: 'TecNM Residencias',
+  senderEmail: '',
   username: '',
   password: '',
   enableSsl: true,
-  useMockInDev: false
+  useMockInDev: true
 })
 
 const isLoadingSmtp = ref(false)
