@@ -309,15 +309,17 @@ public class RoleService : IRoleService
                 advisorFullName = $"{dto.FirstName} {dto.LastName}".Trim();
             }
 
-            if (baseUserRole == UserRole.Student || !string.IsNullOrWhiteSpace(dto.ControlNumber) || !string.IsNullOrWhiteSpace(dto.FirstName))
+            if (baseUserRole == UserRole.Student)
             {
                 await _roleRepository.EnsureStudentProfileAsync(created.Id, created.Email, dto.ControlNumber, dto.FirstName, dto.LastName, dto.LastName2, dto.Curp, dto.Gender, dto.CareerId, dto.AcademicPeriodId, _currentUser.UserId, _currentUser.UserId);
             }
 
-            if (baseUserRole == UserRole.Advisor || !string.IsNullOrWhiteSpace(dto.Phone) || !string.IsNullOrWhiteSpace(advisorFullName) || !string.IsNullOrWhiteSpace(dto.Title))
+            if (baseUserRole == UserRole.Advisor || baseUserRole == UserRole.Academic)
             {
                 await _roleRepository.EnsureAdvisorProfileAsync(created.Id, created.Email, advisorFullName, dto.Title, dto.DepartmentId, dto.Phone, dto.AdvisorType, _currentUser.UserId, _currentUser.UserId);
             }
+
+            await _roleRepository.CleanupProfilesForUserAsync(created.Id, baseUserRole);
 
             var responseDto = MapUserToDto(created);
             var createdStudent = await _roleRepository.GetStudentByUserIdAsync(created.Id);
@@ -409,15 +411,17 @@ public class RoleService : IRoleService
                 advisorFullName = $"{dto.FirstName} {dto.LastName}".Trim();
             }
 
-            if (updated.Role == UserRole.Student || !string.IsNullOrWhiteSpace(dto.ControlNumber) || !string.IsNullOrWhiteSpace(dto.FirstName))
+            if (updated.Role == UserRole.Student)
             {
                 await _roleRepository.EnsureStudentProfileAsync(updated.Id, updated.Email, dto.ControlNumber, dto.FirstName, dto.LastName, dto.LastName2, dto.Curp, dto.Gender, dto.CareerId, dto.AcademicPeriodId, _currentUser.UserId, _currentUser.UserId);
             }
 
-            if (updated.Role == UserRole.Advisor || !string.IsNullOrWhiteSpace(dto.Phone) || !string.IsNullOrWhiteSpace(advisorFullName) || !string.IsNullOrWhiteSpace(dto.Title))
+            if (updated.Role == UserRole.Advisor || updated.Role == UserRole.Academic)
             {
                 await _roleRepository.EnsureAdvisorProfileAsync(updated.Id, updated.Email, advisorFullName, dto.Title, dto.DepartmentId, dto.Phone, dto.AdvisorType, _currentUser.UserId, _currentUser.UserId);
             }
+
+            await _roleRepository.CleanupProfilesForUserAsync(updated.Id, updated.Role);
 
             var responseDto = MapUserToDto(updated);
             var updatedStudent = await _roleRepository.GetStudentByUserIdAsync(updated.Id);

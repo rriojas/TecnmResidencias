@@ -464,4 +464,26 @@ public class RoleRepository : IRoleRepository
         }
         await _context.SaveChangesAsync();
     }
+
+    public async Task CleanupProfilesForUserAsync(long userId, UserRole role)
+    {
+        if (role != UserRole.Advisor && role != UserRole.Academic)
+        {
+            var advisors = await _context.Advisors.Where(a => a.UserId == userId).ToListAsync();
+            if (advisors.Any())
+            {
+                _context.Advisors.RemoveRange(advisors);
+            }
+        }
+
+        if (role != UserRole.Student)
+        {
+            var students = await _context.Students.Where(s => s.UserId == userId).ToListAsync();
+            if (students.Any())
+            {
+                _context.Students.RemoveRange(students);
+            }
+        }
+        await _context.SaveChangesAsync();
+    }
 }

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
 
 namespace TecNM.Residency.Students;
@@ -14,7 +15,8 @@ public class StudentRepository : IStudentRepository
 
     public async Task<PaginatedResult<Student>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
     {
-        IQueryable<Student> q = _context.Students.Include(s => s.User).Include(s => s.Advisor);
+        IQueryable<Student> q = _context.Students.Include(s => s.User).Include(s => s.Advisor)
+            .Where(s => s.User == null || s.User.Role == UserRole.Student);
 
         if (status == "active")
             q = q.Where(s => s.IsActive);
@@ -41,7 +43,8 @@ public class StudentRepository : IStudentRepository
 
     public async Task<List<Student>> GetAllForExportAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false)
     {
-        IQueryable<Student> q = _context.Students.Include(s => s.User).AsNoTracking();
+        IQueryable<Student> q = _context.Students.Include(s => s.User).AsNoTracking()
+            .Where(s => s.User == null || s.User.Role == UserRole.Student);
 
         if (!includeInactive)
             q = q.Where(s => s.IsActive);
@@ -65,7 +68,9 @@ public class StudentRepository : IStudentRepository
     public async Task<List<Student>> GetOptionsAsync()
     {
         return await _context.Students
+            .Include(s => s.User)
             .AsNoTracking()
+            .Where(s => s.User == null || s.User.Role == UserRole.Student)
             .OrderBy(s => s.LastName)
             .ThenBy(s => s.FirstName)
             .ToListAsync();
@@ -76,7 +81,7 @@ public class StudentRepository : IStudentRepository
         return await _context.Students
             .Include(s => s.User)
             .Include(s => s.Advisor)
-            .FirstOrDefaultAsync(s => s.Id == id);
+            .FirstOrDefaultAsync(s => s.Id == id && (s.User == null || s.User.Role == UserRole.Student));
     }
 
     public async Task<Student?> GetByControlNumberAsync(string controlNumber)
@@ -84,7 +89,7 @@ public class StudentRepository : IStudentRepository
         var clean = (controlNumber ?? "").Trim().ToUpperInvariant();
         return await _context.Students
             .Include(s => s.User)
-            .FirstOrDefaultAsync(s => s.ControlNumber.ToUpper() == clean);
+            .FirstOrDefaultAsync(s => s.ControlNumber.ToUpper() == clean && (s.User == null || s.User.Role == UserRole.Student));
     }
 
     public async Task<Student?> GetByUserIdAsync(long userId)
@@ -92,7 +97,7 @@ public class StudentRepository : IStudentRepository
         return await _context.Students
             .Include(s => s.User)
             .Include(s => s.Advisor)
-            .FirstOrDefaultAsync(s => s.UserId == userId);
+            .FirstOrDefaultAsync(s => s.UserId == userId && (s.User == null || s.User.Role == UserRole.Student));
     }
 
     public async Task<Student> AddAsync(Student student)

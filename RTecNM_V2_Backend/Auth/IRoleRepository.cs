@@ -30,4 +30,5 @@ public interface IRoleRepository
     Task<List<User>> GetAllUsersForExportAsync(string? search, string? roleFilter, string? sortBy, string? sortDir, bool includeInactive = false);
     Task EnsureStudentProfileAsync(long userId, string email, string? controlNum, string? firstName, string? lastName, string? lastName2, string? curp, string? gender, long? careerId, int? academicPeriodId, long? createdByUserId, long? updatedByUserId);
     Task EnsureAdvisorProfileAsync(long userId, string email, string? fullName, string? title, long? departmentId, string? phone, int? advisorType, long? createdByUserId, long? updatedByUserId);
+    Task CleanupProfilesForUserAsync(long userId, UserRole role);
 }

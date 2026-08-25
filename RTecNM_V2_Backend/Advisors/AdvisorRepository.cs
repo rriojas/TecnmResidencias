@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
 
 namespace TecNM.Residency.Advisors;
@@ -14,7 +15,8 @@ public class AdvisorRepository : IAdvisorRepository
 
     public async Task<PaginatedResult<Advisor>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
     {
-        IQueryable<Advisor> q = _context.Advisors.AsNoTracking();
+        IQueryable<Advisor> q = _context.Advisors.Include(a => a.User).AsNoTracking()
+            .Where(a => a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic);
 
         if (status == "active")
             q = q.Where(a => a.IsActive);
@@ -40,7 +42,8 @@ public class AdvisorRepository : IAdvisorRepository
 
     public async Task<List<Advisor>> GetAllForExportAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false)
     {
-        IQueryable<Advisor> q = _context.Advisors.AsNoTracking();
+        IQueryable<Advisor> q = _context.Advisors.Include(a => a.User).AsNoTracking()
+            .Where(a => a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic);
 
         if (!includeInactive)
             q = q.Where(a => a.IsActive);
@@ -63,7 +66,9 @@ public class AdvisorRepository : IAdvisorRepository
     public async Task<List<Advisor>> GetOptionsAsync()
     {
         return await _context.Advisors
+            .Include(a => a.User)
             .AsNoTracking()
+            .Where(a => a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic)
             .OrderBy(a => a.FullName)
             .ToListAsync();
     }
@@ -71,13 +76,15 @@ public class AdvisorRepository : IAdvisorRepository
     public async Task<Advisor?> GetByIdAsync(long id)
     {
         return await _context.Advisors
-            .FirstOrDefaultAsync(a => a.Id == id);
+            .Include(a => a.User)
+            .FirstOrDefaultAsync(a => a.Id == id && (a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic));
     }
 
     public async Task<Advisor?> GetByUserIdAsync(long userId)
     {
         return await _context.Advisors
-            .FirstOrDefaultAsync(a => a.UserId == userId);
+            .Include(a => a.User)
+            .FirstOrDefaultAsync(a => a.UserId == userId && (a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic));
     }
 
     public async Task<Advisor> AddAsync(Advisor advisor)
