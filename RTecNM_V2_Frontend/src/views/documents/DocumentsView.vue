@@ -606,25 +606,27 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Banner Contextual según Estado del Proyecto -->
-    <div v-if="isProjectCompleted" class="tecnm-alert tecnm-alert-success" role="alert" style="margin-bottom: 1rem;">
-      <span><strong>✓ Expediente Digital Concluido:</strong> Este proyecto de residencia profesional ha sido finalizado. Puedes consultar y descargar todos los documentos y evidencias registradas.</span>
-    </div>
-    <div v-else-if="isProjectPending" class="tecnm-alert tecnm-alert-warning" role="alert" style="margin-bottom: 1rem;">
-      <span><strong>⏳ Anteproyecto en Dictamen:</strong> Tu solicitud se encuentra en revisión. La carga de formatos oficiales se habilitará tras la aprobación.</span>
-    </div>
-    <div v-else-if="isProjectDraft" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
-      <span><strong>📝 Anteproyecto en Borrador:</strong> Envía tu solicitud a revisión en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
-    </div>
-    <div v-else-if="isProjectRejected" class="tecnm-alert tecnm-alert-danger" role="alert" style="margin-bottom: 1rem;">
-      <span><strong>⚠️ Anteproyecto con Observaciones:</strong> Realiza las correcciones solicitadas en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
-    </div>
-    <div v-else-if="!currentProject && !isLoading && isStudent" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-      <span><strong>ℹ️ Sin Anteproyecto Registrado:</strong> Aún no cuentas con un anteproyecto para consultar el expediente digital.</span>
-      <router-link to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm">
-        + Registrar Solicitud de Anteproyecto
-      </router-link>
-    </div>
+    <!-- Banner Contextual según Estado del Proyecto (Solo para Estudiante) -->
+    <template v-if="isStudent">
+      <div v-if="isProjectCompleted" class="tecnm-alert tecnm-alert-success" role="alert" style="margin-bottom: 1rem;">
+        <span><strong>✓ Expediente Digital Concluido:</strong> Este proyecto de residencia profesional ha sido finalizado. Puedes consultar y descargar todos los documentos y evidencias registradas.</span>
+      </div>
+      <div v-else-if="isProjectPending" class="tecnm-alert tecnm-alert-warning" role="alert" style="margin-bottom: 1rem;">
+        <span><strong>⏳ Anteproyecto en Dictamen:</strong> Tu solicitud se encuentra en revisión. La carga de formatos oficiales se habilitará tras la aprobación.</span>
+      </div>
+      <div v-else-if="isProjectDraft" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
+        <span><strong>📝 Anteproyecto en Borrador:</strong> Envía tu solicitud a revisión en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
+      </div>
+      <div v-else-if="isProjectRejected" class="tecnm-alert tecnm-alert-danger" role="alert" style="margin-bottom: 1rem;">
+        <span><strong>⚠️ Anteproyecto con Observaciones:</strong> Realiza las correcciones solicitadas en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
+      </div>
+      <div v-else-if="!currentProject && !isLoading" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <span><strong>ℹ️ Sin Anteproyecto Registrado:</strong> Aún no cuentas con un anteproyecto para consultar el expediente digital.</span>
+        <router-link to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm">
+          + Registrar Solicitud de Anteproyecto
+        </router-link>
+      </div>
+    </template>
 
     <!-- Tarjeta Principal con Lista de Documentos -->
     <div class="tecnm-card">

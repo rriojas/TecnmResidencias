@@ -73,10 +73,26 @@ const selectedProject = ref(null)
 const reviewComments = ref('')
 const isSubmitting = ref(false)
 
+// Catálogo de Carreras
+const CAREERS = {
+  1: 'Ing. en Sistemas Computacionales',
+  2: 'Ing. Industrial',
+  3: 'Ing. Mecatrónica',
+  4: 'Ing. en Gestión Empresarial',
+  5: 'Ing. Electrónica',
+  6: 'Ing. Informática',
+}
+
+const selectedCareerFilter = ref('all')
 const searchTerm = ref('')
 
 const sortedProjects = computed(() => {
   let list = [...projects.value]
+
+  if (selectedCareerFilter.value !== 'all') {
+    const cid = Number(selectedCareerFilter.value)
+    list = list.filter((p) => Number(p.careerId) === cid)
+  }
 
   if (searchTerm.value.trim()) {
     const term = searchTerm.value.trim().toLowerCase()
@@ -85,7 +101,8 @@ const sortedProjects = computed(() => {
       const student = (p.studentName || '').toLowerCase()
       const control = (p.studentControlNumber || '').toLowerCase()
       const company = (p.companyName || '').toLowerCase()
-      return title.includes(term) || student.includes(term) || control.includes(term) || company.includes(term)
+      const career = (CAREERS[p.careerId] || p.career || '').toLowerCase()
+      return title.includes(term) || student.includes(term) || control.includes(term) || company.includes(term) || career.includes(term)
     })
   }
 
@@ -355,14 +372,29 @@ onMounted(() => {
         <h3 class="tecnm-card-title">Lista de Anteproyectos</h3>
       </div>
       <div class="tecnm-card-toolbar">
-        <div class="tecnm-form-group tecnm-mb-0 tecnm-search-box" style="margin-bottom: 0; min-width: 300px;">
+        <div class="tecnm-form-group tecnm-mb-0 tecnm-search-box" style="margin-bottom: 0; min-width: 260px;">
           <input
             id="reviewSearchInput"
             v-model="searchTerm"
             type="search"
             class="tecnm-form-control"
-            placeholder="Buscar por título, alumno, matrícula o empresa..."
+            placeholder="Buscar por título, alumno, matrícula..."
           />
+        </div>
+
+        <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <label for="reviewCareerFilter" class="tecnm-field-label" style="margin-bottom: 0; white-space: nowrap; font-size: 0.85rem;">Carrera:</label>
+          <select
+            id="reviewCareerFilter"
+            v-model="selectedCareerFilter"
+            class="tecnm-form-control"
+            style="min-width: 220px; font-size: 0.85rem;"
+          >
+            <option value="all">Todas las Carreras</option>
+            <option v-for="(name, id) in CAREERS" :key="id" :value="id">
+              {{ name }}
+            </option>
+          </select>
         </div>
 
         <div class="tecnm-toolbar-actions">
@@ -407,7 +439,7 @@ onMounted(() => {
                   class="tecnm-th-sortable"
                   @click="toggleSort('StudentName')"
                 >
-                  Estudiante
+                  Estudiante y Carrera
                   <span class="tecnm-sort-icon" :class="{ active: sortBy === 'StudentName' }">
                     {{ sortBy === 'StudentName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
@@ -451,7 +483,7 @@ onMounted(() => {
               <tr v-else-if="sortedProjects.length === 0">
                 <td colspan="6" class="tecnm-table-empty">
                   <span v-if="includeInactive">No hay anteproyectos inactivos (deshabilitados) registrados.</span>
-                  <span v-else>No hay anteproyectos que coincidan con el filtro.</span>
+                  <span v-else>No hay anteproyectos que coincidan con los filtros seleccionados.</span>
                 </td>
               </tr>
               <tr
@@ -460,7 +492,12 @@ onMounted(() => {
                 :key="p.id"
               >
                 <td><strong>{{ p.title }}</strong></td>
-                <td>{{ p.studentName || '—' }}</td>
+                <td>
+                  <div>{{ p.studentName || '—' }}</div>
+                  <small v-if="p.careerId || p.career" style="color: var(--tecnm-blue-primary, #1b396a); font-size: 0.75rem;">
+                    {{ CAREERS[p.careerId] || p.career }}
+                  </small>
+                </td>
                 <td>{{ p.companyName || '—' }}</td>
                 <td>{{ formatTecNMDate(p.createdAt) }}</td>
                 <td>
@@ -681,6 +718,15 @@ onMounted(() => {
           >
             Descargar PDF Oficial
           </button>
+
+          <!-- Asignar Asesor Interno directo si está aprobado -->
+          <router-link
+            v-if="PRINTABLE_STATUSES.includes((selectedProject.status || '').toLowerCase()) && (authStore.isAdmin || authStore.hasRole('departmenthead', 'academic'))"
+            to="/advisors/assignments"
+            class="tecnm-btn tecnm-btn-primary"
+          >
+            Asignar Asesor &rarr;
+          </router-link>
 
           <!-- Botones de Dictamen solo si está Pendiente/En Revisión y usuario tiene permisos operativos -->
           <template v-if="isDictaminable(selectedProject.status) && !authStore.isReadOnly">

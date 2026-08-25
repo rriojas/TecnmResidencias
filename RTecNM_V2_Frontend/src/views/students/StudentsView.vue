@@ -144,8 +144,25 @@ async function handleImportSubmit() {
   }
 }
 
+const CAREERS = {
+  1: 'Ing. en Sistemas Computacionales',
+  2: 'Ing. Industrial',
+  3: 'Ing. Mecatrónica',
+  4: 'Ing. en Gestión Empresarial',
+  5: 'Ing. Electrónica',
+  6: 'Ing. Informática',
+}
+
+const selectedCareerFilter = ref('all')
+
 const sortedStudents = computed(() => {
   let list = [...students.value]
+
+  if (selectedCareerFilter.value !== 'all') {
+    const cid = Number(selectedCareerFilter.value)
+    list = list.filter((s) => Number(s.careerId) === cid)
+  }
+
   const field = sortBy.value
   const dir = sortDir.value === 'asc' ? 1 : -1
 
@@ -160,8 +177,8 @@ const sortedStudents = computed(() => {
       valA = a.fullName || `${a.firstName} ${a.lastName}`
       valB = b.fullName || `${b.firstName} ${b.lastName}`
     } else if (field === 'CareerId') {
-      valA = a.career || a.careerId || ''
-      valB = b.career || b.careerId || ''
+      valA = CAREERS[a.careerId] || a.career || ''
+      valB = CAREERS[b.careerId] || b.career || ''
     } else if (field === 'Email') {
       valA = a.email || (a.user ? a.user.email : '')
       valB = b.email || (b.user ? b.user.email : '')
@@ -564,6 +581,21 @@ onMounted(() => {
       </div>
 
       <div class="tecnm-card-toolbar">
+        <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <label for="careerFilterSelect" class="tecnm-field-label" style="margin-bottom: 0; white-space: nowrap; font-size: 0.85rem;">Carrera:</label>
+          <select
+            id="careerFilterSelect"
+            v-model="selectedCareerFilter"
+            class="tecnm-form-control"
+            style="min-width: 230px; font-size: 0.85rem;"
+          >
+            <option value="all">Todas las Carreras</option>
+            <option v-for="(name, id) in CAREERS" :key="id" :value="id">
+              {{ name }}
+            </option>
+          </select>
+        </div>
+
         <div class="tecnm-toolbar-actions">
           <label class="tecnm-switch-label">
             <span class="tecnm-switch">
@@ -659,7 +691,7 @@ onMounted(() => {
               <tr v-else-if="sortedStudents.length === 0">
                 <td colspan="7" class="tecnm-table-empty">
                   <span v-if="includeInactive">No hay estudiantes inactivos (deshabilitados) registrados.</span>
-                  <span v-else>No se encontraron estudiantes activos registrados.</span>
+                  <span v-else>No se encontraron estudiantes activos registrados con los filtros seleccionados.</span>
                 </td>
               </tr>
               <tr
@@ -669,7 +701,7 @@ onMounted(() => {
               >
                 <td><strong>{{ s.controlNumber }}</strong></td>
                 <td>{{ s.fullName || `${s.firstName} ${s.lastName}` }}</td>
-                <td>{{ s.career || (s.careerId === 1 ? 'Informática' : s.careerId === 2 ? 'Industrial' : s.careerId === 3 ? 'Mecatrónica' : 'ISC') }}</td>
+                <td>{{ CAREERS[s.careerId] || s.career || 'No especificada' }}</td>
                 <td>{{ s.email }}</td>
                 <td>
                   <TecnmBadge :status="s.isPresentationLetterSent ? 'Aprobado' : 'Pendiente'" />

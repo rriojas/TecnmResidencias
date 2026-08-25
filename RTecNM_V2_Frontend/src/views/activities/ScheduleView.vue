@@ -372,25 +372,27 @@ onMounted(() => {
       </button>
     </div>
 
-    <!-- Banner Contextual según Estado del Proyecto -->
-    <div v-if="isProjectCompleted" class="tecnm-alert tecnm-alert-success" role="alert" style="margin-bottom: 1rem;">
-      <span><strong>✓ Residencia Profesional Concluida y Acreditada:</strong> El cronograma se encuentra en modo histórico de solo lectura.</span>
-    </div>
-    <div v-else-if="isProjectPending" class="tecnm-alert tecnm-alert-warning" role="alert" style="margin-bottom: 1rem;">
-      <span><strong>⏳ Anteproyecto en Dictamen:</strong> Tu solicitud se encuentra en revisión por la Academia/División. Una vez dictaminada favorablemente, podrás capturar actividades.</span>
-    </div>
-    <div v-else-if="isProjectDraft" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
-      <span><strong>📝 Anteproyecto en Borrador:</strong> Envía tu solicitud a revisión en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link> para habilitar tu cronograma.</span>
-    </div>
-    <div v-else-if="isProjectRejected" class="tecnm-alert tecnm-alert-danger" role="alert" style="margin-bottom: 1rem;">
-      <span><strong>⚠️ Anteproyecto con Observaciones:</strong> Realiza las correcciones solicitadas en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
-    </div>
-    <div v-else-if="!currentProject && !isLoading && isStudent" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-      <span><strong>ℹ️ Sin Anteproyecto Registrado:</strong> Aún no cuentas con un anteproyecto registrado en el sistema.</span>
-      <router-link to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm">
-        + Registrar Solicitud de Anteproyecto
-      </router-link>
-    </div>
+    <!-- Banner Contextual según Estado del Proyecto (Solo para Estudiante) -->
+    <template v-if="isStudent">
+      <div v-if="isProjectCompleted" class="tecnm-alert tecnm-alert-success" role="alert" style="margin-bottom: 1rem;">
+        <span><strong>✓ Residencia Profesional Concluida y Acreditada:</strong> El cronograma se encuentra en modo histórico de solo lectura.</span>
+      </div>
+      <div v-else-if="isProjectPending" class="tecnm-alert tecnm-alert-warning" role="alert" style="margin-bottom: 1rem;">
+        <span><strong>⏳ Anteproyecto en Dictamen:</strong> Tu solicitud se encuentra en revisión por la Academia/División. Una vez dictaminada favorablemente, podrás capturar actividades.</span>
+      </div>
+      <div v-else-if="isProjectDraft" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
+        <span><strong>📝 Anteproyecto en Borrador:</strong> Envía tu solicitud a revisión en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link> para habilitar tu cronograma.</span>
+      </div>
+      <div v-else-if="isProjectRejected" class="tecnm-alert tecnm-alert-danger" role="alert" style="margin-bottom: 1rem;">
+        <span><strong>⚠️ Anteproyecto con Observaciones:</strong> Realiza las correcciones solicitadas en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
+      </div>
+      <div v-else-if="!currentProject && !isLoading" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <span><strong>ℹ️ Sin Anteproyecto Registrado:</strong> Aún no cuentas con un anteproyecto registrado en el sistema.</span>
+        <router-link to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm">
+          + Registrar Solicitud de Anteproyecto
+        </router-link>
+      </div>
+    </template>
 
     <!-- Alert de Notificación Flotante Institucional -->
     <div
