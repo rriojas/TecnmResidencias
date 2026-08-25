@@ -4,5 +4,5 @@ namespace TecNM.Residency.Admin;
 
 public interface IDashboardMetricsService
 {
-    Task<Result<DashboardMetricsResponseDto>> GetDashboardMetricsAsync();
+    Task<Result<DashboardMetricsResponseDto>> GetDashboardMetricsAsync(long? careerId = null);
 }

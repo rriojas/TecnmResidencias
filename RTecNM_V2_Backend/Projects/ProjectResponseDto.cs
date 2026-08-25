@@ -40,5 +40,7 @@ public record ProjectResponseDto(
     bool IsReadOnly = false,
     bool CanManageActivities = false,
     bool CanUploadDocuments = false,
-    string? ReviewComments = null
+    string? ReviewComments = null,
+    long? CareerId = null,
+    string? CareerName = null
 );

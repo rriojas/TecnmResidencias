@@ -360,11 +360,17 @@ onMounted(() => {
               <!-- Carta de Presentación -->
               <div class="tecnm-info-tile">
                 <span class="tecnm-info-tile-label">Carta de Presentación</span>
-                <span v-if="student.isPresentationLetterSent" style="color: #10b981; font-weight: 600; font-size: 0.9rem;">
-                  ✓ Enviada {{ student.presentationLetterSentAt ? `(${new Date(student.presentationLetterSentAt).toLocaleDateString()})` : '' }}
+                <span v-if="student.isPresentationLetterSent" style="color: #047857; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  Enviada {{ student.presentationLetterSentAt ? `(${new Date(student.presentationLetterSentAt).toLocaleDateString()})` : '' }}
                 </span>
-                <span v-else style="color: #d97706; font-weight: 600; font-size: 0.9rem;">
-                  ⏳ Pendiente de envío
+                <span v-else style="color: #b45309; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  Pendiente de envío
                 </span>
               </div>
             </div>

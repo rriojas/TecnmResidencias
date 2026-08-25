@@ -673,6 +673,15 @@ public class ProjectService : IProjectService
             or ProjectStatus.UnderReview;
         var canManageActivities = p.Status is ProjectStatus.Approved or ProjectStatus.InProgress;
         var canUploadDocuments = p.Status is ProjectStatus.Approved or ProjectStatus.InProgress;
+        var careerId = p.Student?.CareerId;
+        var careerName = careerId switch
+        {
+            1 => "Ing. Informática",
+            2 => "Ing. Industrial",
+            3 => "Ing. Mecatrónica",
+            4 => "Ing. en Sistemas Computacionales",
+            _ => null
+        };
 
         return new ProjectResponseDto(
             p.Id,
@@ -706,7 +715,9 @@ public class ProjectService : IProjectService
             isReadOnly,
             canManageActivities,
             canUploadDocuments,
-            p.ReviewComments
+            p.ReviewComments,
+            careerId,
+            careerName
         );
     }
 }
