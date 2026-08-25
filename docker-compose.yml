@@ -2,7 +2,7 @@ name: residenciastecnm-v2
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     container_name: residencia-v2-db
     restart: unless-stopped
     environment:
@@ -12,7 +12,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_v2_data:/var/lib/postgresql/data
+      - postgres_v2_data:/var/lib/postgresql
       - ./docs/database/01_schema_and_essential_seeds.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./docs/database/02_demo_data.sql:/docker-entrypoint-initdb.d/02-demo.sql:ro
     healthcheck:

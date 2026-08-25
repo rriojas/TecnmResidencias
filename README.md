@@ -45,8 +45,8 @@ El sistema cuenta con **6 roles oficiales** con permisos y ámbitos de control i
 ### Requisitos Previos
 
 - **.NET 10 SDK** (para desarrollo local de Backend y Frontend)
-- **Docker & Docker Compose** (para PostgreSQL 17/18 y despliegue en contenedores)
-- **PostgreSQL 17+** (si se ejecuta localmente sin Docker)
+- **Docker & Docker Compose** (para PostgreSQL 18 y despliegue en contenedores)
+- **PostgreSQL 18+** (si se ejecuta localmente sin Docker)
 
 ---
 
@@ -59,7 +59,7 @@ docker-compose up -d --build
 ```
 
 Esto ejecutará:
-1. **Contenedor PostgreSQL 17** (`residencia-v2-db`) en el puerto `5433` inicializado con el esquema DDL y semillas esenciales (`docs/database/01_schema_and_essential_seeds.sql`) y datos demo opcionales (`docs/database/02_demo_data.sql`).
+1. **Contenedor PostgreSQL 18** (`residencia-v2-db`) en el puerto `5432` inicializado con el esquema DDL y semillas esenciales (`docs/database/01_schema_and_essential_seeds.sql`) y datos demo opcionales (`docs/database/02_demo_data.sql`).
 2. **Contenedor Backend Web API** (`residencia-v2-backend`) en el puerto `5144`.
 
 Para ejecutar el **Frontend (Razor Pages)**:
