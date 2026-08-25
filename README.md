@@ -46,16 +46,32 @@ El sistema cuenta con **6 roles oficiales** con permisos y ámbitos de control i
 
 ### Requisitos Previos
 
-- **Node.js 20+** y gestor de paquetes (**pnpm** recomendado o **npm**) para el Frontend SPA.
+- **Node.js 20+** y gestor de paquetes (**pnpm** o **npm**) para el Frontend SPA (Vue 3 / Vite).
 - **.NET 10 SDK** para el servidor Backend Web API.
-- **Docker & Docker Compose** (para PostgreSQL 17 y despliegue en contenedores).
+- **Docker & Docker Compose** (para PostgreSQL 17/18 y despliegue en contenedores).
 - **PostgreSQL 17+** (si se ejecuta localmente sin Docker).
 
 ---
 
-### ⚡ Opción A: Scripts de Inicio Rápido (Recomendado)
+### Opción A: Despliegue con Docker Compose
 
-Se incluyen scripts automatizados para PowerShell (Windows) y Bash (Linux/macOS/Git Bash) que verifican dependencias, liberan puertos y levantan el stack:
+Para iniciar la base de datos PostgreSQL y el servidor Backend API automáticamente:
+
+```bash
+docker-compose up -d --build
+```
+
+Esto ejecutará:
+1. **Contenedor PostgreSQL** (`residencia-v2-db`) en el puerto `5432` inicializado con el esquema DDL y semillas esenciales (`docs/database/01_schema_and_essential_seeds.sql`) y datos demo opcionales (`docs/database/02_demo_data.sql`).
+2. **Contenedor Backend Web API** (`residencia-v2-backend`) en el puerto `5144`.
+
+---
+
+### Opción B: Ejecución Local en Desarrollo
+
+#### ⚡ Scripts de Inicio Rápido (Recomendado)
+
+Se incluyen scripts para PowerShell (Windows) y Bash (Linux/macOS/Git Bash) que verifican dependencias, liberan puertos y levantan el stack:
 
 - **Levantar todo (Base de Datos, Backend API y Frontend SPA):**
   - PowerShell: `.\start-all.ps1`
