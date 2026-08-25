@@ -429,6 +429,10 @@ public static class DbSeeder
                 ELSE
                     ALTER TABLE students ADD COLUMN IF NOT EXISTS gender VARCHAR(50);
                 END IF;
+
+                UPDATE users SET role = LOWER(role);
+                DELETE FROM advisors WHERE user_id IN (SELECT id FROM users WHERE role NOT IN ('advisor', 'academico'));
+                DELETE FROM students WHERE user_id IN (SELECT id FROM users WHERE role NOT IN ('student'));
             END $$;
         ";
         try
@@ -456,7 +460,8 @@ public static class DbSeeder
                 s.career_id AS career_id,
                 s.is_active AS is_active
             FROM students s
-            LEFT JOIN users u ON s.user_id = u.id;",
+            LEFT JOIN users u ON s.user_id = u.id
+            WHERE u.role IS NULL OR u.role IN ('student', 'Student');",
 
             "DROP VIEW IF EXISTS vw_search_advisors CASCADE;",
             @"CREATE VIEW vw_search_advisors AS
@@ -470,7 +475,8 @@ public static class DbSeeder
                 COALESCE(a.phone, '') AS phone,
                 a.is_active AS is_active
             FROM advisors a
-            LEFT JOIN users u ON a.user_id = u.id;",
+            LEFT JOIN users u ON a.user_id = u.id
+            WHERE u.role IS NULL OR u.role IN ('advisor', 'academico', 'Advisor', 'Academic');",
 
             "DROP VIEW IF EXISTS vw_search_projects CASCADE;",
             @"CREATE VIEW vw_search_projects AS

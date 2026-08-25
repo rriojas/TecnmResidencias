@@ -53,13 +53,13 @@ else
     exit 1
 fi
 
-# 2. Liberar puerto 5000 si está ocupado
-free_port 5000
+# 2. Liberar puerto 5085 si está ocupado
+free_port 5085
 
 # 3. Iniciar Frontend Vite
-echo -e "\n${GREEN}🚀 Iniciando Frontend Vite en http://localhost:5000...${NC}"
-echo -e "   ${DARKCYAN}🌐 Acceso al sistema: http://localhost:5000/auth/login${NC}"
-echo -e "   ${DARKGRAY}🔗 Conectado a Backend: http://localhost:5144${NC}\n"
+echo -e "\n${GREEN}🚀 Iniciando Frontend Vite en http://localhost:5085...${NC}"
+echo -e "   ${DARKCYAN}🌐 Acceso al sistema: http://localhost:5085/auth/login${NC}"
+echo -e "   ${DARKGRAY}🔗 Conectado a Backend: http://localhost:5185${NC}\n"
 
 if [ ! -d "$FRONTEND_DIR" ]; then
     echo -e "${RED}❌ ERROR: No se encontró la carpeta $FRONTEND_DIR${NC}"

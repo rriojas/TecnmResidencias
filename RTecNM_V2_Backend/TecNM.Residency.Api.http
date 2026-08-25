@@ -1,4 +1,4 @@
-@TecNM.Residency.Api_HostAddress = http://localhost:5144
+@TecNM.Residency.Api_HostAddress = http://localhost:5185
 
 GET {{TecNM.Residency.Api_HostAddress}}/weatherforecast/
 Accept: application/json

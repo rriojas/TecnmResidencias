@@ -53,7 +53,7 @@ El proyecto utiliza una estrategia dual de contenedores en Docker orientada a ma
                   │                 MODO PRODUCCIÓN (3 Contenedores)            │
                   │                                                             │
 Cliente Web ─────►│  [residencia-v2-frontend]                                     │
-(Navegador)       │    └── Nginx (Puerto 80/5000) ──(Proxy /api/)─┐              │
+(Navegador)       │    └── Nginx (Puerto 80/5085) ──(Proxy /api/)─┐              │
                   │                                                ▼            │
                   │                                      [residencia-v2-backend]│
                   │                                        └── Web API (.NET 10)│
@@ -66,19 +66,19 @@ Cliente Web ─────►│  [residencia-v2-frontend]                     
                   ┌─────────────────────────────────────────────────────────────┐
                   │                MODO DESARROLLADOR (1 Contenedor DB)         │
                   │                                                             │
-Vite Dev Server ─►│  Host Local: Frontend Vue 3 (Puerto 5000 / Hot Reload)        │
-.NET API Server ─►│  Host Local: Backend Web API (.NET 10 / Puerto 5144)         │
+Vite Dev Server ─►│  Host Local: Frontend Vue 3 (Puerto 5085 / Hot Reload)        │
+.NET API Server ─►│  Host Local: Backend Web API (.NET 10 / Puerto 5185)         │
                   │       │                                                     │
                   │       └──────────────────────┐                              │
                   │                              ▼                              │
-                  │                   [residencia-v2-db] (Docker - Puerto 5432) │
+                  │                   [residencia-v2-db] (Docker - Puerto 5439) │
                   └─────────────────────────────────────────────────────────────┘
 ```
 
 > [!IMPORTANT]
 > **Comparativa: Producción (3 Contenedores) vs Desarrollador (1 Contenedor DB)**
 > - **Modo Producción / Staging (3 Contenedores)**: Todos los servicios (`residencia-v2-db`, `residencia-v2-backend` y `residencia-v2-frontend`) corren dentro de la red aislada de Docker. Garantiza reproducibilidad exacta ("Write once, run anywhere"), cero dependencias instaladas en el servidor anfitrión y Proxy Reverso seguro con Nginx.
-> - **Modo Desarrollador (1 Contenedor DB)**: Se ejecuta en Docker exclusivamente la base de datos PostgreSQL (`residencia-v2-db` en puerto `5432`). El Backend .NET 10 (`dotnet run` en `:5144`) y el Frontend SPA (`pnpm dev` en `:5000`) se ejecutan directamente en el sistema operativo host.
+> - **Modo Desarrollador (1 Contenedor DB)**: Se ejecuta en Docker exclusivamente la base de datos PostgreSQL (`residencia-v2-db` en puerto `5439`). El Backend .NET 10 (`dotnet run` en `:5185`) y el Frontend SPA (`pnpm dev` en `:5085`) se ejecutan directamente en el sistema operativo host.
 > - **¿Por qué esta decisión?**: Evita tener que reconstruir imágenes Docker pesadas con cada pequeño cambio de código en desarrollo. Permite **Hot Reload instantáneo (Vite HMR)** en frontend, **recarga en caliente/compilación veloz** en C# .NET 10, **depuración fluida con breakpoints directos** desde la IDE (VS Code / Rider / Visual Studio) y reduce sustancialmente el consumo de recursos de CPU y memoria RAM.
 
 ---
@@ -103,9 +103,9 @@ docker-compose up -d --build
 ```
 
 Esto levantará automáticamente los 3 contenedores:
-1. **`residencia-v2-db`** (PostgreSQL 18-alpine en puerto `5432`): Inicializado con esquemas DDL, semillas esenciales (`docs/database/01_schema_and_essential_seeds.sql`) y datos demo opcionales (`docs/database/02_demo_data.sql`).
-2. **`residencia-v2-backend`** (Web API C# .NET 10 en puerto `5144`): API REST compilada en Release, conectada internamente a la BD.
-3. **`residencia-v2-frontend`** (Nginx + Vue 3 SPA en puerto `5000:80`): Servidor Web estático Nginx que sirve los assets compilados y procesa las llamadas `/api/*` mediante Reverse Proxy transparente hacia el contenedor del Backend.
+1. **`residencia-v2-db`** (PostgreSQL 18-alpine en puerto `5439`): Inicializado con esquemas DDL, semillas esenciales (`docs/database/01_schema_and_essential_seeds.sql`) y datos demo opcionales (`docs/database/02_demo_data.sql`).
+2. **`residencia-v2-backend`** (Web API C# .NET 10 en puerto `5185`): API REST compilada en Release, conectada internamente a la BD.
+3. **`residencia-v2-frontend`** (Nginx + Vue 3 SPA en puerto `5085:80`): Servidor Web estático Nginx que sirve los assets compilados y procesa las llamadas `/api/*` mediante Reverse Proxy transparente hacia el contenedor del Backend.
 
 ---
 
@@ -134,7 +134,7 @@ Se incluyen scripts automatizados para PowerShell (Windows) y Bash (Linux/macOS)
 ```bash
 docker-compose up -d postgres
 ```
-*PostgreSQL escuchará en `localhost:5432` con la base de datos `residency_v2`.*
+*PostgreSQL escuchará en `localhost:5439` con la base de datos `postgre_recidencias`.*
 
 #### 2. Iniciar Backend Web API (C# .NET 10 en Host)
 
@@ -144,7 +144,7 @@ dotnet restore
 dotnet build
 dotnet run
 ```
-*La API REST estará escuchando en `http://localhost:5144` (Swagger/OpenAPI interactivo disponible en `http://localhost:5144/swagger`).*
+*La API REST estará escuchando en `http://localhost:5185` (Swagger/OpenAPI interactivo disponible en `http://localhost:5185/swagger`).*
 
 #### 3. Iniciar Frontend SPA (Vite + Vue 3 en Host)
 
@@ -153,7 +153,7 @@ cd RTecNM_V2_Frontend
 pnpm install   # O bien: npm install
 pnpm dev       # O bien: npm run dev
 ```
-*El cliente web estará disponible en `http://localhost:5000` (con proxy reverso Vite configurado internamente hacia `http://localhost:5144`).*
+*El cliente web estará disponible en `http://localhost:5085` (con proxy reverso Vite configurado internamente hacia `http://localhost:5185`).*
 
 ---
 
@@ -258,19 +258,19 @@ El proyecto aprovecha las tecnologías de contenedores **Docker** y el servidor 
                               CONTENEDOR FRONTEND (Nginx)
                      ┌───────────────────────────────────────────┐
                      │                                           │
-Petición Web UI ────►│ Port 80 (Host 5000)                        │
+Petición Web UI ────►│ Port 80 (Host 5085)                        │
 (HTTP / Static)      │ ├── /          ──► /usr/share/nginx/html  │
                      │ │                  (Vue 3 Build Assets)   │
                      │ │                                         │
 Petición API ───────►│ └── /api/*     ──► Proxy Pass HTTP        │
-(HTTP / REST)        │                    http://backend:5144    │
+(HTTP / REST)        │                    http://backend:5185    │
                      └──────────────────────────┬────────────────┘
                                                 │ (Red Interna Docker)
                                                 ▼
                               CONTENEDOR BACKEND (.NET 10 API)
                      ┌───────────────────────────────────────────┐
-                     │ Port 5144                                 │
-                     │ └── ASPNETCORE_URLS=http://+:5144         │
+                     │ Port 5185                                 │
+                     │ └── ASPNETCORE_URLS=http://+:5185         │
                      └───────────────────────────────────────────┘
 ```
 
@@ -278,10 +278,10 @@ Petición API ───────►│ └── /api/*     ──► Proxy P
 
 El archivo [`nginx.conf`](file:///home/lux_az/Documentos/Dev/Recidencias/TecnmResidencias/RTecNM_V2_Frontend/nginx.conf) cumple dos funciones críticas en el contenedor `residencia-v2-frontend`:
 - **Servidor Web Estático Ultra-Rápido**: Entrega los archivos Javascript, CSS y HTML compilados por Vite desde `/usr/share/nginx/html` utilizando compresión y manejo eficiente de rutas SPA (`try_files $uri $uri/ /index.html`).
-- **Reverse Proxy (Proxy Reverso API)**: Intercepta todas las llamadas cuyo path inicia con `/api/` y las reenvía internamente al contenedor `http://backend:5144/api/`.
+- **Reverse Proxy (Proxy Reverso API)**: Intercepta todas las llamadas cuyo path inicia con `/api/` y las reenvía internamente al contenedor `http://backend:5185/api/`.
 
 #### Ventajas del Reverse Proxy Nginx:
-- **Eliminación de CORS en Producción**: Al servirse la SPA y la API bajo el mismo origen virtual en el puerto `5000/80`, el navegador no bloquea peticiones por Same-Origin Policy (SOP).
+- **Eliminación de CORS en Producción**: Al servirse la SPA y la API bajo el mismo origen virtual en el puerto `5085/80`, el navegador no bloquea peticiones por Same-Origin Policy (SOP).
 - **Ocultamiento de Topología Interna**: La API REST backend no necesita exponerse públicamente a la red externa si no se desea; Nginx actúa como puerta de enlace perimetral.
 - **Inyección de Encabezados de Red**: Transfiere de forma transparente encabezados como `X-Real-IP`, `X-Forwarded-For` y `X-Forwarded-Proto` necesarios para que el servicio de auditoría inmutable del Backend registre la IP real del cliente.
 
@@ -367,7 +367,7 @@ Construido con **Vue 3 (`<script setup>`)**, **Vite**, **Pinia**, **Vue Router**
 
 | Comando | Descripción |
 |---------|-------------|
-| `pnpm dev` / `npm run dev` | Inicia el servidor de desarrollo Vite en `http://localhost:5000` |
+| `pnpm dev` / `npm run dev` | Inicia el servidor de desarrollo Vite en `http://localhost:5085` |
 | `pnpm build` / `npm run build` | Compila los assets de producción en la carpeta `dist/` |
 | `pnpm preview` / `npm run preview` | Previsualiza localmente el build de producción |
 
@@ -376,7 +376,7 @@ Construido con **Vue 3 (`<script setup>`)**, **Vite**, **Pinia**, **Vue Router**
 | Comando | Descripción |
 |---------|-------------|
 | `dotnet build` | Compila la solución/proyecto C# Backend |
-| `dotnet run` | Ejecuta la API REST en `http://localhost:5144` |
+| `dotnet run` | Ejecuta la API REST en `http://localhost:5185` |
 | `dotnet test` | Ejecuta las pruebas unitarias y de integración |
 | `docker-compose up -d postgres` | Inicia únicamente el contenedor PostgreSQL 18 (Modo Dev) |
 | `docker-compose up -d --build` | Inicia los 3 contenedores Docker (Modo Producción) |

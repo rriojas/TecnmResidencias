@@ -13,7 +13,7 @@ app.Use(async (context, next) =>
         var config = context.RequestServices.GetRequiredService<IConfiguration>();
         var httpClientFactory = context.RequestServices.GetRequiredService<IHttpClientFactory>();
 
-        var backendUrl = config["BackendUrl"] ?? "http://localhost:5144";
+        var backendUrl = config["BackendUrl"] ?? "http://localhost:5185";
         var client = httpClientFactory.CreateClient("BackendApi");
         
         var targetUri = new Uri($"{backendUrl.TrimEnd('/')}{context.Request.Path}{context.Request.QueryString}");
@@ -81,8 +81,8 @@ app.MapRazorPages();
 app.Lifetime.ApplicationStarted.Register(() =>
 {
     var addresses = app.Services.GetService<Microsoft.AspNetCore.Hosting.Server.Features.IServerAddressesFeature>()?.Addresses;
-    var primaryUrl = addresses?.FirstOrDefault() ?? "http://localhost:5000";
-    var backendUrl = app.Configuration["BackendUrl"] ?? "http://localhost:5144";
+    var primaryUrl = addresses?.FirstOrDefault() ?? "http://localhost:5085";
+    var backendUrl = app.Configuration["BackendUrl"] ?? "http://localhost:5185";
 
     Console.ForegroundColor = ConsoleColor.Green;
     Console.WriteLine("\n==================================================");

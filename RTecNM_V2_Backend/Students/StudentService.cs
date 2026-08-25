@@ -161,7 +161,7 @@ public class StudentService : IStudentService
         var createdStudent = await _studentRepository.AddAsync(newStudent);
 
         // Enqueue Welcome Email
-        var loginUrl = "http://localhost:5000/auth/login";
+        var loginUrl = "http://localhost:5085/auth/login";
         var welcomeEmail = _emailTemplateService.BuildWelcomeEmail(
             $"{newStudent.FirstName} {newStudent.LastName}".Trim(),
             newStudent.ControlNumber,
@@ -456,7 +456,7 @@ public class StudentService : IStudentService
             result.SuccessCount++;
 
             // Enqueue Welcome Email
-            var loginUrl = "http://localhost:5000/auth/login";
+            var loginUrl = "http://localhost:5085/auth/login";
             var welcomeEmail = _emailTemplateService.BuildWelcomeEmail(
                 $"{newStudent.FirstName} {lastName1}".Trim(),
                 newStudent.ControlNumber,

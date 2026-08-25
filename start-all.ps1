@@ -65,10 +65,10 @@ if ($Inline) {
     Write-Host "`n======================================================" -ForegroundColor Green
     Write-Host "  ✅ SERVICIOS EN EJECUCIÓN" -ForegroundColor Green
     Write-Host "======================================================" -ForegroundColor Green
-    Write-Host "  🌐 Frontend UI : http://localhost:5000/auth/login" -ForegroundColor White
-    Write-Host "  ⚙️  Backend API : http://localhost:5144" -ForegroundColor White
-    Write-Host "  📖 Swagger API : http://localhost:5144/swagger" -ForegroundColor White
-    Write-Host "  🐘 PostgreSQL  : localhost:5432 (residency_v2)" -ForegroundColor White
+    Write-Host "  🌐 Frontend UI : http://localhost:5085/auth/login" -ForegroundColor White
+    Write-Host "  ⚙️  Backend API : http://localhost:5185" -ForegroundColor White
+    Write-Host "  📖 Swagger API : http://localhost:5185/swagger" -ForegroundColor White
+    Write-Host "  🐘 PostgreSQL  : localhost:5439 (postgre_recidencias)" -ForegroundColor White
     Write-Host "======================================================" -ForegroundColor Green
     Write-Host "`n💡 Puedes cerrar las ventanas individuales cuando termines de trabajar." -ForegroundColor DarkGray
 }

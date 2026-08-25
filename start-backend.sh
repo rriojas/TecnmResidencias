@@ -65,15 +65,15 @@ if command -v docker >/dev/null 2>&1; then
         echo -e "   ${GREEN}✅ Contenedor PostgreSQL ya se encuentra en ejecución.${NC}"
     fi
 else
-    echo -e "   ${YELLOW}⚠️  Docker no detectado. Asegúrate de tener PostgreSQL corriendo localmente en el puerto 5432.${NC}"
+    echo -e "   ${YELLOW}⚠️  Docker no detectado. Asegúrate de tener PostgreSQL corriendo localmente en el puerto 5439.${NC}"
 fi
 
-# 3. Liberar puerto 5144 si está ocupado
-free_port 5144
+# 3. Liberar puerto 5185 si está ocupado
+free_port 5185
 
 # 4. Iniciar Backend
-echo -e "\n${GREEN}🚀 Iniciando Backend Web API en http://localhost:5144...${NC}"
-echo -e "   ${DARKCYAN}📖 Swagger / OpenAPI disponible en: http://localhost:5144/swagger${NC}\n"
+echo -e "\n${GREEN}🚀 Iniciando Backend Web API en http://localhost:5185...${NC}"
+echo -e "   ${DARKCYAN}📖 Swagger / OpenAPI disponible en: http://localhost:5185/swagger${NC}\n"
 
 if [ ! -d "$BACKEND_DIR" ]; then
     echo -e "${RED}❌ ERROR: No se encontró la carpeta $BACKEND_DIR${NC}"

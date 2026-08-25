@@ -30,7 +30,7 @@ public class SystemSettingService : ISystemSettingService
 
         return new SmtpConfigDto
         {
-            Host = settings.TryGetValue("smtp.host", out var h) && !string.IsNullOrWhiteSpace(h) ? h : (_defaultSmtpOptions.Host ?? "smtp.gmail.com"),
+            Host = settings.TryGetValue("smtp.host", out var h) && !string.IsNullOrWhiteSpace(h) ? h : (_defaultSmtpOptions.Host ?? "smtp.office365.com"),
             Port = settings.TryGetValue("smtp.port", out var p) && int.TryParse(p, out var portVal) ? portVal : (_defaultSmtpOptions.Port != 0 ? _defaultSmtpOptions.Port : 587),
             SenderName = settings.TryGetValue("smtp.sender_name", out var sn) && !string.IsNullOrWhiteSpace(sn) ? sn : (_defaultSmtpOptions.SenderName ?? "TecNM Residencias"),
             SenderEmail = settings.TryGetValue("smtp.sender_email", out var se) && !string.IsNullOrWhiteSpace(se) ? se : (_defaultSmtpOptions.SenderEmail ?? string.Empty),

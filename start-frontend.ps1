@@ -45,13 +45,13 @@ if (Get-Command pnpm -ErrorAction SilentlyContinue) {
     exit 1
 }
 
-# 2. Verificar y liberar puerto 5000 si está ocupado
-Free-Port 5000
+# 2. Verificar y liberar puerto 5085 si está ocupado
+Free-Port 5085
 
 # 3. Iniciar Frontend Vite
-Write-Host "`n🚀 Iniciando Frontend Vite en http://localhost:5000..." -ForegroundColor Green
-Write-Host "   🌐 Acceso al sistema: http://localhost:5000/auth/login" -ForegroundColor DarkCyan
-Write-Host "   🔗 Conectado a Backend: http://localhost:5144`n" -ForegroundColor DarkGray
+Write-Host "`n🚀 Iniciando Frontend Vite en http://localhost:5085..." -ForegroundColor Green
+Write-Host "   🌐 Acceso al sistema: http://localhost:5085/auth/login" -ForegroundColor DarkCyan
+Write-Host "   🔗 Conectado a Backend: http://localhost:5185`n" -ForegroundColor DarkGray
 
 if (-not (Test-Path $FrontendDir)) {
     Write-Host "❌ ERROR: No se encontró la carpeta $FrontendDir" -ForegroundColor Red

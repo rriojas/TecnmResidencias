@@ -453,7 +453,8 @@ SELECT
     s.career_id AS career_id,
     s.is_active AS is_active
 FROM students s
-LEFT JOIN users u ON s.user_id = u.id;
+LEFT JOIN users u ON s.user_id = u.id
+WHERE u.role IS NULL OR u.role IN ('student', 'Student');
 
 CREATE VIEW vw_search_advisors AS
 SELECT 
@@ -466,7 +467,8 @@ SELECT
     COALESCE(a.phone, '') AS phone,
     a.is_active AS is_active
 FROM advisors a
-LEFT JOIN users u ON a.user_id = u.id;
+LEFT JOIN users u ON a.user_id = u.id
+WHERE u.role IS NULL OR u.role IN ('advisor', 'academico', 'Advisor', 'Academic');
 
 CREATE VIEW vw_search_projects AS
 SELECT 

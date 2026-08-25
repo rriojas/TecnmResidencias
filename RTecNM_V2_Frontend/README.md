@@ -89,7 +89,7 @@ pnpm dev
 npm run dev
 ```
 
-El servidor Vite iniciará en **`http://localhost:5000`** y configurará automáticamente el proxy reverso para todas las peticiones `/api/*` hacia el Backend en `http://localhost:5144`.
+El servidor Vite iniciará en **`http://localhost:5085`** y configurará automáticamente el proxy reverso para todas las peticiones `/api/*` hacia el Backend en `http://localhost:5185`.
 
 ---
 
@@ -97,7 +97,7 @@ El servidor Vite iniciará en **`http://localhost:5000`** y configurará automá
 
 | Script | Comando | Descripción |
 |---|---|---|
-| **Desarrollo** | `pnpm dev` / `npm run dev` | Inicia servidor Vite con recarga en vivo (HMR) en el puerto `5000` |
+| **Desarrollo** | `pnpm dev` / `npm run dev` | Inicia servidor Vite con recarga en vivo (HMR) en el puerto `5085` |
 | **Compilación** | `pnpm build` / `npm run build` | Compila y optimiza la SPA para producción en la carpeta `dist/` |
 | **Vista Previa** | `pnpm preview` / `npm run preview` | Levanta un servidor local para probar los archivos de producción generados |
 

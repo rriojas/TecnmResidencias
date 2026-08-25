@@ -14,7 +14,7 @@ COPY --from=build /app/publish .
 # Crear directorio de uploads para documentos escaneados
 RUN mkdir -p /app/uploads/documents
 
-ENV ASPNETCORE_URLS=http://+:5144
-EXPOSE 5144
+ENV ASPNETCORE_URLS=http://+:5185
+EXPOSE 5185
 
 ENTRYPOINT ["dotnet", "TecNM.Residency.dll"]

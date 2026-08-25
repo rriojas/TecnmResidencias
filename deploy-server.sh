@@ -40,7 +40,7 @@ fi
 echo -e "   ${GREEN}✅ Docker y Docker Compose detectados correctamente.${NC}"
 
 # 2. Liberar procesos host en puertos en uso si existen fuera de Docker
-echo -e "\n${CYAN}2. Verificando disponibilidad de puertos (5000, 5144, 5432)...${NC}"
+echo -e "\n${CYAN}2. Verificando disponibilidad de puertos (5085, 5185, 5439)...${NC}"
 
 free_port_if_occupied() {
     local port=$1
@@ -52,7 +52,7 @@ free_port_if_occupied() {
     fi
 }
 
-free_port_if_occupied 5144
+free_port_if_occupied 5185
 
 # 3. Asegurar estructura de directorios persistentes
 echo -e "\n${CYAN}3. Preparando volúmenes y directorios de almacenamiento...${NC}"
@@ -74,8 +74,8 @@ TRIES=0
 BACKEND_OK=false
 
 while [ $TRIES -lt $MAX_TRIES ]; do
-    if curl -s -f http://localhost:5144/api/v1/searches/autocomplete > /dev/null 2>&1 || \
-       curl -s http://localhost:5144/swagger/index.html > /dev/null 2>&1; then
+    if curl -s -f http://localhost:5185/api/v1/searches/autocomplete > /dev/null 2>&1 || \
+       curl -s http://localhost:5185/swagger/index.html > /dev/null 2>&1; then
         BACKEND_OK=true
         break
     fi
@@ -95,10 +95,10 @@ SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "IP_DEL_SERVIDOR"
 echo -e "\n${GREEN}======================================================================${NC}"
 echo -e "${GREEN}  🎉 ¡SISTEMA DESPLEGADO Y LISTO EN PRODUCCIÓN/SERVIDOR!${NC}"
 echo -e "${GREEN}======================================================================${NC}"
-echo -e "  🌐 ${WHITE}Aplicación Web Frontend${NC} : http://${SERVER_IP}:5000  (o http://localhost:5000)"
-echo -e "  ⚙️  ${WHITE}API Backend (.NET)${NC}      : http://${SERVER_IP}:5144"
-echo -e "  📖 ${WHITE}Documentación Swagger${NC}  : http://${SERVER_IP}:5144/swagger"
-echo -e "  🐘 ${WHITE}Base de Datos (Postgres)${NC}: Host Port 5432 (DB: residency_v2)"
+echo -e "  🌐 ${WHITE}Aplicación Web Frontend${NC} : http://${SERVER_IP}:5085  (o http://localhost:5085)"
+echo -e "  ⚙️  ${WHITE}API Backend (.NET)${NC}      : http://${SERVER_IP}:5185"
+echo -e "  📖 ${WHITE}Documentación Swagger${NC}  : http://${SERVER_IP}:5185/swagger"
+echo -e "  🐘 ${WHITE}Base de Datos (Postgres)${NC}: Host Port 5439 (DB: postgre_recidencias)"
 echo -e "${GREEN}======================================================================${NC}"
 echo -e "📌 ${WHITE}Comandos útiles de gestión:${NC}"
 echo -e "   - Ver estado de contenedores : ${YELLOW}docker compose ps${NC}"

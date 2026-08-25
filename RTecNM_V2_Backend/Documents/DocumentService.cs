@@ -188,7 +188,7 @@ public class DocumentService : IDocumentService
                 if (student != null && student.User != null && !string.IsNullOrWhiteSpace(student.User.Email))
                 {
                     var friendlyName = GetFriendlyDocumentTypeName(documentType);
-                    var loginUrl = "http://localhost:5000/auth/login";
+                    var loginUrl = "http://localhost:5085/auth/login";
                     var email = _emailTemplateService.BuildLetterAvailableEmail(
                         $"{student.FirstName} {student.LastName}".Trim(),
                         friendlyName,

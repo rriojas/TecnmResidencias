@@ -144,7 +144,7 @@ using (var scope = app.Services.CreateScope())
 app.Lifetime.ApplicationStarted.Register(() =>
 {
     var addresses = app.Services.GetService<Microsoft.AspNetCore.Hosting.Server.Features.IServerAddressesFeature>()?.Addresses;
-    var primaryUrl = addresses?.FirstOrDefault() ?? "http://localhost:5144";
+    var primaryUrl = addresses?.FirstOrDefault() ?? "http://localhost:5185";
 
     Console.ForegroundColor = ConsoleColor.Cyan;
     Console.WriteLine("\n==================================================");

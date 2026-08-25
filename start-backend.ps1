@@ -60,15 +60,15 @@ if ($dockerCmd) {
         Write-Host "   ✅ Contenedor PostgreSQL ya se encuentra en ejecución." -ForegroundColor Green
     }
 } else {
-    Write-Host "   ⚠️  Docker no detectado. Asegúrate de tener PostgreSQL corriendo localmente en el puerto 5432." -ForegroundColor Yellow
+    Write-Host "   ⚠️  Docker no detectado. Asegúrate de tener PostgreSQL corriendo localmente en el puerto 5439." -ForegroundColor Yellow
 }
 
-# 3. Verificar y liberar puerto 5144 si está ocupado
-Free-Port 5144
+# 3. Verificar y liberar puerto 5185 si está ocupado
+Free-Port 5185
 
 # 4. Iniciar Backend
-Write-Host "`n🚀 Iniciando Backend Web API en http://localhost:5144..." -ForegroundColor Green
-Write-Host "   📖 Swagger / OpenAPI disponible en: http://localhost:5144/swagger`n" -ForegroundColor DarkCyan
+Write-Host "`n🚀 Iniciando Backend Web API en http://localhost:5185..." -ForegroundColor Green
+Write-Host "   📖 Swagger / OpenAPI disponible en: http://localhost:5185/swagger`n" -ForegroundColor DarkCyan
 
 if (-not (Test-Path $BackendDir)) {
     Write-Host "❌ ERROR: No se encontró la carpeta $BackendDir" -ForegroundColor Red

@@ -58,10 +58,10 @@ echo -e "\n${CYAN}⚙️  Ejecutando start-backend.sh en segundo plano...${NC}"
 "$BACKEND_SCRIPT" &
 BACKEND_PID=$!
 
-# Esperar a que el Backend API (.NET) escuche en el puerto 5144
-echo -e "   ${YELLOW}⏳ Esperando a que el Backend API esté listo en puerto 5144...${NC}"
+# Esperar a que el Backend API (.NET) escuche en el puerto 5185
+echo -e "   ${YELLOW}⏳ Esperando a que el Backend API esté listo en puerto 5185...${NC}"
 for i in {1..25}; do
-    if curl -s http://localhost:5144 >/dev/null 2>&1 || (exec 3<>/dev/tcp/localhost/5144) 2>/dev/null; then
+    if curl -s http://localhost:5185 >/dev/null 2>&1 || (exec 3<>/dev/tcp/localhost/5185) 2>/dev/null; then
         echo -e "   ${GREEN}✅ Backend API listo y respondiendo.${NC}"
         break
     fi
@@ -76,10 +76,10 @@ FRONTEND_PID=$!
 echo -e "\n${GREEN}======================================================${NC}"
 echo -e "${GREEN}  ✅ SERVICIOS EN EJECUCIÓN${NC}"
 echo -e "${GREEN}======================================================${NC}"
-echo -e "  🌐 ${WHITE}Frontend UI${NC} : http://localhost:5000/auth/login"
-echo -e "  ⚙️  ${WHITE}Backend API${NC} : http://localhost:5144"
-echo -e "  📖 ${WHITE}Swagger API${NC} : http://localhost:5144/swagger"
-echo -e "  🐘 ${WHITE}PostgreSQL${NC}  : localhost:5432 (residency_v2)"
+echo -e "  🌐 ${WHITE}Frontend UI${NC} : http://localhost:5085/auth/login"
+echo -e "  ⚙️  ${WHITE}Backend API${NC} : http://localhost:5185"
+echo -e "  📖 ${WHITE}Swagger API${NC} : http://localhost:5185/swagger"
+echo -e "  🐘 ${WHITE}PostgreSQL${NC}  : localhost:5439 (postgre_recidencias)"
 echo -e "${GREEN}======================================================${NC}"
 echo -e "💡 Presiona ${YELLOW}Ctrl + C${NC} en esta terminal para detener ambos servicios.\n"
 
