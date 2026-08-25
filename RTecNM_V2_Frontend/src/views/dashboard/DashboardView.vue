@@ -20,6 +20,7 @@ const isLoading = ref(true)
 const adminMetrics = ref({})
 const recentProjects = ref([])
 const pendingProjects = ref([])
+const selectedCareerFilter = ref('all')
 
 // Datos para Estudiante
 const studentProfile = ref(null)
@@ -28,13 +29,14 @@ const studentDocs = ref([])
 const completedWeeksCount = ref(0)
 
 // Datos para Asesor
+const advisorProfile = ref(null)
 const advisorProjects = ref([])
 
 const welcomeTitle = computed(() => {
   const role = authStore.currentRole
   if (role === 'admin') return 'Panel de Administración General'
   if (role === 'departmenthead') return 'Panel de la División Académica'
-  if (role === 'vinculacion') return 'Panel de Gestión y Vinculación'
+  if (role === 'vinculacion') return 'Panel de Gestión Tecnológica y Vinculación'
   if (role === 'advisor') return 'Portal de Asesoría de Residencias'
   if (role === 'student') return 'Portal del Estudiante Residente'
   if (role === 'director') return 'Panel Ejecutivo de Dirección'
@@ -44,9 +46,9 @@ const welcomeTitle = computed(() => {
 const welcomeDescription = computed(() => {
   const role = authStore.currentRole
   if (role === 'admin') return 'Gestión institucional de alumnos, asesores, anteproyectos y reportes de residencia.'
-  if (role === 'departmenthead') return 'Revisión de anteproyectos, dictámenes y avance general de residencias.'
-  if (role === 'vinculacion') return 'Gestión de empresas receptoras, solicitudes, expediente digital y alumnos.'
-  if (role === 'advisor') return 'Seguimiento de los residentes a tu cargo, dictámenes pendientes y evaluaciones.'
+  if (role === 'departmenthead') return 'Revisión y dictamen de anteproyectos, asignación de asesores y avance académico.'
+  if (role === 'vinculacion') return 'Gestión de empresas receptoras, cartas de presentación, convenios y expedientes.'
+  if (role === 'advisor') return 'Seguimiento de los residentes a tu cargo, validación de avances semanales y evaluaciones.'
   if (role === 'student') return 'Seguimiento de tu anteproyecto, avance semanal y expediente digital.'
   if (role === 'director') return 'Vista ejecutiva y consulta global de indicadores del sistema de residencias.'
   return 'Sistema de Residencias Profesionales - TecNM Campus Monclova.'
@@ -60,6 +62,49 @@ const isStaff = computed(() => {
   )
 })
 
+// Filtro de proyectos por carrera en staff
+const filteredRecentProjects = computed(() => {
+  if (selectedCareerFilter.value === 'all') return recentProjects.value
+  return recentProjects.value.filter((p) => String(p.careerId) === String(selectedCareerFilter.value))
+})
+
+const filteredPendingProjects = computed(() => {
+  if (selectedCareerFilter.value === 'all') return pendingProjects.value
+  return pendingProjects.value.filter((p) => String(p.careerId) === String(selectedCareerFilter.value))
+})
+
+// Computados para Asesor
+const advisorTotalResidents = computed(() => advisorProjects.value.length)
+
+const advisorActiveResidents = computed(() => {
+  return advisorProjects.value.filter((p) => {
+    const s = String(p.status || '').toLowerCase()
+    return ['in_progress', 'inprogress', 'en_progreso', 'en progreso', 'approved', 'aprobado'].includes(s)
+  }).length
+})
+
+const advisorPendingDictamen = computed(() => {
+  return advisorProjects.value.filter((p) => {
+    const s = String(p.status || '').toLowerCase()
+    return ['pending', 'under_review', 'proposed', 'pendiente'].includes(s)
+  }).length
+})
+
+const advisorCompletedResidents = computed(() => {
+  return advisorProjects.value.filter((p) => {
+    const s = String(p.status || '').toLowerCase()
+    return ['completed', 'completado', 'finalizado'].includes(s)
+  }).length
+})
+
+const advisorInitials = computed(() => {
+  const name = authStore.userDisplayName || 'Asesor'
+  const parts = name.split(' ').filter(Boolean)
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+  return name.slice(0, 2).toUpperCase()
+})
+
+// Computados para Estudiante
 const latestStudentProject = computed(() => {
   if (!studentProjects.value.length) return null
   const priority = {
@@ -105,27 +150,27 @@ const projectStepInfo = computed(() => {
     step1: {
       completed: !isDraft,
       active: isDraft,
-      label: 'Borrador'
+      label: 'Borrador',
     },
     line1: !isDraft,
     step2: {
       completed: isApproved || isInProgress || isCompleted,
       active: isReview,
       warning: isRejected,
-      label: isRejected ? 'Correcciones' : 'En Revisión'
+      label: isRejected ? 'Correcciones' : 'En Revisión',
     },
     line2: isApproved || isInProgress || isCompleted,
     step3: {
       completed: isInProgress || isCompleted,
       active: isApproved,
-      label: 'Dictamen Aprobado'
+      label: 'Dictamen Aprobado',
     },
     line3: isInProgress || isCompleted,
     step4: {
       completed: isCompleted,
       active: isInProgress,
-      label: 'En Residencia'
-    }
+      label: 'En Residencia',
+    },
   }
 })
 
@@ -153,7 +198,7 @@ const studentTasks = computed(() => {
 
   const s = (latestStudentProject.value.status || '').toLowerCase()
   if (s === 'completed') {
-    tasks.push({ text: 'Consultar calificaciones oficiales finales', href: '/evaluations/grades' })
+    tasks.push({ text: 'Consultar calificaciones oficiales finales', href: '/evaluations/grading' })
     tasks.push({ text: 'Descargar constancias del expediente digital', href: '/documents' })
     tasks.push({ text: 'Consultar cronograma histórico concluido', href: '/activities/schedule' })
     return tasks
@@ -175,7 +220,9 @@ const studentTasks = computed(() => {
   }
 
   const docsByType = {}
-  studentDocs.value.forEach((d) => { docsByType[d.documentType] = d })
+  studentDocs.value.forEach((d) => {
+    docsByType[d.documentType] = d
+  })
 
   if (!docsByType['solicitud']) tasks.push({ text: 'Subir tu Solicitud de Residencia', href: '/documents' })
   if (!docsByType['carta_aceptacion']) tasks.push({ text: 'Subir tu Carta de Aceptación', href: '/documents' })
@@ -188,8 +235,24 @@ function formatTecNMDate(iso) {
   if (!iso) return '—'
   const d = new Date(iso)
   if (isNaN(d.getTime())) return '—'
-  const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+  const MONTHS = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+  ]
   return `${String(d.getDate()).padStart(2, '0')}/${MONTHS[d.getMonth()]}/${d.getFullYear()}`
+}
+
+function getProjectWeekProgress(project) {
+  if (!project) return 0
+  const s = String(project.status || '').toLowerCase()
+  if (s === 'completed') return TOTAL_WEEKS
+  if (s === 'draft' || s === 'rejected' || s === 'pending') return 0
+  return project.completedWeeks || (s === 'in_progress' ? 14 : 0)
+}
+
+function getProjectWeekPercent(project) {
+  const weeks = getProjectWeekProgress(project)
+  return Math.min(100, Math.round((weeks / TOTAL_WEEKS) * 100))
 }
 
 async function loadDashboard() {
@@ -200,8 +263,8 @@ async function loadDashboard() {
     if (isStaff.value) {
       const [mRes, rRes, pRes] = await Promise.all([
         apiClient.get('/v1/admin/dashboard').catch(() => ({ data: {} })),
-        apiClient.get('/v1/projects', { params: { pageNumber: 1, pageSize: 5 } }).catch(() => ({ data: { items: [] } })),
-        apiClient.get('/v1/projects', { params: { status: 'pending', pageNumber: 1, pageSize: 5 } }).catch(() => ({ data: { items: [] } })),
+        apiClient.get('/v1/projects', { params: { pageNumber: 1, pageSize: 20 } }).catch(() => ({ data: { items: [] } })),
+        apiClient.get('/v1/projects', { params: { status: 'pending', pageNumber: 1, pageSize: 20 } }).catch(() => ({ data: { items: [] } })),
       ])
       adminMetrics.value = mRes.data || {}
       recentProjects.value = (rRes.data.items || []).filter((p) => p.isActive !== false)
@@ -224,15 +287,22 @@ async function loadDashboard() {
         const completedSet = new Set()
         const activities = Array.isArray(aRes.data) ? aRes.data : []
         activities.forEach((act) => {
-          (act.progresses || []).forEach((pr) => {
+          ;(act.progresses || []).forEach((pr) => {
             if (String(pr.status).toLowerCase() === 'completed') completedSet.add(pr.weekNumber)
           })
         })
         completedWeeksCount.value = completedSet.size
       }
     } else if (role === 'advisor') {
-      const res = await apiClient.get('/v1/projects', { params: { pageNumber: 1, pageSize: 10 } }).catch(() => ({ data: { items: [] } }))
-      advisorProjects.value = res.data.items || []
+      const [advMeRes, advProjRes] = await Promise.all([
+        apiClient.get('/v1/advisors/me').catch(() => ({ data: null })),
+        apiClient.get('/v1/projects/advisor/me', { params: { pageNumber: 1, pageSize: 50 } }).catch(async () => {
+          return apiClient.get('/v1/projects', { params: { pageNumber: 1, pageSize: 50 } }).catch(() => ({ data: { items: [] } }))
+        }),
+      ])
+      advisorProfile.value = advMeRes.data
+      const rawItems = advProjRes.data?.items || (Array.isArray(advProjRes.data) ? advProjRes.data : [])
+      advisorProjects.value = rawItems.filter((p) => p.isActive !== false)
     }
   } catch (err) {
     console.error('Error al inicializar dashboard:', err)
@@ -253,6 +323,25 @@ onMounted(() => {
       <div>
         <h1 id="welcomeTitle" class="tecnm-page-title">{{ welcomeTitle }}</h1>
         <p id="welcomeDescription" class="tecnm-page-subtitle">{{ welcomeDescription }}</p>
+      </div>
+
+      <!-- Filtro rápido de carrera para Staff y Jefes de División -->
+      <div v-if="isStaff && !authStore.hasRole('director')" class="tecnm-page-actions">
+        <label for="dashCareerFilter" style="font-size: 0.8125rem; font-weight: 600; color: var(--tecnm-text-secondary); margin-right: 0.25rem;">
+          Carrera:
+        </label>
+        <select
+          id="dashCareerFilter"
+          v-model="selectedCareerFilter"
+          class="tecnm-form-select"
+          style="width: auto; min-width: 180px; padding: 0.35rem 0.75rem; font-size: 0.85rem;"
+        >
+          <option value="all">Todas las Carreras</option>
+          <option value="4">Ing. Sistemas Computacionales</option>
+          <option value="1">Ing. Informática</option>
+          <option value="3">Ing. Mecatrónica</option>
+          <option value="2">Ing. Industrial</option>
+        </select>
       </div>
     </div>
 
@@ -339,7 +428,65 @@ onMounted(() => {
     </div>
 
     <!-- ========================================== -->
-    <!-- 2. KPIs PARA ESTUDIANTE -->
+    <!-- 2. KPIs PARA ASESOR ACADÉMICO -->
+    <!-- ========================================== -->
+    <div
+      v-else-if="authStore.currentRole === 'advisor'"
+      id="advisorStatsSection"
+      class="kpi-grid"
+      data-kpi-count="4"
+    >
+      <div class="kpi-card">
+        <span class="kpi-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+          </svg>
+        </span>
+        <span class="kpi-body">
+          <span class="kpi-label">Residentes a Cargo</span>
+          <span class="kpi-value">{{ advisorTotalResidents }}</span>
+        </span>
+      </div>
+
+      <div class="kpi-card kpi-card--green">
+        <span class="kpi-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+          </svg>
+        </span>
+        <span class="kpi-body">
+          <span class="kpi-label">Residencias Activas</span>
+          <span class="kpi-value">{{ advisorActiveResidents }}</span>
+        </span>
+      </div>
+
+      <div class="kpi-card kpi-card--gold">
+        <span class="kpi-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          </svg>
+        </span>
+        <span class="kpi-body">
+          <span class="kpi-label">En Revisión / Dictamen</span>
+          <span class="kpi-value">{{ advisorPendingDictamen }}</span>
+        </span>
+      </div>
+
+      <div class="kpi-card kpi-card--green">
+        <span class="kpi-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          </svg>
+        </span>
+        <span class="kpi-body">
+          <span class="kpi-label">Residencias Concluidas</span>
+          <span class="kpi-value">{{ advisorCompletedResidents }}</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 3. KPIs PARA ESTUDIANTE -->
     <!-- ========================================== -->
     <div
       v-else-if="authStore.currentRole === 'student'"
@@ -389,19 +536,26 @@ onMounted(() => {
     </div>
 
     <!-- ========================================== -->
-    <!-- 3. DASHBOARD GRID PRINCIPAL Y LATERAL -->
+    <!-- 4. DASHBOARD GRID PRINCIPAL Y LATERAL -->
     <!-- ========================================== -->
     <div class="dashboard-grid">
       <!-- Columna Principal -->
       <div class="dashboard-main">
+        <!-- ======================================================== -->
         <!-- VISTA ADMIN / STAFF: Tabla de Anteproyectos Recientes -->
+        <!-- ======================================================== -->
         <div
           v-if="isStaff"
           id="contentCard"
           class="tecnm-card"
         >
           <div class="tecnm-card-header">
-            <h3 class="tecnm-card-title">Anteproyectos Recientes</h3>
+            <h3 class="tecnm-card-title">
+              Anteproyectos Recientes
+              <span v-if="selectedCareerFilter !== 'all'" style="font-size: 0.85rem; color: var(--tecnm-blue-primary); font-weight: 500;">
+                ({{ CAREERS[selectedCareerFilter] }})
+              </span>
+            </h3>
           </div>
           <div class="tecnm-card-body">
             <div class="tecnm-table-responsive">
@@ -418,10 +572,10 @@ onMounted(() => {
                   <tr v-if="isLoading">
                     <td colspan="4" class="tecnm-table-empty">Cargando anteproyectos...</td>
                   </tr>
-                  <tr v-else-if="recentProjects.length === 0">
-                    <td colspan="4" class="tecnm-table-empty">No hay anteproyectos registrados.</td>
+                  <tr v-else-if="filteredRecentProjects.length === 0">
+                    <td colspan="4" class="tecnm-table-empty">No hay anteproyectos registrados para la selección.</td>
                   </tr>
-                  <tr v-for="p in recentProjects" v-else :key="p.id">
+                  <tr v-for="p in filteredRecentProjects" v-else :key="p.id">
                     <td>{{ p.title }}</td>
                     <td>{{ p.studentName || 'Estudiante' }}</td>
                     <td>{{ formatTecNMDate(p.createdAt) }}</td>
@@ -436,244 +590,108 @@ onMounted(() => {
         </div>
 
         <!-- ======================================================== -->
-        <!-- VISTA ESTUDIANTE: COLUMNA PRINCIPAL (RESIDENCIA Y AVANCE) -->
+        <!-- VISTA ASESOR: TABLA "MIS RESIDENTES A CARGO" -->
         <!-- ======================================================== -->
-        <template v-else-if="authStore.currentRole === 'student'">
-          <!-- Card 1: Expediente de Residencia Profesional y Línea Temporal -->
-          <div class="tecnm-card">
-            <div class="tecnm-card-header">
-              <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: var(--tecnm-blue-primary, #1b396a);">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                </svg>
-                <h3 class="tecnm-card-title">Mi Residencia Profesional</h3>
-              </div>
-              <TecnmBadge v-if="latestStudentProject" :status="latestStudentProject.status" />
-            </div>
-
-            <div class="tecnm-card-body">
-              <!-- Si hay anteproyecto registrado -->
-              <div v-if="latestStudentProject" class="dashboard-project-hero">
-                <!-- Información Principal del Proyecto -->
-                <div class="dashboard-project-header">
-                  <div class="dashboard-project-details">
-                    <span class="dashboard-project-label">Anteproyecto Vigente</span>
-                    <h4 class="dashboard-project-title">{{ latestStudentProject.title }}</h4>
-                    
-                    <div class="dashboard-project-meta">
-                      <span class="dashboard-meta-pill">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
-                        </svg>
-                        {{ latestStudentProject.companyName || 'Empresa Receptora' }}
-                      </span>
-                      <span class="dashboard-meta-pill">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                        </svg>
-                        Asesor: {{ latestStudentProject.advisorName || 'Sin asignar' }}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div class="dashboard-project-actions">
-                    <router-link
-                      to="/projects/proposal"
-                      class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
-                    >
-                      Ver Anteproyecto &rarr;
-                    </router-link>
-                  </div>
-                </div>
-
-                <!-- Línea Temporal de Progreso (Captura 2) -->
-                <div v-if="projectStepInfo" class="dashboard-stepper-box">
-                  <div class="dashboard-stepper-header">
-                    <span class="dashboard-stepper-title">Fase Actual del Trámite</span>
-                    <span class="dashboard-stepper-hint">Seguimiento institucional de tu expediente</span>
-                  </div>
-                  <div class="proposal-stepper">
-                    <div
-                      class="step-item"
-                      :class="{
-                        active: projectStepInfo.step1.active,
-                        completed: projectStepInfo.step1.completed
-                      }"
-                    >
-                      <div class="step-circle">1</div>
-                      <div class="step-label">Borrador</div>
-                    </div>
-                    <div
-                      class="step-line"
-                      :class="{ completed: projectStepInfo.line1 }"
-                    ></div>
-                    <div
-                      class="step-item"
-                      :class="{
-                        active: projectStepInfo.step2.active,
-                        warning: projectStepInfo.step2.warning,
-                        completed: projectStepInfo.step2.completed
-                      }"
-                    >
-                      <div class="step-circle">2</div>
-                      <div class="step-label">
-                        {{ projectStepInfo.step2.label }}
-                      </div>
-                    </div>
-                    <div
-                      class="step-line"
-                      :class="{ completed: projectStepInfo.line2 }"
-                    ></div>
-                    <div
-                      class="step-item"
-                      :class="{
-                        active: projectStepInfo.step3.active,
-                        completed: projectStepInfo.step3.completed
-                      }"
-                    >
-                      <div class="step-circle">3</div>
-                      <div class="step-label">Dictamen Aprobado</div>
-                    </div>
-                    <div
-                      class="step-line"
-                      :class="{ completed: projectStepInfo.line3 }"
-                    ></div>
-                    <div
-                      class="step-item"
-                      :class="{
-                        active: projectStepInfo.step4.active,
-                        completed: projectStepInfo.step4.completed
-                      }"
-                    >
-                      <div class="step-circle">4</div>
-                      <div class="step-label">En Residencia</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Si NO hay anteproyecto registrado -->
-              <div v-else class="dashboard-empty-residency">
-                <div class="dashboard-empty-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                  </svg>
-                </div>
-                <h4 class="dashboard-empty-title">Aún no has registrado tu Anteproyecto</h4>
-                <p class="dashboard-empty-desc">
-                  Para iniciar tu proceso de residencia profesional, debes registrar y enviar tu propuesta de anteproyecto para su dictamen por la Academia.
-                </p>
-                <router-link to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm" style="margin-top: 0.75rem;">
-                  + Registrar Anteproyecto
-                </router-link>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 2: Avance Semanal de Cronograma -->
-          <div class="tecnm-card">
-            <div class="tecnm-card-header">
-              <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: var(--tecnm-blue-primary, #1b396a);">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                </svg>
-                <h3 class="tecnm-card-title">Avance del Cronograma de Actividades</h3>
-              </div>
-              <router-link to="/activities/schedule" class="tecnm-btn tecnm-btn-outline tecnm-btn-sm">
-                Ver Cronograma &rarr;
-              </router-link>
-            </div>
-            <div class="tecnm-card-body">
-              <div class="tecnm-d-flex tecnm-justify-between tecnm-align-center" style="margin-bottom: 0.4rem; display: flex; justify-content: space-between; align-items: center;">
-                <span class="tecnm-field-label" style="margin-bottom: 0;">Progreso de las 26 Semanas Oficiales</span>
-                <strong style="color: var(--tecnm-blue-primary, #1b396a); font-size: 0.95rem;">
-                  {{ completedWeeksCount }} de {{ TOTAL_WEEKS }} semanas ({{ studentProgressPercent }}%)
-                </strong>
-              </div>
-              <div class="progress-track" style="height: 10px; border-radius: 5px;">
-                <div class="progress-fill" :style="{ width: `${studentProgressPercent}%`, borderRadius: '5px' }"></div>
-              </div>
-              <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: var(--tecnm-text-secondary, #64748b);">
-                Registra periódicamente el avance de tus actividades semanales para mantener tu reporte actualizado con tu Asesor Interno.
-              </p>
-            </div>
-          </div>
-
-          <!-- Acceso Rápido / Role Actions -->
-          <section class="dashboard-section">
-            <h2 class="dashboard-section-title">Acceso Rápido</h2>
-            <div class="action-cards">
-              <router-link to="/projects/proposal" class="action-card">
-                <span class="action-card-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
-                </span>
-                <span class="action-card-body">
-                  <span class="action-card-title">Anteproyecto</span>
-                  <span class="action-card-sub">Registrar o dar seguimiento</span>
-                </span>
-              </router-link>
-
-              <router-link to="/activities/schedule" class="action-card">
-                <span class="action-card-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>
-                </span>
-                <span class="action-card-body">
-                  <span class="action-card-title">Cronograma</span>
-                  <span class="action-card-sub">Avance de tus 26 semanas</span>
-                </span>
-              </router-link>
-
-              <router-link to="/documents" class="action-card">
-                <span class="action-card-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" /></svg>
-                </span>
-                <span class="action-card-body">
-                  <span class="action-card-title">Expediente Digital</span>
-                  <span class="action-card-sub">Documentos y evidencias</span>
-                </span>
-              </router-link>
-            </div>
-          </section>
-        </template>
-      </div>
-
-      <!-- Columna Lateral / Side Panel -->
-      <div id="sidePanel" class="dashboard-side">
-        <!-- VISTA ADMIN / STAFF: Cola de Dictamen -->
         <div
-          v-if="isStaff"
-          class="panel-card"
+          v-else-if="authStore.currentRole === 'advisor'"
+          class="tecnm-card"
         >
-          <h3 class="panel-title">Cola de Dictamen</h3>
-          <ul class="list-panel">
-            <li v-if="isLoading" class="list-panel-empty">Cargando anteproyectos pendientes...</li>
-            <li v-else-if="pendingProjects.length === 0" class="list-panel-empty">
-              Sin anteproyectos por dictaminar. ¡Al día!
-            </li>
-            <li
-              v-for="p in pendingProjects"
-              v-else
-              :key="p.id"
-              class="list-panel-item"
-            >
-              <div>
-                <div class="list-panel-item-title">{{ p.title }}</div>
-                <div class="list-panel-item-sub">{{ p.studentName || 'Estudiante' }}</div>
-              </div>
-            </li>
-          </ul>
+          <div class="tecnm-card-header">
+            <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: var(--tecnm-blue-primary, #1b396a);">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+              </svg>
+              <h3 class="tecnm-card-title">Mis Residentes a Cargo</h3>
+            </div>
+            <span class="tecnm-badge tecnm-badge-neutral">
+              {{ advisorProjects.length }} Asignados
+            </span>
+          </div>
 
-          <div class="tecnm-d-flex tecnm-flex-wrap tecnm-gap-2" style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
-            <router-link to="/projects/review" class="tecnm-btn tecnm-btn-outline tecnm-btn-sm">
-              Ir al Dictamen
-            </router-link>
-            <router-link to="/admin/reports" class="tecnm-btn tecnm-btn-outline tecnm-btn-sm">
-              Reportes y Liberación
-            </router-link>
+          <div class="tecnm-card-body">
+            <div class="tecnm-table-responsive">
+              <table class="tecnm-table tecnm-table-striped">
+                <thead>
+                  <tr>
+                    <th>Estudiante</th>
+                    <th>Proyecto y Empresa</th>
+                    <th>Avance Semanal</th>
+                    <th>Estado</th>
+                    <th class="tecnm-th-actions" style="text-align: right;">Acciones Directas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="isLoading">
+                    <td colspan="5" class="tecnm-table-empty">Cargando residentes a tu cargo...</td>
+                  </tr>
+                  <tr v-else-if="advisorProjects.length === 0">
+                    <td colspan="5" class="tecnm-table-empty">
+                      Actualmente no tienes residentes asignados por la Jefatura de División.
+                    </td>
+                  </tr>
+                  <tr v-for="p in advisorProjects" v-else :key="p.id">
+                    <td>
+                      <strong>{{ p.studentName || 'Estudiante' }}</strong>
+                      <div style="font-size: 0.75rem; color: var(--tecnm-text-secondary, #64748b);">
+                        {{ p.studentControlNumber ? `Ctrl: ${p.studentControlNumber}` : '' }}
+                        {{ p.careerId ? `• ${CAREERS[p.careerId]}` : '' }}
+                      </div>
+                    </td>
+                    <td>
+                      <div style="font-weight: 500; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {{ p.title }}
+                      </div>
+                      <div style="font-size: 0.75rem; color: var(--tecnm-text-secondary, #64748b);">
+                        🏢 {{ p.companyName || 'Empresa Receptora' }}
+                      </div>
+                    </td>
+                    <td style="min-width: 140px;">
+                      <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.25rem; font-weight: 600; color: var(--tecnm-blue-primary);">
+                        <span>{{ getProjectWeekProgress(p) }}/{{ TOTAL_WEEKS }} sem</span>
+                        <span>{{ getProjectWeekPercent(p) }}%</span>
+                      </div>
+                      <div class="progress-track" style="height: 6px; border-radius: 3px;">
+                        <div class="progress-fill" :style="{ width: `${getProjectWeekPercent(p)}%`, borderRadius: '3px' }"></div>
+                      </div>
+                    </td>
+                    <td>
+                      <TecnmBadge :status="p.status" />
+                    </td>
+                    <td style="text-align: right;">
+                      <div class="tecnm-row-actions" style="justify-content: flex-end; gap: 0.35rem;">
+                        <router-link
+                          to="/evaluations"
+                          class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                          title="Bitácora de Asesorías"
+                        >
+                          Bitácora
+                        </router-link>
+                        <router-link
+                          to="/activities/schedule"
+                          class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                          title="Cronograma de Actividades"
+                        >
+                          Cronograma
+                        </router-link>
+                        <router-link
+                          to="/evaluations/grading"
+                          class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                          title="Evaluar Parciales / Final"
+                        >
+                          Evaluar
+                        </router-link>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
+        <!-- ======================================================== -->
         <!-- VISTA ESTUDIANTE: Perfil y Tareas Pendientes -->
+        <!-- ======================================================== -->
         <template v-else-if="authStore.currentRole === 'student'">
           <!-- Card de Identidad del Estudiante -->
           <div v-if="studentProfile" class="panel-card panel-card--loose dashboard-student-card">
@@ -726,6 +744,34 @@ onMounted(() => {
               >
                 <router-link :to="task.href" class="list-panel-link">
                   {{ task.text }} &rarr;
+                </router-link>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Card de Formatos Oficiales TecNM para Descarga -->
+          <div class="panel-card panel-card--loose">
+            <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: var(--tecnm-blue-primary, #1b396a);">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+              </svg>
+              <h3 class="panel-title" style="margin-bottom: 0;">Formatos Oficiales TecNM</h3>
+            </div>
+
+            <ul class="list-panel">
+              <li class="list-panel-item">
+                <router-link to="/documents" class="list-panel-link">
+                  📄 Anexo XXIX - Carta de Aceptación &rarr;
+                </router-link>
+              </li>
+              <li class="list-panel-item">
+                <router-link to="/documents" class="list-panel-link">
+                  📄 Anexo XXX - Solicitud de Residencia &rarr;
+                </router-link>
+              </li>
+              <li class="list-panel-item">
+                <router-link to="/activities/schedule" class="list-panel-link">
+                  📄 Cronograma Modelo (26 Semanas) &rarr;
                 </router-link>
               </li>
             </ul>
