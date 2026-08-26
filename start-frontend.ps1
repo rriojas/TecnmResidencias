@@ -7,8 +7,11 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $FrontendDir = Join-Path $ScriptDir "RTecNM_V2_Frontend"
 
-# Función para liberar puerto si ya está ocupado
-function Free-Port([int]$port) {
+param (
+    [switch]$Yes = $false
+)
+
+function Check-And-Confirm-Port([int]$port, [string]$serviceName) {
     $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
     if ($connections) {
         $pids = $connections | Select-Object -ExpandProperty OwningProcess -Unique
@@ -16,12 +19,20 @@ function Free-Port([int]$port) {
             if ($p -and $p -ne 0) {
                 $proc = Get-Process -Id $p -ErrorAction SilentlyContinue
                 if ($proc) {
-                    Write-Host "   🔄 Liberando puerto $port (cerrando proceso previo PID $($p) - $($proc.ProcessName))..." -ForegroundColor Yellow
+                    Write-Host "`n⚠️  ALERTA: El puerto $port ($serviceName) ya está en uso por PID $($p) ($($proc.ProcessName))" -ForegroundColor Yellow
+                    if (-not $Yes -and $Host.UI.RawUI) {
+                        $ans = Read-Host "👉 ¿Deseas detener el proceso $($proc.ProcessName) (PID: $p) para continuar? [S/N]"
+                        if ($ans -notmatch "^[sSyY]") {
+                            Write-Host "❌ Operación cancelada por el usuario." -ForegroundColor Red
+                            exit 1
+                        }
+                    }
+                    Write-Host "   🔄 Liberando puerto $port (cerrando PID $($p))..." -ForegroundColor Yellow
                     Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
+                    Start-Sleep -Milliseconds 500
                 }
             }
         }
-        Start-Sleep -Milliseconds 500
     }
 }
 
@@ -45,8 +56,8 @@ if (Get-Command pnpm -ErrorAction SilentlyContinue) {
     exit 1
 }
 
-# 2. Verificar y liberar puerto 5085 si está ocupado
-Free-Port 5085
+# 2. Verificar puerto 5085 ocupado
+Check-And-Confirm-Port 5085 "Frontend Vite Vue 3"
 
 # 3. Iniciar Frontend Vite
 Write-Host "`n🚀 Iniciando Frontend Vite en http://localhost:5085..." -ForegroundColor Green

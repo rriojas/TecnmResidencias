@@ -39,20 +39,85 @@ fi
 
 echo -e "   ${GREEN}✅ Docker y Docker Compose detectados correctamente.${NC}"
 
-# 2. Liberar procesos host en puertos en uso si existen fuera de Docker
+SKIP_PROMPT=false
+for arg in "$@"; do
+    if [ "$arg" = "-y" ] || [ "$arg" = "--yes" ]; then
+        SKIP_PROMPT=true
+    fi
+done
+
+# 2. Verificación de disponibilidad de puertos con confirmación previa
 echo -e "\n${CYAN}2. Verificando disponibilidad de puertos (5085, 5185, 5439)...${NC}"
 
-free_port_if_occupied() {
+check_and_confirm_port() {
     local port=$1
-    local pids
-    pids=$(lsof -t -i :"$port" 2>/dev/null || true)
+    local service_name=$2
+    local pids=""
+    local proc_details=""
+
+    if command -v lsof >/dev/null 2>&1; then
+        pids=$(lsof -t -i :"$port" 2>/dev/null || true)
+        if [ -n "$pids" ]; then
+            proc_details=$(ps -p "$pids" -o pid,comm,args --no-headers 2>/dev/null || echo "PID $pids")
+        fi
+    elif command -v fuser >/dev/null 2>&1; then
+        pids=$(fuser "${port}/tcp" 2>/dev/null | xargs || true)
+        if [ -n "$pids" ]; then
+            proc_details="PID $pids"
+        fi
+    fi
+
     if [ -n "$pids" ]; then
-        echo -e "   ${YELLOW}⚠️  Puerto $port ocupado por proceso local. Deteniendo PIDs: $pids...${NC}"
-        kill -9 $pids 2>/dev/null || true
+        echo -e "\n${YELLOW}⚠️  ALERTA: El puerto $port ($service_name) ya está en uso por un proceso host:${NC}"
+        echo -e "   ${WHITE}$proc_details${NC}"
+
+        if [ "$SKIP_PROMPT" = false ] && [ -t 0 ]; then
+            read -r -p "👉 ¿Deseas detener el proceso ocupante (PID: $pids) para continuar? [S/n]: " response
+            case "$response" in
+                [nN][oO]|[nN])
+                    echo -e "${RED}❌ Operación cancelada por el usuario para prevenir conflictos.${NC}"
+                    echo -e "${YELLOW}💡 Libera manualmente el puerto $port o ajusta la configuración antes de volver a intentar.${NC}"
+                    exit 1
+                    ;;
+                *)
+                    echo -e "   ${CYAN}🔄 Liberando puerto $port (Deteniendo PID: $pids)...${NC}"
+                    kill -9 $pids 2>/dev/null || true
+                    sleep 1
+                    echo -e "   ${GREEN}✅ Puerto $port liberado correctamente.${NC}"
+                    ;;
+            esac
+        else
+            echo -e "   ${YELLOW}🔄 Deteniendo PID $pids en puerto $port...${NC}"
+            kill -9 $pids 2>/dev/null || true
+            sleep 1
+        fi
+    else
+        echo -e "   ${GREEN}✅ Puerto $port ($service_name) libre.${NC}"
     fi
 }
 
-free_port_if_occupied 5185
+check_and_confirm_port 5439 "PostgreSQL Base de Datos"
+check_and_confirm_port 5185 "Backend API .NET"
+check_and_confirm_port 5085 "Frontend Web Nginx"
+
+# Confirmación general antes de montar contenedores
+if [ "$SKIP_PROMPT" = false ] && [ -t 0 ]; then
+    echo -e "\n${CYAN}📋 Resumen de Servicios a Desplegar:${NC}"
+    echo -e "   🐘 Base de Datos : PostgreSQL 18 (${WHITE}BD: postgre_recidencias${NC}, Puerto: ${WHITE}5439${NC})"
+    echo -e "   ⚙️  Backend API   : .NET 10 API (${WHITE}Puerto: 5185${NC})"
+    echo -e "   🌐 Frontend Web  : Vue 3 + Nginx (${WHITE}Puerto: 5085${NC})"
+    echo ""
+    read -r -p "👉 ¿Confirmas el inicio del despliegue en el servidor? [S/n]: " main_response
+    case "$main_response" in
+        [nN][oO]|[nN])
+            echo -e "${YELLOW}🛑 Despliegue cancelado por el usuario.${NC}"
+            exit 0
+            ;;
+        *)
+            echo -e "   ${GREEN}🚀 Procediendo con el despliegue...${NC}"
+            ;;
+    esac
+fi
 
 # 3. Asegurar estructura de directorios persistentes
 echo -e "\n${CYAN}3. Preparando volúmenes y directorios de almacenamiento...${NC}"
@@ -63,7 +128,11 @@ echo -e "   ${GREEN}✅ Carpetas de archivos subidos configuradas.${NC}"
 
 # 4. Construcción e inicio con Docker Compose
 echo -e "\n${CYAN}4. Construyendo e iniciando contenedores en segundo plano...${NC}"
-docker compose up -d --build
+if ! docker compose up -d --build; then
+    echo -e "\n${RED}❌ ERROR CRÍTICO: Falló la ejecución de 'docker compose up'.${NC}"
+    echo -e "${YELLOW}👉 Revisa que ningún otro servicio esté usando los puertos 5085, 5185 o 5439 y verifica los permisos de Docker.${NC}"
+    exit 1
+fi
 
 # 5. Esperar a que el backend e infraestructura estén 100% listos
 echo -e "\n${CYAN}5. Verificando estado de los servicios...${NC}"

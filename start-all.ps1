@@ -4,7 +4,8 @@
 # ==============================================================================
 
 param (
-    [switch]$Inline = $false
+    [switch]$Inline = $false,
+    [switch]$Yes = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,6 +25,19 @@ if (-not (Test-Path $BackendScript)) {
 if (-not (Test-Path $FrontendScript)) {
     Write-Host "❌ ERROR: No se encontró $FrontendScript" -ForegroundColor Red
     exit 1
+}
+
+if (-not $Yes -and $Host.UI.RawUI) {
+    Write-Host "`n📋 Resumen del Entorno de Desarrollo a Iniciar:" -ForegroundColor Cyan
+    Write-Host "   🐘 PostgreSQL (Docker)  : BD: postgre_recidencias (Puerto: 5439)" -ForegroundColor White
+    Write-Host "   ⚙️  Backend API (.NET)   : http://localhost:5185" -ForegroundColor White
+    Write-Host "   🌐 Frontend SPA (Vite)  : http://localhost:5085`n" -ForegroundColor White
+    
+    $ans = Read-Host "👉 ¿Deseas verificar puertos e iniciar el Stack Completo? [S/N]"
+    if ($ans -notmatch "^[sSyY]") {
+        Write-Host "🛑 Inicio cancelado por el usuario." -ForegroundColor Yellow
+        exit 0
+    }
 }
 
 $psExe = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh" } else { "powershell" }

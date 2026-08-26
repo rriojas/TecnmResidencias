@@ -7,8 +7,11 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BackendDir = Join-Path $ScriptDir "RTecNM_V2_Backend"
 
-# Función para liberar puerto si ya está ocupado
-function Free-Port([int]$port) {
+param (
+    [switch]$Yes = $false
+)
+
+function Check-And-Confirm-Port([int]$port, [string]$serviceName) {
     $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
     if ($connections) {
         $pids = $connections | Select-Object -ExpandProperty OwningProcess -Unique
@@ -16,12 +19,20 @@ function Free-Port([int]$port) {
             if ($p -and $p -ne 0) {
                 $proc = Get-Process -Id $p -ErrorAction SilentlyContinue
                 if ($proc) {
-                    Write-Host "   🔄 Liberando puerto $port (cerrando proceso previo PID $($p) - $($proc.ProcessName))..." -ForegroundColor Yellow
+                    Write-Host "`n⚠️  ALERTA: El puerto $port ($serviceName) ya está en uso por PID $($p) ($($proc.ProcessName))" -ForegroundColor Yellow
+                    if (-not $Yes -and $Host.UI.RawUI) {
+                        $ans = Read-Host "👉 ¿Deseas detener el proceso $($proc.ProcessName) (PID: $p) para continuar? [S/N]"
+                        if ($ans -notmatch "^[sSyY]") {
+                            Write-Host "❌ Operación cancelada por el usuario." -ForegroundColor Red
+                            exit 1
+                        }
+                    }
+                    Write-Host "   🔄 Liberando puerto $port (cerrando PID $($p))..." -ForegroundColor Yellow
                     Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
+                    Start-Sleep -Milliseconds 500
                 }
             }
         }
-        Start-Sleep -Milliseconds 500
     }
 }
 
@@ -63,10 +74,12 @@ if ($dockerCmd) {
     Write-Host "   ⚠️  Docker no detectado. Asegúrate de tener PostgreSQL corriendo localmente en el puerto 5439." -ForegroundColor Yellow
 }
 
-# 3. Verificar y liberar puerto 5185 si está ocupado
-Free-Port 5185
+# 2. Verificar disponibilidad de puertos
+Check-And-Confirm-Port 5439 "PostgreSQL Base de Datos"
+Check-And-Confirm-Port 5185 "Backend API .NET"
 
-# 4. Iniciar Backend
+# 3. Verificar/Iniciar PostgreSQL con Docker Compose
+Write-Host "`n🐘 Verificando Base de Datos PostgreSQL..." -ForegroundColor Yellow
 Write-Host "`n🚀 Iniciando Backend Web API en http://localhost:5185..." -ForegroundColor Green
 Write-Host "   📖 Swagger / OpenAPI disponible en: http://localhost:5185/swagger`n" -ForegroundColor DarkCyan
 

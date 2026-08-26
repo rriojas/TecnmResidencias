@@ -18,18 +18,54 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRONTEND_DIR="$SCRIPT_DIR/RTecNM_V2_Frontend"
 
-free_port() {
+SKIP_PROMPT=false
+for arg in "$@"; do
+    if [ "$arg" = "-y" ] || [ "$arg" = "--yes" ]; then
+        SKIP_PROMPT=true
+    fi
+done
+
+check_and_confirm_port() {
     local port=$1
+    local service_name=$2
+    local pids=""
+    local proc_details=""
+
     if command -v lsof >/dev/null 2>&1; then
-        local pids
-        pids=$(lsof -ti :"$port" 2>/dev/null || true)
+        pids=$(lsof -t -i :"$port" 2>/dev/null || true)
         if [ -n "$pids" ]; then
-            echo -e "   ${YELLOW}🔄 Liberando puerto $port (PID: $pids)...${NC}"
-            kill -9 $pids 2>/dev/null || true
-            sleep 0.5
+            proc_details=$(ps -p "$pids" -o pid,comm,args --no-headers 2>/dev/null || echo "PID $pids")
         fi
     elif command -v fuser >/dev/null 2>&1; then
-        fuser -k "${port}/tcp" 2>/dev/null || true
+        pids=$(fuser "${port}/tcp" 2>/dev/null | xargs || true)
+        if [ -n "$pids" ]; then
+            proc_details="PID $pids"
+        fi
+    fi
+
+    if [ -n "$pids" ]; then
+        echo -e "\n${YELLOW}⚠️  ALERTA: El puerto $port ($service_name) ya está en uso por un proceso local:${NC}"
+        echo -e "   ${WHITE}$proc_details${NC}"
+
+        if [ "$SKIP_PROMPT" = false ] && [ -t 0 ]; then
+            read -r -p "👉 ¿Deseas detener el proceso ocupante (PID: $pids) para continuar? [S/n]: " response
+            case "$response" in
+                [nN][oO]|[nN])
+                    echo -e "${RED}❌ Operación cancelada por el usuario.${NC}"
+                    exit 1
+                    ;;
+                *)
+                    echo -e "   ${CYAN}🔄 Liberando puerto $port (Deteniendo PID $pids)...${NC}"
+                    kill -9 $pids 2>/dev/null || true
+                    sleep 1
+                    echo -e "   ${GREEN}✅ Puerto $port liberado.${NC}"
+                    ;;
+            esac
+        else
+            echo -e "   ${YELLOW}🔄 Deteniendo PID $pids en puerto $port...${NC}"
+            kill -9 $pids 2>/dev/null || true
+            sleep 1
+        fi
     fi
 }
 
@@ -53,8 +89,8 @@ else
     exit 1
 fi
 
-# 2. Liberar puerto 5085 si está ocupado
-free_port 5085
+# 2. Verificar puerto 5085 ocupado
+check_and_confirm_port 5085 "Frontend Vite Vue 3"
 
 # 3. Iniciar Frontend Vite
 echo -e "\n${GREEN}🚀 Iniciando Frontend Vite en http://localhost:5085...${NC}"

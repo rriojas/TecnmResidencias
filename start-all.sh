@@ -32,8 +32,30 @@ if [ ! -f "$FRONTEND_SCRIPT" ]; then
     exit 1
 fi
 
-# Dar permisos de ejecución si no los tienen
-chmod +x "$BACKEND_SCRIPT" "$FRONTEND_SCRIPT" 2>/dev/null || true
+SKIP_PROMPT=false
+for arg in "$@"; do
+    if [ "$arg" = "-y" ] || [ "$arg" = "--yes" ]; then
+        SKIP_PROMPT=true
+    fi
+done
+
+if [ "$SKIP_PROMPT" = false ] && [ -t 0 ]; then
+    echo -e "\n${CYAN}📋 Resumen del Entorno de Desarrollo a Iniciar:${NC}"
+    echo -e "   🐘 PostgreSQL (Docker)  : ${WHITE}BD: postgre_recidencias (Puerto: 5439)${NC}"
+    echo -e "   ⚙️  Backend API (.NET)   : ${WHITE}http://localhost:5185${NC}"
+    echo -e "   🌐 Frontend SPA (Vite)  : ${WHITE}http://localhost:5085${NC}"
+    echo ""
+    read -r -p "👉 ¿Deseas verificar puertos e iniciar el Stack Completo? [S/n]: " main_response
+    case "$main_response" in
+        [nN][oO]|[nN])
+            echo -e "${YELLOW}🛑 Inicio cancelado por el usuario.${NC}"
+            exit 0
+            ;;
+        *)
+            echo -e "   ${GREEN}🚀 Iniciando verificación y arranque de servicios...${NC}"
+            ;;
+    esac
+fi
 
 BACKEND_PID=""
 FRONTEND_PID=""

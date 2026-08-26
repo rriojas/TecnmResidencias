@@ -18,11 +18,14 @@ Cliente web institucional desarrollado como Single Page Application (SPA) modern
 ## 📂 Estructura de Directorios
 
 ```text
-src/
-├── assets/
-│   ├── css/
-│   │   └── main.css              # Tokens y clases de utilidad del Design System TecNM
-│   └── tecnm-isologo.svg         # Isologotipo oficial TecNM
+RTecNM_V2_Frontend/
+├── Dockerfile                    # Construcción multi-stage de la SPA en Nginx (producción)
+├── nginx.conf                    # Configuración Nginx (Reverse Proxy /api/* y SPA fallback)
+├── src/
+│   ├── assets/
+│   │   ├── css/
+│   │   │   └── main.css          # Tokens y clases de utilidad del Design System TecNM
+│   │   └── tecnm-isologo.svg     # Isologotipo oficial TecNM
 ├── components/
 │   ├── common/
 │   │   ├── AuditModal.vue        # Modal de auditoría institucional (10 campos)

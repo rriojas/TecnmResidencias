@@ -28,7 +28,7 @@ El sistema cuenta con **6 roles oficiales** con permisos y ámbitos de control i
 
 3. **Gestión Tecnológica y Vinculación (`vinculacion`)**:
    - **Ámbito**: Vinculación institucional y gestión de convenios.
-   - **Funciones**: Alta y administración del catálogo de empresas e instituciones receptoras, emisión de cartas de presentación y liberación, y seguimiento del expediente documental de vinculación.
+   - **Funciones**: Alta y administración del catálogo de empresas e instituciones receptoras, emisión de cartas de presentación y liberación, y seguimiento del expediente documental de vinculación (con restricciones de edición sobre dictámenes académicos y anteproyectos).
 
 4. **Director / Directivos (`director`)**:
    - **Ámbito**: Supervisión institucional de solo lectura.
@@ -94,9 +94,28 @@ Vite Dev Server ─►│  Host Local: Frontend Vue 3 (Puerto 5085 / Hot Reload)
 
 ---
 
-### Opción A: Despliegue Completo en Producción / Staging (3 Contenedores)
+### Opción A: Despliegue Automatizado en Producción / Servidor Ubuntu (`deploy-server.sh` — Recomendado para Servidor)
 
-Para iniciar todos los servicios del stack encapsulados en contenedores Docker:
+Para desplegar automáticamente el stack completo en un servidor de producción (Ubuntu 24.04 LTS / Debian):
+
+```bash
+chmod +x deploy-server.sh
+./deploy-server.sh
+```
+
+El script ejecuta un flujo de despliegue completo de producción:
+1. Verificación de **Docker** y **Docker Compose v2**.
+2. Diagnóstico y liberación interactiva de los puertos `5085` (Frontend Nginx), `5185` (Backend API) y `5439` (PostgreSQL DB).
+3. Creación y asignación de permisos de almacenamiento persistente (`uploads/documents`, `uploads/templates/excel`).
+4. Compilación e inicio en segundo plano de los 3 contenedores (`docker compose up -d --build`).
+5. Verificación de salud (*Healthcheck*) automatizada en bucle hasta detectar la respuesta de la API REST.
+6. Resumen de despliegue con URLs e IP del servidor.
+
+---
+
+### Opción B: Despliegue Manual en Producción / Staging (3 Contenedores)
+
+Para iniciar manualmente todos los servicios del stack encapsulados en contenedores Docker:
 
 ```bash
 docker-compose up -d --build
@@ -109,7 +128,7 @@ Esto levantará automáticamente los 3 contenedores:
 
 ---
 
-### Opción B: Modo Desarrollador (Scripts de Inicio Rápido — Recomendado)
+### Opción C: Modo Desarrollador (Scripts de Inicio Rápido — Recomendado en Dev)
 
 Se incluyen scripts automatizados para PowerShell (Windows) y Bash (Linux/macOS) que verifican requisitos, inician el contenedor de PostgreSQL en Docker y ejecutan Backend y Frontend en el host con depuración activa y puerto liberado:
 
@@ -127,7 +146,7 @@ Se incluyen scripts automatizados para PowerShell (Windows) y Bash (Linux/macOS)
 
 ---
 
-### Opción C: Ejecución Manual Paso a Paso en Desarrollo
+### Opción D: Ejecución Manual Paso a Paso en Desarrollo
 
 #### 1. Iniciar Base de Datos PostgreSQL (vía Docker)
 
@@ -162,10 +181,12 @@ pnpm dev       # O bien: npm run dev
 ```text
 TecnmResidencias/
 ├── docker-compose.yml              # Orquestación de contenedores Docker (Postgres, Backend, Frontend)
+├── deploy-server.sh                # Script de despliegue automatizado para servidor de producción (Ubuntu)
+├── .env.example                    # Variables de entorno globales del proyecto (puertos y credenciales)
 ├── README.md                       # Documentación principal del proyecto
 ├── GUIA_MIGRACION_FRONTEND.md      # Hoja de ruta y detalles de migración a Vue 3
 ├── GUIA_IMPLEMENTACION_BUSQUEDA_GLOBAL.md # Especificación del motor de búsqueda multitabla
-├── start-all.ps1 / .sh             # Script para iniciar todo el stack en desarrollo
+├── start-all.ps1 / .sh             # Script para iniciar todo el stack en desarrollo con verificación de puertos
 ├── start-backend.ps1 / .sh         # Script para iniciar Backend local y Postgres en Docker
 ├── start-frontend.ps1 / .sh        # Script para iniciar Frontend Vite local
 ├── docs/                           # Documentación técnica y scripts SQL
@@ -198,16 +219,16 @@ El servidor Backend (`RTecNM_V2_Backend`) está construido en **C# (.NET 10 Web 
 El backend se compone de **11 módulos funcionales**:
 
 #### 1. `Auth/` (Autenticación y Seguridad RBAC)
-- **Responsabilidad**: Gestión de identidad de usuarios, hashing seguro de contraseñas con `BCrypt.Net`, generación y validación de JSON Web Tokens (JWT), refresco de claims y control de roles y permisos.
+- **Responsabilidad**: Gestión de identidad de usuarios, hashing seguro de contraseñas con `BCrypt.Net`, generación y validación de JSON Web Tokens (JWT), refresco de claims, limpieza/sincronización de perfiles según cambios de rol y control de permisos RBAC.
 - **Componentes Clave**: `AuthController`, `RoleController`, `AuthService`, `RoleService`, `AuthRepository`, `RoleRepository`, `DbSeeder`.
 - **Destacado**: `DbSeeder.cs` ejecuta automáticamente al iniciar la API la creación e inserción idempotente de los 6 roles institucionales, módulos, matriz de permisos y el usuario Super Administrador por defecto (`admin@monclova.tecnm.mx`).
 
 #### 2. `Students/` (Expedientes y Gestión Estudiantil)
-- **Responsabilidad**: Alta, edición, consulta y expediente integral del estudiante residente. Control de carreras institucionales (ISC, IIA, IME, CP, LA, IE), semestres, periodos lectivos y dictaminación del estado de elegibilidad (Elegible, No Elegible, En Proceso).
+- **Responsabilidad**: Alta, edición, consulta y expediente integral del estudiante residente. Control de carreras institucionales (ISC, IIA, IME, CP, LA, IE), semestres, periodos lectivos, validación estricta del rol `student` y dictaminación del estado de elegibilidad (Elegible, No Elegible, En Proceso).
 - **Componentes Clave**: `StudentController`, `StudentService`, `StudentRepository`, `StudentDto`, `StudentConfiguration`.
 
 #### 3. `Advisors/` (Asesores Académicos y Docentes)
-- **Responsabilidad**: Registro y administración de asesores internos y externos, catálogo de especialidades académicas, departamentos, seguimiento de carga docente y asignación de residentes a asesores.
+- **Responsabilidad**: Registro y administración de asesores internos y externos, catálogo de especialidades académicas, departamentos, validación estricta del rol `advisor`, seguimiento de carga docente y asignación de residentes a asesores.
 - **Componentes Clave**: `AdvisorController`, `AdvisorService`, `AdvisorRepository`, `AdvisorDto`, `AdvisorAssignmentDto`.
 
 #### 4. `Projects/` (Anteproyectos de Residencia Profesional)
@@ -245,7 +266,7 @@ El backend se compone de **11 módulos funcionales**:
 - **Componentes Clave**:
   - `AppDbContext`: Contexto central de EF Core que aplica configuraciones fluentes (`IEntityTypeConfiguration`) de todas las entidades.
   - `CurrentUserService`: Extrae del `HttpContext` el ID del usuario autenticado y la dirección IP origen para poblar automáticamente los 10 campos de auditoría inmutable.
-  - `Notifications/`: Motor de envío de correos electrónicos en segundo plano (`EmailBackgroundWorker` de tipo `IHostedService`, `EmailQueue`, `EmailTemplateService` con MailKit/MimeKit).
+  - `Notifications/`: Motor de envío de correos electrónicos en segundo plano (`EmailBackgroundWorker` de tipo `IHostedService`, `EmailQueue`, `EmailTemplateService` con MailKit/MimeKit, configurado por defecto con credenciales de `noreply@monclova.tecnm.mx`).
   - `Settings/`: Servicio de configuración dinámica de parámetros del sistema (`ISystemSettingService`, `SystemSettingConfiguration`).
 
 ---
@@ -378,6 +399,7 @@ Construido con **Vue 3 (`<script setup>`)**, **Vite**, **Pinia**, **Vue Router**
 | `dotnet build` | Compila la solución/proyecto C# Backend |
 | `dotnet run` | Ejecuta la API REST en `http://localhost:5185` |
 | `dotnet test` | Ejecuta las pruebas unitarias y de integración |
+| `./deploy-server.sh` | Ejecuta el flujo automatizado de despliegue en servidor de producción (Ubuntu) |
 | `docker-compose up -d postgres` | Inicia únicamente el contenedor PostgreSQL 18 (Modo Dev) |
 | `docker-compose up -d --build` | Inicia los 3 contenedores Docker (Modo Producción) |
 | `docker-compose logs -f` | Muestra los logs en tiempo real de los contenedores Docker |
