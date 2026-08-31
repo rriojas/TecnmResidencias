@@ -7,6 +7,7 @@ import { useGlobalSearch } from '@/composables/useGlobalSearch'
 import apiClient from '@/services/api'
 import TecnmPagination from '@/components/common/TecnmPagination.vue'
 import TecnmBadge from '@/components/common/TecnmBadge.vue'
+import TecnmAutocomplete from '@/components/common/TecnmAutocomplete.vue'
 
 const authStore = useAuthStore()
 const { confirm } = useConfirm()
@@ -71,6 +72,8 @@ function getActionLabel(project) {
 const isReviewModalOpen = ref(false)
 const selectedProject = ref(null)
 const reviewComments = ref('')
+const selectedAdvisorId = ref('')
+const initialReviewAdvisor = ref(null)
 const isSubmitting = ref(false)
 
 // Catálogo de Carreras
@@ -186,9 +189,30 @@ async function openReviewModal(project) {
     const res = await apiClient.get(`/v1/projects/${project.id}`)
     selectedProject.value = res.data
     reviewComments.value = res.data.reviewComments || ''
+    selectedAdvisorId.value = res.data.advisorId || ''
+    initialReviewAdvisor.value = res.data.advisorId ? { id: res.data.advisorId, fullName: res.data.advisorName } : null
     isReviewModalOpen.value = true
   } catch {
     showAlert('Error al cargar datos del anteproyecto.', 'danger')
+  }
+}
+
+async function handleAssignAdvisor() {
+  if (!selectedProject.value || !selectedAdvisorId.value) return
+  isSubmitting.value = true
+  try {
+    await apiClient.post('/v1/advisors/assign', {
+      advisorId: Number(selectedAdvisorId.value),
+      projectId: selectedProject.value.id,
+    })
+    const updatedRes = await apiClient.get(`/v1/projects/${selectedProject.value.id}`)
+    selectedProject.value = updatedRes.data
+    showAlert('Asesor asignado al anteproyecto exitosamente.', 'success')
+    loadProjects({ silent: true })
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al asignar el asesor.', 'danger')
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -600,7 +624,44 @@ onMounted(() => {
             </div>
             <div>
               <h4 class="tecnm-field-label">Asesor Interno Asignado</h4>
-              <p class="tecnm-field-value">{{ selectedProject.advisorName || '—' }}</p>
+              <p class="tecnm-field-value">
+                <span v-if="selectedProject.advisorName" class="tecnm-badge tecnm-badge-success" style="font-size: 0.85rem;">
+                  {{ selectedProject.advisorName }}
+                </span>
+                <span v-else class="tecnm-badge tecnm-badge-warning" style="font-size: 0.85rem;">
+                  Pendiente de asignación
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <!-- Selector de Asesor para Jefatura / División Académica -->
+          <div
+            v-if="!authStore.isReadOnly && (authStore.isAdmin || authStore.hasRole('departmenthead', 'academic')) && !['completed', 'cancelled'].includes((selectedProject.status || '').toLowerCase())"
+            class="tecnm-form-group"
+            style="background: var(--tecnm-bg-light, #f8fafc); padding: 1rem; border-radius: 8px; border: 1px solid var(--tecnm-border-color, #e2e8f0); margin-bottom: 1rem;"
+          >
+            <label class="tecnm-label" style="font-weight: 600;">
+              Asignar / Cambiar Asesor Académico por Anteproyecto:
+            </label>
+            <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;">
+              <div style="flex: 1;">
+                <TecnmAutocomplete
+                  v-model="selectedAdvisorId"
+                  endpoint="/v1/advisors"
+                  global-search-source="ADVISORS"
+                  placeholder="Buscar asesor académico por nombre..."
+                  :initial-item="initialReviewAdvisor"
+                />
+              </div>
+              <button
+                type="button"
+                class="tecnm-btn tecnm-btn-primary"
+                :disabled="isSubmitting || !selectedAdvisorId || Number(selectedAdvisorId) === Number(selectedProject.advisorId)"
+                @click="handleAssignAdvisor"
+              >
+                Guardar Asesor
+              </button>
             </div>
           </div>
 

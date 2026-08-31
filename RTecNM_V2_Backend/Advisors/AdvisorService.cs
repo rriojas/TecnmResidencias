@@ -1,6 +1,7 @@
 using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
 using TecNM.Residency.Projects;
+using TecNM.Residency.Students;
 
 namespace TecNM.Residency.Advisors;
 
@@ -8,13 +9,20 @@ public class AdvisorService : IAdvisorService
 {
     private readonly IAdvisorRepository _advisorRepository;
     private readonly IProjectRepository _projectRepository;
+    private readonly IStudentRepository _studentRepository;
     private readonly IRoleRepository _roleRepository;
     private readonly ICurrentUserService _currentUser;
 
-    public AdvisorService(IAdvisorRepository advisorRepository, IProjectRepository projectRepository, IRoleRepository roleRepository, ICurrentUserService currentUser)
+    public AdvisorService(
+        IAdvisorRepository advisorRepository,
+        IProjectRepository projectRepository,
+        IStudentRepository studentRepository,
+        IRoleRepository roleRepository,
+        ICurrentUserService currentUser)
     {
         _advisorRepository = advisorRepository;
         _projectRepository = projectRepository;
+        _studentRepository = studentRepository;
         _roleRepository = roleRepository;
         _currentUser = currentUser;
     }
@@ -185,6 +193,18 @@ public class AdvisorService : IAdvisorService
         project.UpdatedAt = DateTime.UtcNow;
         project.UpdatedBy = _currentUser.UserId;
         await _projectRepository.UpdateAsync(project);
+
+        if (project.StudentId > 0)
+        {
+            var student = await _studentRepository.GetByIdAsync(project.StudentId);
+            if (student != null)
+            {
+                student.AdvisorId = dto.AdvisorId;
+                student.UpdatedAt = DateTime.UtcNow;
+                student.UpdatedBy = _currentUser.UserId;
+                await _studentRepository.UpdateAsync(student);
+            }
+        }
 
         return Result<bool>.Success(true);
     }

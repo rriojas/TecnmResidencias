@@ -100,16 +100,16 @@ public class ProjectService : IProjectService
             return Result<ProjectResponseDto>.Failure("No tiene permisos para registrar anteproyectos. Esta acción solo la realizan los estudiantes o el Administrador asignado a un residente.", 403);
         }
 
-        // Regla de negocio: El anteproyecto requiere obligatoriamente un asesor asignado previamente al alumno.
-        long? targetAdvisorId = dto.AdvisorId > 0 ? dto.AdvisorId : (targetStudent?.AdvisorId ?? (await _studentRepository.GetByUserIdAsync(_currentUser.UserId))?.AdvisorId);
-        if (!targetAdvisorId.HasValue || targetAdvisorId.Value <= 0)
-            return Result<ProjectResponseDto>.Failure("No puedes registrar una solicitud de anteproyecto sin tener un asesor asignado por la academia.", 400);
+        // Regla de negocio: El anteproyecto se puede crear sin un asesor asignado previamente.
+        long? targetAdvisorId = dto.AdvisorId > 0 ? dto.AdvisorId : targetStudent?.AdvisorId;
+        if (targetAdvisorId.HasValue && targetAdvisorId.Value > 0)
+        {
+            var assignedAdvisor = await _advisorRepository.GetByIdAsync(targetAdvisorId.Value);
+            if (assignedAdvisor is null)
+                return Result<ProjectResponseDto>.Failure("El asesor asignado especificado no existe o no está registrado.", 404);
 
-        var assignedAdvisor = await _advisorRepository.GetByIdAsync(targetAdvisorId.Value);
-        if (assignedAdvisor is null)
-            return Result<ProjectResponseDto>.Failure("El asesor asignado especificado no existe o no está registrado.", 404);
-
-        advisorId = assignedAdvisor.Id;
+            advisorId = assignedAdvisor.Id;
+        }
 
         // Regla de negocio: un estudiante solo puede tener un proyecto vigente a la vez.
         var activeProject = await _repository.GetActiveByStudentIdAsync(studentId);
@@ -570,8 +570,8 @@ public class ProjectService : IProjectService
             }
 
             var student = await _studentRepository.GetByUserIdAsync(_currentUser.UserId);
-            if (student is null || (student.AdvisorId == null && project.AdvisorId == null))
-                return Result<ProjectResponseDto>.Failure("No puede cancelar la solicitud de anteproyecto sin tener un asesor asignado.", 400);
+            if (student is null)
+                return Result<ProjectResponseDto>.Failure("No se encontró un perfil de estudiante asociado a tu cuenta.", 404);
         }
 
         var cancellableStatuses = new[]
@@ -617,9 +617,6 @@ public class ProjectService : IProjectService
         var project = await _repository.GetByIdAsync(id);
         if (project == null)
             return Result<bool>.Failure("Anteproyecto no encontrado.", 404);
-
-        if (project.Student is not null && project.Student.AdvisorId == null && project.AdvisorId == null)
-            return Result<bool>.Failure("No puede reactivar la solicitud sin tener un asesor asignado al estudiante.", 400);
 
         project.IsActive = true;
         project.DeletedAt = null;

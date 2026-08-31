@@ -108,7 +108,7 @@ const activeProposal = computed(() => {
 const canCreateProposal = computed(() => {
   if (authStore.isReadOnly || authStore.hasRole('vinculacion')) return false
   if (isStaff.value) return true
-  return !activeProposal.value && hasAdvisor.value
+  return !activeProposal.value
 })
 
 async function loadStudentProposals() {
@@ -243,10 +243,6 @@ async function handleProposalSubmit() {
     formError.value = 'Seleccione la empresa receptora vinculada.'
     return
   }
-  if (!form.value.advisorId) {
-    formError.value = 'Seleccione el asesor interno asignado.'
-    return
-  }
   if (authStore.isAdmin || authStore.hasRole('departmenthead')) {
     if (!form.value.studentId) {
       formError.value = 'Seleccione el estudiante destinatario.'
@@ -281,7 +277,7 @@ async function handleProposalSubmit() {
   const payload = {
     studentId: form.value.studentId ? Number(form.value.studentId) : undefined,
     companyId: Number(form.value.companyId),
-    advisorId: Number(form.value.advisorId),
+    advisorId: form.value.advisorId ? Number(form.value.advisorId) : undefined,
     title: form.value.title.trim(),
     projectType: form.value.projectType.trim() || undefined,
     problemStatement: form.value.problemStatement.trim(),
@@ -417,14 +413,14 @@ onMounted(() => {
       <span>{{ alertMessage }}</span>
     </div>
 
-    <!-- Alerta de Asesor No Asignado para Estudiantes -->
+    <!-- Aviso de Asignación de Asesor para Estudiantes -->
     <div
       v-if="authStore.hasRole('student') && !isStaff && !hasAdvisor"
-      class="tecnm-alert tecnm-alert-warning"
+      class="tecnm-alert tecnm-alert-info"
       role="alert"
       style="margin-bottom: 1rem;"
     >
-      <span><strong>Aviso de Asignación de Asesor:</strong> No cuentas con un Asesor Académico asignado. Tu Jefatura de División Académica debe asignarte un asesor antes de que puedas registrar o enviar tu anteproyecto.</span>
+      <span><strong>Asignación de Asesor:</strong> Aún no cuentas con un Asesor Académico asignado. Tu Jefatura de División Académica designará a tu asesor según la temática de tu anteproyecto durante el proceso de revisión.</span>
     </div>
 
     <!-- Barra de Acciones -->
@@ -703,14 +699,14 @@ onMounted(() => {
 
           <div class="tecnm-form-group">
             <label for="advisorId" class="tecnm-label">
-              Asesor Interno Asignado * <span class="tecnm-text-muted">(Requerido antes de registrar anteproyecto)</span>
+              Asesor Interno <span class="tecnm-text-muted">(Opcional / Pendiente de asignación)</span>
             </label>
             <div id="advisorAutocompleteWrapper">
               <TecnmAutocomplete
                 v-model="form.advisorId"
                 endpoint="/v1/advisors"
                 global-search-source="ADVISORS"
-                placeholder="Buscar asesor interno por nombre..."
+                placeholder="Buscar asesor interno por nombre (opcional)..."
                 :initial-item="initialAdvisor"
               />
             </div>

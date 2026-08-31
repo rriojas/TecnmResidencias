@@ -511,11 +511,9 @@ async function handleProposalSubmit(e) {
   }
 
   const advisorIdVal = document.getElementById('advisorId')?.value;
-  const advisorId = parseInt(advisorIdVal, 10);
-  if (!advisorIdVal || isNaN(advisorId) || advisorId <= 0) {
-    showAlert('Debe seleccionar obligatoriamente al asesor interno asignado.', 'warning');
-    return;
-  }
+  const advisorId = (advisorIdVal && !isNaN(parseInt(advisorIdVal, 10)) && parseInt(advisorIdVal, 10) > 0)
+    ? parseInt(advisorIdVal, 10)
+    : null;
 
   const title = document.getElementById('title').value.trim();
   const projectType = document.getElementById('projectType').value.trim();
