@@ -488,8 +488,19 @@ function getUserDisplayName(u) {
   return displayName || u.fullName || 'Usuario'
 }
 
+const careersOptions = ref([])
+
+async function loadCareersOptions() {
+  try {
+    const res = await apiClient.get('/v1/careers/all')
+    careersOptions.value = res.data || []
+  } catch (err) {
+    careersOptions.value = []
+  }
+}
+
 onMounted(async () => {
-  await Promise.all([loadRolesData(), loadRoleOptions(), loadModulesData()])
+  await Promise.all([loadRolesData(), loadRoleOptions(), loadModulesData(), loadCareersOptions()])
 })
 </script>
 
@@ -1139,12 +1150,14 @@ onMounted(async () => {
                 class="tecnm-form-control"
                 required
               >
-                <option :value="4">Ingeniería en Sistemas Computacionales</option>
-                <option :value="1">Ingeniería Informática</option>
-                <option :value="2">Ingeniería Industrial</option>
-                <option :value="3">Ingeniería Mecatrónica</option>
-                <option :value="5">Ingeniería Electrónica</option>
-                <option :value="6">Ingeniería en Gestión Empresarial</option>
+                <option value="" disabled>-- Seleccionar Carrera --</option>
+                <option
+                  v-for="c in careersOptions"
+                  :key="c.id"
+                  :value="c.id"
+                >
+                  {{ c.name }} ({{ c.code }})
+                </option>
               </select>
             </div>
 

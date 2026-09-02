@@ -22,14 +22,15 @@ public class AdvisorRepository : IAdvisorRepository
 
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
-            q = q.Where(a => a.DepartmentId == _currentUser.CareerId.Value);
+            long careerDeptId = _currentUser.CareerId.Value;
+            q = q.Where(a => a.DepartmentId == careerDeptId || _context.AdvisorDepartments.Any(ad => ad.AdvisorId == a.Id && ad.DepartmentId == careerDeptId && ad.IsActive));
         }
 
         if (status == "active")
             q = q.Where(a => a.IsActive);
-        else if (status == "inactive" || includeInactive)
+        else if (status == "inactive")
             q = q.Where(a => !a.IsActive);
-        else
+        else if (!includeInactive && status != "all")
             q = q.Where(a => a.IsActive);
 
         if (!string.IsNullOrWhiteSpace(query.Search))
@@ -54,7 +55,8 @@ public class AdvisorRepository : IAdvisorRepository
 
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
-            q = q.Where(a => a.DepartmentId == _currentUser.CareerId.Value);
+            long careerDeptId = _currentUser.CareerId.Value;
+            q = q.Where(a => a.DepartmentId == careerDeptId || _context.AdvisorDepartments.Any(ad => ad.AdvisorId == a.Id && ad.DepartmentId == careerDeptId && ad.IsActive));
         }
 
         if (!includeInactive)
@@ -84,7 +86,8 @@ public class AdvisorRepository : IAdvisorRepository
 
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
-            q = q.Where(a => a.DepartmentId == _currentUser.CareerId.Value);
+            long careerDeptId = _currentUser.CareerId.Value;
+            q = q.Where(a => a.DepartmentId == careerDeptId || _context.AdvisorDepartments.Any(ad => ad.AdvisorId == a.Id && ad.DepartmentId == careerDeptId && ad.IsActive));
         }
 
         return await q.OrderBy(a => a.FullName)
@@ -97,8 +100,13 @@ public class AdvisorRepository : IAdvisorRepository
             .Include(a => a.User)
             .FirstOrDefaultAsync(a => a.Id == id && (a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic));
 
-        if (advisor != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue && advisor.DepartmentId != _currentUser.CareerId.Value)
-            return null;
+        if (advisor != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            long careerDeptId = _currentUser.CareerId.Value;
+            bool isAllowed = advisor.DepartmentId == careerDeptId ||
+                             await _context.AdvisorDepartments.AnyAsync(ad => ad.AdvisorId == advisor.Id && ad.DepartmentId == careerDeptId && ad.IsActive);
+            if (!isAllowed) return null;
+        }
 
         return advisor;
     }
@@ -109,8 +117,13 @@ public class AdvisorRepository : IAdvisorRepository
             .Include(a => a.User)
             .FirstOrDefaultAsync(a => a.UserId == userId && (a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic));
 
-        if (advisor != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue && advisor.DepartmentId != _currentUser.CareerId.Value)
-            return null;
+        if (advisor != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            long careerDeptId = _currentUser.CareerId.Value;
+            bool isAllowed = advisor.DepartmentId == careerDeptId ||
+                             await _context.AdvisorDepartments.AnyAsync(ad => ad.AdvisorId == advisor.Id && ad.DepartmentId == careerDeptId && ad.IsActive);
+            if (!isAllowed) return null;
+        }
 
         return advisor;
     }

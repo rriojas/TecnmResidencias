@@ -240,11 +240,16 @@ public class StudentService : IStudentService
     {
         var student = await _studentRepository.GetByIdAsync(studentId);
         if (student is null)
-            return Result<StudentResponseDto>.Failure("Estudiante no encontrado.", 404);
+            return Result<StudentResponseDto>.Failure("Estudiante no encontrado o fuera del alcance de tu carrera.", 404);
+
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue && student.CareerId != _currentUser.CareerId.Value)
+        {
+            return Result<StudentResponseDto>.Failure("No tienes permiso para asignar asesores a estudiantes de otra carrera.", 403);
+        }
 
         var advisor = await _advisorRepository.GetByIdAsync(advisorId);
         if (advisor is null)
-            return Result<StudentResponseDto>.Failure("Asesor no encontrado.", 404);
+            return Result<StudentResponseDto>.Failure("Asesor no encontrado o no pertenece al departamento de tu carrera.", 404);
 
         var approvedStatuses = new[] { ProjectStatus.Approved, ProjectStatus.InProgress, ProjectStatus.Completed };
         var project = await _projectRepository.GetByStudentIdAsync(studentId);

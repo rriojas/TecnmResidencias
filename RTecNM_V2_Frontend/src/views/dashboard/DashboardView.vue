@@ -11,11 +11,27 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const TOTAL_WEEKS = 16
-const CAREERS = {
+const CAREERS = ref({
   1: 'Ing. Informática',
   2: 'Ing. Industrial',
   3: 'Ing. Mecatrónica',
   4: 'Ing. en Sistemas Computacionales',
+  5: 'Ing. Electrónica',
+  6: 'Ing. en Gestión Empresarial',
+})
+const careersList = ref([])
+
+async function loadCareersCatalog() {
+  try {
+    const res = await apiClient.get('/v1/careers/all')
+    const list = res.data || []
+    if (list.length > 0) {
+      careersList.value = list
+      list.forEach(c => {
+        CAREERS.value[c.id] = c.name
+      })
+    }
+  } catch {}
 }
 
 const isLoading = ref(true)
@@ -478,6 +494,7 @@ watch(selectedCareerFilter, () => {
 })
 
 onMounted(() => {
+  loadCareersCatalog()
   loadDashboard()
 })
 </script>
@@ -504,10 +521,13 @@ onMounted(() => {
             aria-label="Filtrar por Carrera"
           >
             <option value="all">Todas las Carreras</option>
-            <option value="4">Ing. en Sistemas Computacionales</option>
-            <option value="1">Ing. Informática</option>
-            <option value="3">Ing. Mecatrónica</option>
-            <option value="2">Ing. Industrial</option>
+            <option
+              v-for="c in (careersList.length > 0 ? careersList : [{id:4,name:'Ing. en Sistemas Computacionales'},{id:1,name:'Ing. Informática'},{id:3,name:'Ing. Mecatrónica'},{id:2,name:'Ing. Industrial'},{id:5,name:'Ing. Electrónica'},{id:6,name:'Ing. en Gestión Empresarial'}])"
+              :key="c.id"
+              :value="String(c.id)"
+            >
+              {{ c.name }}
+            </option>
           </select>
         </div>
       </div>

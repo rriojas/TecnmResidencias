@@ -12,6 +12,7 @@ using TecNM.Residency.Common.Settings;
 using TecNM.Residency.Companies;
 using TecNM.Residency.Documents;
 using TecNM.Residency.Evaluations;
+using TecNM.Residency.Careers;
 using TecNM.Residency.Projects;
 using TecNM.Residency.Searches;
 using TecNM.Residency.Students;
@@ -86,6 +87,8 @@ builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddSingleton<SearchRegistry>();
 builder.Services.AddScoped<ISearchService, SearchService>();
+builder.Services.AddScoped<ICareerRepository, CareerRepository>();
+builder.Services.AddScoped<ICareerService, CareerService>();
 
 // Email Notification Services
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));

@@ -8,6 +8,7 @@ using TecNM.Residency.Documents;
 using TecNM.Residency.Evaluations;
 using TecNM.Residency.Projects;
 using TecNM.Residency.Students;
+using TecNM.Residency.Careers;
 
 namespace TecNM.Residency.Common;
 
@@ -33,6 +34,8 @@ public class AppDbContext : DbContext
     public DbSet<Document> Documents => Set<Document>();
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
     public DbSet<CareerHead> CareerHeads => Set<CareerHead>();
+    public DbSet<Career> Careers => Set<Career>();
+    public DbSet<AdvisorDepartment> AdvisorDepartments => Set<AdvisorDepartment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -56,6 +59,8 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new AdvisorySessionConfiguration());
         modelBuilder.ApplyConfiguration(new DocumentConfiguration());
         modelBuilder.ApplyConfiguration(new SystemSettingConfiguration());
+        modelBuilder.ApplyConfiguration(new CareerConfiguration());
+        modelBuilder.ApplyConfiguration(new AdvisorDepartmentConfiguration());
     }
 }
 

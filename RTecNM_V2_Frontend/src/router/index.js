@@ -187,6 +187,18 @@ const routes = [
     },
   },
   {
+    path: '/admin/careers',
+    name: 'Careers',
+    component: () => import('@/views/admin/CareersView.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Gestión de Carreras - Sistema de Residencias',
+      permission: 'admin.careers',
+      roles: ['admin'],
+      navActive: 'admin',
+    },
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/dashboard',
   },

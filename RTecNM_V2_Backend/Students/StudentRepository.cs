@@ -37,9 +37,9 @@ public class StudentRepository : IStudentRepository
 
         if (status == "active")
             q = q.Where(s => s.IsActive);
-        else if (status == "inactive" || includeInactive)
+        else if (status == "inactive")
             q = q.Where(s => !s.IsActive);
-        else
+        else if (!includeInactive && status != "all")
             q = q.Where(s => s.IsActive);
 
         if (!string.IsNullOrWhiteSpace(query.Search))

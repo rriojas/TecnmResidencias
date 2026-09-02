@@ -59,13 +59,16 @@ const editingAdvisorId = ref(null)
 const isSubmitting = ref(false)
 const formError = ref('')
 
-const DEPARTMENTS = {
-  1: 'Ingeniería Informática',
-  2: 'Ingeniería Industrial',
-  3: 'Ingeniería Mecatrónica',
-  4: 'Ing. en Sistemas Computacionales',
-  5: 'Ingeniería Electrónica',
-  6: 'Ingeniería en Gestión Empresarial',
+const DEPARTMENTS = ref({})
+
+async function loadDepartmentsCatalog() {
+  try {
+    const res = await apiClient.get('/v1/careers/all')
+    const list = res.data || []
+    list.forEach(c => {
+      DEPARTMENTS.value[c.id] = c.name
+    })
+  } catch {}
 }
 
 const form = ref({
@@ -321,6 +324,7 @@ async function handleExportPdf() {
 }
 
 onMounted(() => {
+  loadDepartmentsCatalog()
   loadAdvisors()
 })
 </script>

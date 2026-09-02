@@ -78,9 +78,7 @@ public class ProjectRepository : IProjectRepository
     public async Task<PaginatedResult<Project>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
     {
         IQueryable<Project> q = QueryWithDetails();
-        if (includeInactive)
-            q = q.Where(p => !p.IsActive);
-        else
+        if (!includeInactive)
             q = q.Where(p => p.IsActive);
 
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)

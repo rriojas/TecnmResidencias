@@ -15,11 +15,7 @@ public class CompanyRepository : ICompanyRepository
     public async Task<IEnumerable<Company>> GetAllAsync(bool includeInactive = false)
     {
         var query = _context.Companies.AsQueryable();
-        if (includeInactive)
-        {
-            query = query.Where(c => !c.IsActive);
-        }
-        else
+        if (!includeInactive)
         {
             query = query.Where(c => c.IsActive);
         }

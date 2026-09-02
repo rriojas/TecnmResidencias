@@ -73,11 +73,16 @@ async function handleDownloadPresentationLetterPdf() {
   }
 }
 
-const CAREERS = {
-  1: 'Ingeniería Informática',
-  2: 'Ingeniería Industrial',
-  3: 'Ingeniería Mecatrónica',
-  4: 'Ingeniería en Sistemas Computacionales',
+const CAREERS = ref({})
+
+async function loadCareersCatalog() {
+  try {
+    const res = await apiClient.get('/v1/careers/all')
+    const list = res.data || []
+    list.forEach(c => {
+      CAREERS.value[c.id] = c.name
+    })
+  } catch {}
 }
 
 const ACADEMIC_PERIODS = {
@@ -176,6 +181,7 @@ function goToProject() {
 }
 
 onMounted(() => {
+  loadCareersCatalog()
   loadProfile()
 })
 </script>

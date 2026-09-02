@@ -506,7 +506,19 @@ async function handleDownloadStudentTemplate() {
   }
 }
 
+const careersOptions = ref([])
+
+async function loadCareersOptions() {
+  try {
+    const res = await apiClient.get('/v1/careers/all')
+    careersOptions.value = res.data || []
+  } catch {
+    careersOptions.value = []
+  }
+}
+
 onMounted(() => {
+  loadCareersOptions()
   loadStudents()
 })
 </script>
@@ -932,10 +944,14 @@ onMounted(() => {
                 :disabled="isSubmitting"
                 required
               >
-                <option :value="1">Ingeniería Informática</option>
-                <option :value="2">Ingeniería Industrial</option>
-                <option :value="3">Ingeniería Mecatrónica</option>
-                <option :value="4">Ingeniería en Sistemas Computacionales</option>
+                <option value="" disabled>-- Seleccionar Carrera --</option>
+                <option
+                  v-for="c in careersOptions"
+                  :key="c.id"
+                  :value="c.id"
+                >
+                  {{ c.name }}
+                </option>
               </select>
             </div>
 
