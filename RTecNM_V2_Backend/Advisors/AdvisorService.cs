@@ -206,6 +206,12 @@ public class AdvisorService : IAdvisorService
             return Result<bool>.Failure("Anteproyecto no encontrado.", 404);
         }
 
+        var approvedStatuses = new[] { ProjectStatus.Approved, ProjectStatus.InProgress, ProjectStatus.Completed };
+        if (!approvedStatuses.Contains(project.Status))
+        {
+            return Result<bool>.Failure("No se puede asignar un asesor al anteproyecto porque aún no ha sido aceptado o aprobado.", 400);
+        }
+
         project.AdvisorId = dto.AdvisorId;
         project.UpdatedAt = DateTime.UtcNow;
         project.UpdatedBy = _currentUser.UserId;

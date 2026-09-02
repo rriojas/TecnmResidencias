@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
+using TecNM.Residency.Projects;
 
 namespace TecNM.Residency.Students;
 
@@ -15,7 +16,7 @@ public class StudentRepository : IStudentRepository
         _currentUser = currentUser;
     }
 
-    public async Task<PaginatedResult<Student>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
+    public async Task<PaginatedResult<Student>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, bool onlyApprovedProject = false)
     {
         IQueryable<Student> q = _context.Students.Include(s => s.User).Include(s => s.Advisor)
             .Where(s => s.User == null || s.User.Role == UserRole.Student);
@@ -23,6 +24,15 @@ public class StudentRepository : IStudentRepository
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
             q = q.Where(s => s.CareerId == _currentUser.CareerId.Value);
+        }
+
+        if (onlyApprovedProject)
+        {
+            var approvedStatuses = new[] { ProjectStatus.Approved, ProjectStatus.InProgress, ProjectStatus.Completed };
+            var approvedStudentIds = _context.Projects
+                .Where(p => p.IsActive && approvedStatuses.Contains(p.Status))
+                .Select(p => p.StudentId);
+            q = q.Where(s => approvedStudentIds.Contains(s.Id));
         }
 
         if (status == "active")
@@ -48,7 +58,7 @@ public class StudentRepository : IStudentRepository
         return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
     }
 
-    public async Task<List<Student>> GetAllForExportAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false)
+    public async Task<List<Student>> GetAllForExportAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false, bool onlyApprovedProject = false)
     {
         IQueryable<Student> q = _context.Students.Include(s => s.User).AsNoTracking()
             .Where(s => s.User == null || s.User.Role == UserRole.Student);
@@ -56,6 +66,15 @@ public class StudentRepository : IStudentRepository
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
             q = q.Where(s => s.CareerId == _currentUser.CareerId.Value);
+        }
+
+        if (onlyApprovedProject)
+        {
+            var approvedStatuses = new[] { ProjectStatus.Approved, ProjectStatus.InProgress, ProjectStatus.Completed };
+            var approvedStudentIds = _context.Projects
+                .Where(p => p.IsActive && approvedStatuses.Contains(p.Status))
+                .Select(p => p.StudentId);
+            q = q.Where(s => approvedStudentIds.Contains(s.Id));
         }
 
         if (!includeInactive)

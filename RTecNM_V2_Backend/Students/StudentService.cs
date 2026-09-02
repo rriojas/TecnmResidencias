@@ -46,18 +46,18 @@ public class StudentService : IStudentService
         _context = context;
     }
 
-    public async Task<Result<PaginatedResult<StudentResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
+    public async Task<Result<PaginatedResult<StudentResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, bool onlyApprovedProject = false)
     {
-        var paged = await _studentRepository.GetPagedAsync(query, status, includeInactive);
+        var paged = await _studentRepository.GetPagedAsync(query, status, includeInactive, onlyApprovedProject);
         var dtos = paged.Items.Select(MapToResponseDto);
         var result = PaginatedResult<StudentResponseDto>.Create(
             dtos, paged.TotalCount, paged.PageNumber, paged.PageSize);
         return Result<PaginatedResult<StudentResponseDto>>.Success(result);
     }
 
-    public async Task<Result<byte[]>> ExportPdfAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false)
+    public async Task<Result<byte[]>> ExportPdfAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false, bool onlyApprovedProject = false)
     {
-        var students = await _studentRepository.GetAllForExportAsync(search, sortBy, sortDir, includeInactive);
+        var students = await _studentRepository.GetAllForExportAsync(search, sortBy, sortDir, includeInactive, onlyApprovedProject);
         var definition = new PdfTableDefinition
         {
             Title = "Directorio de Estudiantes Residentes - TecNM Campus Monclova",
@@ -246,6 +246,13 @@ public class StudentService : IStudentService
         if (advisor is null)
             return Result<StudentResponseDto>.Failure("Asesor no encontrado.", 404);
 
+        var approvedStatuses = new[] { ProjectStatus.Approved, ProjectStatus.InProgress, ProjectStatus.Completed };
+        var project = await _projectRepository.GetByStudentIdAsync(studentId);
+        if (project is null || !approvedStatuses.Contains(project.Status))
+        {
+            return Result<StudentResponseDto>.Failure("No se puede asignar un asesor al estudiante porque no cuenta con un anteproyecto aceptado o aprobado.", 400);
+        }
+
         student.AdvisorId = advisor.Id;
         student.Advisor = advisor;
         student.UpdatedAt = DateTime.UtcNow;
@@ -253,14 +260,10 @@ public class StudentService : IStudentService
 
         await _studentRepository.UpdateAsync(student);
 
-        var project = await _projectRepository.GetByStudentIdAsync(studentId);
-        if (project is not null)
-        {
-            project.AdvisorId = advisor.Id;
-            project.UpdatedAt = DateTime.UtcNow;
-            project.UpdatedBy = _currentUser.UserId;
-            await _projectRepository.UpdateAsync(project);
-        }
+        project.AdvisorId = advisor.Id;
+        project.UpdatedAt = DateTime.UtcNow;
+        project.UpdatedBy = _currentUser.UserId;
+        await _projectRepository.UpdateAsync(project);
 
         return Result<StudentResponseDto>.Success(MapToResponseDto(student));
     }
@@ -274,28 +277,37 @@ public class StudentService : IStudentService
         if (advisor is null)
             return Result<int>.Failure("Asesor no encontrado.", 404);
 
+        var approvedStatuses = new[] { ProjectStatus.Approved, ProjectStatus.InProgress, ProjectStatus.Completed };
         int updatedCount = 0;
         foreach (var sid in studentIds)
         {
             var student = await _studentRepository.GetByIdAsync(sid);
             if (student is not null)
             {
+                var project = await _projectRepository.GetByStudentIdAsync(sid);
+                if (project is null || !approvedStatuses.Contains(project.Status))
+                {
+                    continue; // Omitir estudiantes sin anteproyecto aprobado
+                }
+
                 student.AdvisorId = advisor.Id;
                 student.Advisor = advisor;
                 student.UpdatedAt = DateTime.UtcNow;
                 student.UpdatedBy = _currentUser.UserId;
                 await _studentRepository.UpdateAsync(student);
 
-                var project = await _projectRepository.GetByStudentIdAsync(sid);
-                if (project is not null)
-                {
-                    project.AdvisorId = advisor.Id;
-                    project.UpdatedAt = DateTime.UtcNow;
-                    project.UpdatedBy = _currentUser.UserId;
-                    await _projectRepository.UpdateAsync(project);
-                }
+                project.AdvisorId = advisor.Id;
+                project.UpdatedAt = DateTime.UtcNow;
+                project.UpdatedBy = _currentUser.UserId;
+                await _projectRepository.UpdateAsync(project);
+
                 updatedCount++;
             }
+        }
+
+        if (updatedCount == 0)
+        {
+            return Result<int>.Failure("Ninguno de los estudiantes seleccionados cuenta con un anteproyecto aceptado o aprobado.", 400);
         }
 
         return Result<int>.Success(updatedCount);

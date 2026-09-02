@@ -440,17 +440,17 @@ onMounted(() => {
                     {{ sortBy === 'isActive' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
-                <th class="tecnm-th-actions">Acciones</th>
+                <th v-if="!authStore.isStudent" class="tecnm-th-actions">Acciones</th>
               </tr>
             </thead>
             <tbody id="companiesTableBody">
               <tr v-if="isLoading">
-                <td colspan="7" class="tecnm-table-empty">
+                <td :colspan="!authStore.isStudent ? 7 : 6" class="tecnm-table-empty">
                   Cargando catálogo de empresas...
                 </td>
               </tr>
               <tr v-else-if="sortedCompanies.length === 0">
-                <td colspan="7" class="tecnm-table-empty">
+                <td :colspan="!authStore.isStudent ? 7 : 6" class="tecnm-table-empty">
                   <span v-if="includeInactive">No hay empresas inactivas (deshabilitadas) registradas.</span>
                   <span v-else>No hay empresas receptoras registradas.</span>
                 </td>
@@ -471,7 +471,7 @@ onMounted(() => {
                 <td>
                   <TecnmBadge :status="c.isActive ? 'Activo' : 'Inactivo'" />
                 </td>
-                <td>
+                <td v-if="!authStore.isStudent">
                   <div class="tecnm-row-actions">
                     <button
                       v-if="!authStore.isReadOnly && canCreate"

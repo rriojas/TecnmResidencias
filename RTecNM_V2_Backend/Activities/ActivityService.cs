@@ -63,14 +63,6 @@ public class ActivityService : IActivityService
         if (activity == null)
             return Result<bool>.Failure("Actividad no encontrada.", 404);
 
-        var project = await _projectRepository.GetByIdAsync(activity.ProjectId);
-        if (project != null)
-        {
-            var hasAdvisor = project.AdvisorId.HasValue || (project.Student != null && project.Student.AdvisorId.HasValue);
-            if (!hasAdvisor)
-                return Result<bool>.Failure("No puede modificar el cronograma de actividades sin tener un asesor asignado.", 400);
-        }
-
         var validStatuses = new[] { "pending", "in_progress", "completed", "pendiente", "en_proceso", "completado" };
         if (!validStatuses.Contains(dto.Status.ToLowerInvariant()))
             return Result<bool>.Failure($"Estado '{dto.Status}' no válido.");

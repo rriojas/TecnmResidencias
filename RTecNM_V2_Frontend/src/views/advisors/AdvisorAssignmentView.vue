@@ -103,6 +103,7 @@ async function loadStudents({ silent = false } = {}) {
       pageNumber: pageNumber.value,
       pageSize: pageSize.value,
       includeInactive: includeInactive.value,
+      onlyApprovedProject: true,
     }
     const res = await apiClient.get('/v1/students', { params })
     const data = res.data
@@ -216,7 +217,7 @@ async function openBatchModal() {
   isBatchModalOpen.value = true
   isBatchLoading.value = true
   try {
-    const res = await apiClient.get('/v1/students', { params: { pageNumber: 1, pageSize: 500, includeInactive: false } })
+    const res = await apiClient.get('/v1/students', { params: { pageNumber: 1, pageSize: 500, includeInactive: false, onlyApprovedProject: true } })
     const data = res.data
     allStudentsForBatch.value = Array.isArray(data) ? data : (data.items || [])
   } catch {
@@ -410,7 +411,7 @@ onMounted(() => {
               <tr v-else-if="sortedStudents.length === 0">
                 <td colspan="5" class="tecnm-table-empty">
                   <span v-if="includeInactive">No hay estudiantes inactivos registrados.</span>
-                  <span v-else>No se encontraron estudiantes para la asignación.</span>
+                  <span v-else>No se encontraron estudiantes con anteproyecto aceptado/aprobado disponibles para asignación de asesor.</span>
                 </td>
               </tr>
               <tr v-for="s in sortedStudents" v-else :key="s.id">
