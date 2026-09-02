@@ -485,6 +485,9 @@ public static class DbSeeder
                     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='presentation_letter_sent_at') THEN
                         ALTER TABLE students ADD COLUMN presentation_letter_sent_at timestamp with time zone NULL;
                     END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='advisor_assigned_at') THEN
+                        ALTER TABLE students ADD COLUMN advisor_assigned_at timestamp with time zone NULL;
+                    END IF;
                 END IF;
 
                 IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='companies') THEN
@@ -770,10 +773,24 @@ public static class DbSeeder
             await db.SaveChangesAsync();
         }
 
+        var allAdvisorsToFix = await db.Advisors.ToListAsync();
+        bool changesMade = false;
+        foreach (var adv in allAdvisorsToFix)
+        {
+            if (adv.AdvisorType != AdvisorType.Internal)
+            {
+                adv.AdvisorType = AdvisorType.Internal;
+                changesMade = true;
+            }
+        }
         var alanAdvisor = await db.Advisors.Include(a => a.User).FirstOrDefaultAsync(a => a.User != null && a.User.Email == "botello123@monclova.tecnm.mx");
         if (alanAdvisor != null && alanAdvisor.DepartmentId != 4)
         {
             alanAdvisor.DepartmentId = 4;
+            changesMade = true;
+        }
+        if (changesMade)
+        {
             await db.SaveChangesAsync();
         }
 

@@ -148,7 +148,7 @@ public class SearchService : ISearchService
 
             if (request.SourceKey.Equals("PROJECTS", StringComparison.OrdinalIgnoreCase))
             {
-                whereConditions.Add($"\"advisor_id\" = {advisorProfile.Id}");
+                whereConditions.Add($"\"advisor_id\"::text = '{advisorProfile.Id}'");
             }
             else if (!request.SourceKey.Equals("COMPANIES", StringComparison.OrdinalIgnoreCase))
             {
@@ -166,15 +166,16 @@ public class SearchService : ISearchService
         {
             if (request.SourceKey.Equals("STUDENTS", StringComparison.OrdinalIgnoreCase))
             {
-                whereConditions.Add($"\"career_id\" = {_currentUser.CareerId.Value}");
+                whereConditions.Add($"\"career_id\"::text = '{_currentUser.CareerId.Value}'");
             }
             else if (request.SourceKey.Equals("ADVISORS", StringComparison.OrdinalIgnoreCase))
             {
-                whereConditions.Add($"\"department_id\" = {_currentUser.CareerId.Value}");
+                whereConditions.Add($"(\"department_id\"::text = '{_currentUser.CareerId.Value}' OR id IN (SELECT advisor_id FROM advisor_departments WHERE department_id = {_currentUser.CareerId.Value} AND is_active = true))");
+                whereConditions.Add("(\"advisor_type\"::text = '1' OR \"advisor_type\"::text = 'internal' OR \"advisor_type\"::text = 'Internal')");
             }
             else if (request.SourceKey.Equals("PROJECTS", StringComparison.OrdinalIgnoreCase))
             {
-                whereConditions.Add($"\"career_id\" = {_currentUser.CareerId.Value}");
+                whereConditions.Add($"\"career_id\"::text = '{_currentUser.CareerId.Value}'");
             }
         }
 

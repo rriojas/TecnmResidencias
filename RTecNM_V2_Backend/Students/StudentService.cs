@@ -185,7 +185,14 @@ public class StudentService : IStudentService
         student.Curp = !string.IsNullOrWhiteSpace(dto.Curp) ? dto.Curp.Trim().ToUpperInvariant() : null;
         student.Gender = !string.IsNullOrWhiteSpace(dto.Gender) ? dto.Gender.Trim() : null;
         student.AcademicPeriodId = dto.AcademicPeriodId;
-        student.CareerId = dto.CareerId;
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            student.CareerId = _currentUser.CareerId.Value;
+        }
+        else if (dto.CareerId > 0)
+        {
+            student.CareerId = dto.CareerId;
+        }
         student.Gpa = dto.Gpa;
         student.UpdatedAt = DateTime.UtcNow;
         student.UpdatedBy = _currentUser.UserId;
@@ -247,28 +254,77 @@ public class StudentService : IStudentService
             return Result<StudentResponseDto>.Failure("No tienes permiso para asignar asesores a estudiantes de otra carrera.", 403);
         }
 
+        // Si ya cuenta con asesor y se intenta cambiar o desasignar, verificar vigencia máxima de 1 semana (7 días)
+        if (student.AdvisorId.HasValue && student.AdvisorId.Value != advisorId)
+        {
+            var assignedAt = student.AdvisorAssignedAt ?? student.UpdatedAt;
+            if ((DateTime.UtcNow - assignedAt).TotalDays > 7 && _currentUser.Role == UserRole.CareerHead && !_currentUser.IsInRole(UserRole.Admin))
+            {
+                return Result<StudentResponseDto>.Failure("No se puede cambiar el asesor asignado porque ha superado la vigencia máxima permitida de 1 semana (7 días).", 400);
+            }
+        }
+
         var advisor = await _advisorRepository.GetByIdAsync(advisorId);
         if (advisor is null)
             return Result<StudentResponseDto>.Failure("Asesor no encontrado o no pertenece al departamento de tu carrera.", 404);
 
-        var approvedStatuses = new[] { ProjectStatus.Approved, ProjectStatus.InProgress, ProjectStatus.Completed };
-        var project = await _projectRepository.GetByStudentIdAsync(studentId);
-        if (project is null || !approvedStatuses.Contains(project.Status))
-        {
-            return Result<StudentResponseDto>.Failure("No se puede asignar un asesor al estudiante porque no cuenta con un anteproyecto aceptado o aprobado.", 400);
-        }
-
         student.AdvisorId = advisor.Id;
         student.Advisor = advisor;
+        student.AdvisorAssignedAt = DateTime.UtcNow;
         student.UpdatedAt = DateTime.UtcNow;
         student.UpdatedBy = _currentUser.UserId;
 
         await _studentRepository.UpdateAsync(student);
 
-        project.AdvisorId = advisor.Id;
-        project.UpdatedAt = DateTime.UtcNow;
-        project.UpdatedBy = _currentUser.UserId;
-        await _projectRepository.UpdateAsync(project);
+        var project = await _projectRepository.GetByStudentIdAsync(studentId);
+        if (project is not null)
+        {
+            project.AdvisorId = advisor.Id;
+            project.UpdatedAt = DateTime.UtcNow;
+            project.UpdatedBy = _currentUser.UserId;
+            await _projectRepository.UpdateAsync(project);
+        }
+
+        return Result<StudentResponseDto>.Success(MapToResponseDto(student));
+    }
+
+    public async Task<Result<StudentResponseDto>> UnassignAdvisorAsync(long studentId)
+    {
+        var student = await _studentRepository.GetByIdAsync(studentId);
+        if (student is null)
+            return Result<StudentResponseDto>.Failure("Estudiante no encontrado o fuera del alcance de tu carrera.", 404);
+
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue && student.CareerId != _currentUser.CareerId.Value)
+        {
+            return Result<StudentResponseDto>.Failure("No tienes permiso para desasignar asesores a estudiantes de otra carrera.", 403);
+        }
+
+        if (!student.AdvisorId.HasValue)
+        {
+            return Result<StudentResponseDto>.Failure("El estudiante no tiene un asesor asignado actualmente.", 400);
+        }
+
+        var assignedAt = student.AdvisorAssignedAt ?? student.UpdatedAt;
+        if ((DateTime.UtcNow - assignedAt).TotalDays > 7 && _currentUser.Role == UserRole.CareerHead && !_currentUser.IsInRole(UserRole.Admin))
+        {
+            return Result<StudentResponseDto>.Failure("No se puede desasignar el asesor porque la asignación actual ha superado la vigencia máxima permitida de 1 semana (7 días).", 400);
+        }
+
+        student.AdvisorId = null;
+        student.Advisor = null;
+        student.AdvisorAssignedAt = null;
+        student.UpdatedAt = DateTime.UtcNow;
+        student.UpdatedBy = _currentUser.UserId;
+        await _studentRepository.UpdateAsync(student);
+
+        var project = await _projectRepository.GetByStudentIdAsync(studentId);
+        if (project is not null)
+        {
+            project.AdvisorId = null;
+            project.UpdatedAt = DateTime.UtcNow;
+            project.UpdatedBy = _currentUser.UserId;
+            await _projectRepository.UpdateAsync(project);
+        }
 
         return Result<StudentResponseDto>.Success(MapToResponseDto(student));
     }
@@ -282,29 +338,41 @@ public class StudentService : IStudentService
         if (advisor is null)
             return Result<int>.Failure("Asesor no encontrado.", 404);
 
-        var approvedStatuses = new[] { ProjectStatus.Approved, ProjectStatus.InProgress, ProjectStatus.Completed };
         int updatedCount = 0;
         foreach (var sid in studentIds)
         {
             var student = await _studentRepository.GetByIdAsync(sid);
             if (student is not null)
             {
-                var project = await _projectRepository.GetByStudentIdAsync(sid);
-                if (project is null || !approvedStatuses.Contains(project.Status))
+                if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue && student.CareerId != _currentUser.CareerId.Value)
                 {
-                    continue; // Omitir estudiantes sin anteproyecto aprobado
+                    continue;
+                }
+
+                if (student.AdvisorId.HasValue && student.AdvisorId.Value != advisorId)
+                {
+                    var assignedAt = student.AdvisorAssignedAt ?? student.UpdatedAt;
+                    if ((DateTime.UtcNow - assignedAt).TotalDays > 7 && _currentUser.Role == UserRole.CareerHead && !_currentUser.IsInRole(UserRole.Admin))
+                    {
+                        continue; // Omitir si la vigencia previa supera 1 semana
+                    }
                 }
 
                 student.AdvisorId = advisor.Id;
                 student.Advisor = advisor;
+                student.AdvisorAssignedAt = DateTime.UtcNow;
                 student.UpdatedAt = DateTime.UtcNow;
                 student.UpdatedBy = _currentUser.UserId;
                 await _studentRepository.UpdateAsync(student);
 
-                project.AdvisorId = advisor.Id;
-                project.UpdatedAt = DateTime.UtcNow;
-                project.UpdatedBy = _currentUser.UserId;
-                await _projectRepository.UpdateAsync(project);
+                var project = await _projectRepository.GetByStudentIdAsync(sid);
+                if (project is not null)
+                {
+                    project.AdvisorId = advisor.Id;
+                    project.UpdatedAt = DateTime.UtcNow;
+                    project.UpdatedBy = _currentUser.UserId;
+                    await _projectRepository.UpdateAsync(project);
+                }
 
                 updatedCount++;
             }
@@ -312,7 +380,7 @@ public class StudentService : IStudentService
 
         if (updatedCount == 0)
         {
-            return Result<int>.Failure("Ninguno de los estudiantes seleccionados cuenta con un anteproyecto aceptado o aprobado.", 400);
+            return Result<int>.Failure("No se pudo asignar el asesor a ninguno de los estudiantes seleccionados.", 400);
         }
 
         return Result<int>.Success(updatedCount);
@@ -676,6 +744,7 @@ public class StudentService : IStudentService
             Gender = student.Gender,
             CareerId = student.CareerId,
             AdvisorId = student.AdvisorId,
+            AdvisorAssignedAt = student.AdvisorAssignedAt,
             AdvisorName = student.Advisor?.FullName,
             AcademicPeriodId = student.AcademicPeriodId,
             Email = student.User?.Email ?? string.Empty,

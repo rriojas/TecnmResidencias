@@ -59,7 +59,7 @@ function isDictaminable(status) {
 function getActionLabel(project) {
   if (!project) return 'Ver Detalle'
   const st = (project.status || '').toLowerCase()
-  if (!authStore.isReadOnly && !authStore.isCareerHead && !authStore.hasRole('vinculacion') && isDictaminable(st)) {
+  if (!authStore.isReadOnly && !authStore.hasRole('vinculacion') && isDictaminable(st)) {
     return 'Revisar y Dictaminar'
   }
   if (st === 'rejected' || st === 'rechazado') {
@@ -750,7 +750,7 @@ onMounted(() => {
           </template>
 
           <!-- 5. Proyecto Pendiente / En Revisión (Dictaminable) -->
-          <template v-else-if="isDictaminable(selectedProject.status) && !authStore.isReadOnly && !authStore.isCareerHead">
+          <template v-else-if="isDictaminable(selectedProject.status) && !authStore.isReadOnly">
             <div id="reviewCommentsGroup" class="tecnm-form-group">
               <label for="reviewComments" class="tecnm-label">
                 Comentarios u Observaciones del Dictamen *
@@ -800,8 +800,8 @@ onMounted(() => {
             Asignar Asesor &rarr;
           </router-link>
 
-          <!-- Botones de Dictamen solo si está Pendiente/En Revisión y usuario tiene permisos operativos (no CareerHead) -->
-          <template v-if="isDictaminable(selectedProject.status) && !authStore.isReadOnly && !authStore.hasRole('vinculacion') && !authStore.isCareerHead">
+          <!-- Botones de Dictamen si está Pendiente/En Revisión -->
+          <template v-if="isDictaminable(selectedProject.status) && !authStore.isReadOnly && !authStore.hasRole('vinculacion')">
             <button
               id="rejectBtn"
               type="button"

@@ -120,8 +120,8 @@ public class ProjectsController : ControllerBase
     [RequirePermission("projects.review")]
     public async Task<IActionResult> UpdateStatus(long id, [FromBody] UpdateProjectStatusDto dto)
     {
-        if (_currentUser.IsInRole(UserRole.Vinculacion))
-            return StatusCode(403, new { message = "El rol Vinculación no tiene permisos para dictaminar anteproyectos." });
+        if (_currentUser.Role != UserRole.CareerHead && !_currentUser.IsInRole(UserRole.CareerHead) && _currentUser.Role != UserRole.Admin && !_currentUser.IsInRole(UserRole.Admin))
+            return StatusCode(403, new { message = "Únicamente los Jefes de Carrera pueden dictaminar y validar anteproyectos." });
 
         var result = await _projectService.UpdateStatusAsync(id, dto);
         if (!result.IsSuccess)

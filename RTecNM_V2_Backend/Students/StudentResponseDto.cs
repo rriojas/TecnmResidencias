@@ -12,6 +12,7 @@ public class StudentResponseDto
     public string? Gender { get; set; }
     public long CareerId { get; set; }
     public long? AdvisorId { get; set; }
+    public DateTime? AdvisorAssignedAt { get; set; }
     public string? AdvisorName { get; set; }
     public int? AcademicPeriodId { get; set; }
     public string Email { get; set; } = string.Empty;

@@ -129,6 +129,22 @@ public class AdvisorService : IAdvisorService
 
         var created = await _advisorRepository.AddAsync(advisor);
 
+        var deptLink = await _context.AdvisorDepartments.FirstOrDefaultAsync(ad => ad.AdvisorId == created.Id && ad.DepartmentId == departmentId);
+        if (deptLink == null)
+        {
+            _context.AdvisorDepartments.Add(new AdvisorDepartment
+            {
+                AdvisorId = created.Id,
+                DepartmentId = departmentId,
+                IsActive = true,
+                IsVisible = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                CreatedBy = _currentUser.UserId
+            });
+            await _context.SaveChangesAsync();
+        }
+
         await _roleRepository.EnsureUserRoleAsync(created.UserId, "advisor", _currentUser.UserId);
 
         return Result<AdvisorResponseDto>.Success(MapToResponseDto(created));
@@ -158,6 +174,23 @@ public class AdvisorService : IAdvisorService
         advisor.UpdatedBy = _currentUser.UserId;
 
         await _advisorRepository.UpdateAsync(advisor);
+
+        var deptLink = await _context.AdvisorDepartments.FirstOrDefaultAsync(ad => ad.AdvisorId == advisor.Id && ad.DepartmentId == advisor.DepartmentId);
+        if (deptLink == null)
+        {
+            _context.AdvisorDepartments.Add(new AdvisorDepartment
+            {
+                AdvisorId = advisor.Id,
+                DepartmentId = advisor.DepartmentId,
+                IsActive = true,
+                IsVisible = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                CreatedBy = _currentUser.UserId
+            });
+            await _context.SaveChangesAsync();
+        }
+
         return Result<AdvisorResponseDto>.Success(MapToResponseDto(advisor));
     }
 
@@ -204,12 +237,6 @@ public class AdvisorService : IAdvisorService
         if (project == null)
         {
             return Result<bool>.Failure("Anteproyecto no encontrado.", 404);
-        }
-
-        var approvedStatuses = new[] { ProjectStatus.Approved, ProjectStatus.InProgress, ProjectStatus.Completed };
-        if (!approvedStatuses.Contains(project.Status))
-        {
-            return Result<bool>.Failure("No se puede asignar un asesor al anteproyecto porque aún no ha sido aceptado o aprobado.", 400);
         }
 
         project.AdvisorId = dto.AdvisorId;

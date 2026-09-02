@@ -439,22 +439,28 @@ public class RoleRepository : IRoleRepository
         var existingAdvisor = await _context.Advisors.FirstOrDefaultAsync(a => a.UserId == userId);
         var namePart = (email ?? "").Split('@')[0];
 
+        long savedAdvisorId = 0;
+        long savedDeptId = departmentId > 0 ? departmentId.Value : 1;
+
         if (existingAdvisor == null)
         {
-            _context.Advisors.Add(new Advisor
+            var newAdvisor = new Advisor
             {
                 UserId = userId,
                 FullName = !string.IsNullOrWhiteSpace(fullName) ? fullName.Trim() : namePart,
                 Title = !string.IsNullOrWhiteSpace(title) ? title.Trim() : "Asesor Académico",
-                DepartmentId = departmentId > 0 ? departmentId.Value : 1,
+                DepartmentId = savedDeptId,
                 Phone = phone?.Trim(),
-                AdvisorType = advisorType.HasValue && advisorType.Value == 1 ? AdvisorType.Internal : AdvisorType.External,
+                AdvisorType = (advisorType.HasValue && advisorType.Value == 2) ? AdvisorType.External : AdvisorType.Internal,
                 IsActive = true,
                 IsVisible = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 CreatedBy = createdByUserId
-            });
+            };
+            _context.Advisors.Add(newAdvisor);
+            await _context.SaveChangesAsync();
+            savedAdvisorId = newAdvisor.Id;
         }
         else
         {
@@ -462,12 +468,30 @@ public class RoleRepository : IRoleRepository
             if (!string.IsNullOrWhiteSpace(title)) existingAdvisor.Title = title.Trim();
             if (departmentId > 0) existingAdvisor.DepartmentId = departmentId.Value;
             if (phone != null) existingAdvisor.Phone = phone.Trim();
-            if (advisorType.HasValue) existingAdvisor.AdvisorType = advisorType.Value == 1 ? AdvisorType.Internal : AdvisorType.External;
+            if (advisorType.HasValue && advisorType.Value > 0) existingAdvisor.AdvisorType = advisorType.Value == 2 ? AdvisorType.External : AdvisorType.Internal;
             existingAdvisor.UpdatedAt = DateTime.UtcNow;
             existingAdvisor.UpdatedBy = updatedByUserId;
             _context.Advisors.Update(existingAdvisor);
+            await _context.SaveChangesAsync();
+            savedAdvisorId = existingAdvisor.Id;
+            savedDeptId = existingAdvisor.DepartmentId;
         }
-        await _context.SaveChangesAsync();
+
+        var deptLink = await _context.AdvisorDepartments.FirstOrDefaultAsync(ad => ad.AdvisorId == savedAdvisorId && ad.DepartmentId == savedDeptId);
+        if (deptLink == null)
+        {
+            _context.AdvisorDepartments.Add(new AdvisorDepartment
+            {
+                AdvisorId = savedAdvisorId,
+                DepartmentId = savedDeptId,
+                IsActive = true,
+                IsVisible = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                CreatedBy = createdByUserId ?? updatedByUserId
+            });
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task EnsureCareerHeadProfileAsync(long userId, string email, string? fullName, string? title, long careerId, string? phone, long? createdByUserId, long? updatedByUserId)

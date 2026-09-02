@@ -17,13 +17,13 @@ public class AdvisorRepository : IAdvisorRepository
 
     public async Task<PaginatedResult<Advisor>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
     {
-        IQueryable<Advisor> q = _context.Advisors.Include(a => a.User).AsNoTracking()
-            .Where(a => a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic);
+        IQueryable<Advisor> q = _context.Advisors.Include(a => a.User).AsNoTracking();
 
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
             long careerDeptId = _currentUser.CareerId.Value;
-            q = q.Where(a => a.DepartmentId == careerDeptId || _context.AdvisorDepartments.Any(ad => ad.AdvisorId == a.Id && ad.DepartmentId == careerDeptId && ad.IsActive));
+            q = q.Where(a => (a.DepartmentId == careerDeptId || _context.AdvisorDepartments.Any(ad => ad.AdvisorId == a.Id && ad.DepartmentId == careerDeptId && ad.IsActive))
+                             && a.AdvisorType == AdvisorType.Internal);
         }
 
         if (status == "active")
@@ -50,13 +50,13 @@ public class AdvisorRepository : IAdvisorRepository
 
     public async Task<List<Advisor>> GetAllForExportAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false)
     {
-        IQueryable<Advisor> q = _context.Advisors.Include(a => a.User).AsNoTracking()
-            .Where(a => a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic);
+        IQueryable<Advisor> q = _context.Advisors.Include(a => a.User).AsNoTracking();
 
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
             long careerDeptId = _currentUser.CareerId.Value;
-            q = q.Where(a => a.DepartmentId == careerDeptId || _context.AdvisorDepartments.Any(ad => ad.AdvisorId == a.Id && ad.DepartmentId == careerDeptId && ad.IsActive));
+            q = q.Where(a => (a.DepartmentId == careerDeptId || _context.AdvisorDepartments.Any(ad => ad.AdvisorId == a.Id && ad.DepartmentId == careerDeptId && ad.IsActive))
+                             && a.AdvisorType == AdvisorType.Internal);
         }
 
         if (!includeInactive)
@@ -81,13 +81,13 @@ public class AdvisorRepository : IAdvisorRepository
     {
         IQueryable<Advisor> q = _context.Advisors
             .Include(a => a.User)
-            .AsNoTracking()
-            .Where(a => a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic);
+            .AsNoTracking();
 
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
             long careerDeptId = _currentUser.CareerId.Value;
-            q = q.Where(a => a.DepartmentId == careerDeptId || _context.AdvisorDepartments.Any(ad => ad.AdvisorId == a.Id && ad.DepartmentId == careerDeptId && ad.IsActive));
+            q = q.Where(a => (a.DepartmentId == careerDeptId || _context.AdvisorDepartments.Any(ad => ad.AdvisorId == a.Id && ad.DepartmentId == careerDeptId && ad.IsActive))
+                             && a.AdvisorType == AdvisorType.Internal);
         }
 
         return await q.OrderBy(a => a.FullName)
@@ -98,10 +98,11 @@ public class AdvisorRepository : IAdvisorRepository
     {
         var advisor = await _context.Advisors
             .Include(a => a.User)
-            .FirstOrDefaultAsync(a => a.Id == id && (a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic));
+            .FirstOrDefaultAsync(a => a.Id == id);
 
         if (advisor != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
+            if (advisor.AdvisorType != AdvisorType.Internal) return null;
             long careerDeptId = _currentUser.CareerId.Value;
             bool isAllowed = advisor.DepartmentId == careerDeptId ||
                              await _context.AdvisorDepartments.AnyAsync(ad => ad.AdvisorId == advisor.Id && ad.DepartmentId == careerDeptId && ad.IsActive);
@@ -115,10 +116,11 @@ public class AdvisorRepository : IAdvisorRepository
     {
         var advisor = await _context.Advisors
             .Include(a => a.User)
-            .FirstOrDefaultAsync(a => a.UserId == userId && (a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic));
+            .FirstOrDefaultAsync(a => a.UserId == userId);
 
         if (advisor != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
+            if (advisor.AdvisorType != AdvisorType.Internal) return null;
             long careerDeptId = _currentUser.CareerId.Value;
             bool isAllowed = advisor.DepartmentId == careerDeptId ||
                              await _context.AdvisorDepartments.AnyAsync(ad => ad.AdvisorId == advisor.Id && ad.DepartmentId == careerDeptId && ad.IsActive);

@@ -487,11 +487,9 @@ public class ProjectService : IProjectService
         if (project == null)
             return Result<ProjectResponseDto>.Failure("Anteproyecto no encontrado.", 404);
 
-        if (!IsStaff())
+        if (_currentUser.Role != UserRole.CareerHead && !_currentUser.IsInRole(UserRole.CareerHead) && _currentUser.Role != UserRole.Admin && !_currentUser.IsInRole(UserRole.Admin))
         {
-            var advisor = await GetSessionAdvisorAsync();
-            if (advisor is null || project.AdvisorId != advisor.Id)
-                return Result<ProjectResponseDto>.Failure("No tiene permisos para dictaminar este anteproyecto.", 403);
+            return Result<ProjectResponseDto>.Failure("Únicamente el Jefe de Carrera puede dictaminar y validar anteproyectos.", 403);
         }
 
         if (project.Status == ProjectStatus.Completed)

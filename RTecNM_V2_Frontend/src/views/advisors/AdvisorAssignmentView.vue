@@ -85,8 +85,28 @@ const advisorSubtitleExtractor = (item) => {
   return dept || email || ''
 }
 
-function handleClearIndividual(student) {
-  loadStudents({ silent: true })
+async function handleClearIndividual(student) {
+  if (!student.advisorId) return
+  const confirmed = await confirm({
+    title: 'Desasignar Asesor Académico',
+    message: `¿Desea quitar la asignación del asesor del estudiante ${student.fullName || student.controlNumber}?`,
+    okText: 'Desasignar Asesor',
+    cancelText: 'Cancelar',
+  })
+
+  if (!confirmed) {
+    loadStudents({ silent: true })
+    return
+  }
+
+  try {
+    await apiClient.delete(`/v1/students/${student.id}/advisor`)
+    showAlert(`Asesor desasignado correctamente del estudiante ${student.controlNumber}.`, 'success')
+    loadStudents({ silent: true })
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al desasignar asesor.', 'danger')
+    loadStudents({ silent: true })
+  }
 }
 
 async function loadAdvisorsOptions() {
@@ -106,7 +126,7 @@ async function loadStudents({ silent = false } = {}) {
       pageNumber: pageNumber.value,
       pageSize: pageSize.value,
       includeInactive: includeInactive.value,
-      onlyApprovedProject: true,
+      onlyApprovedProject: false,
     }
     const res = await apiClient.get('/v1/students', { params })
     const data = res.data
@@ -220,7 +240,7 @@ async function openBatchModal() {
   isBatchModalOpen.value = true
   isBatchLoading.value = true
   try {
-    const res = await apiClient.get('/v1/students', { params: { pageNumber: 1, pageSize: 500, includeInactive: false, onlyApprovedProject: true } })
+    const res = await apiClient.get('/v1/students', { params: { pageNumber: 1, pageSize: 500, includeInactive: false, onlyApprovedProject: false } })
     const data = res.data
     allStudentsForBatch.value = Array.isArray(data) ? data : (data.items || [])
   } catch {
@@ -231,10 +251,11 @@ async function openBatchModal() {
 }
 
 const filteredBatchStudents = computed(() => {
-  const base = allStudentsForBatch.value.length > 0 ? allStudentsForBatch.value : students.value
-  if (!batchSearch.value.trim()) return base
+  const unassigned = (allStudentsForBatch.value.length > 0 ? allStudentsForBatch.value : students.value)
+    .filter(s => !s.advisorId)
+  if (!batchSearch.value.trim()) return unassigned
   const term = batchSearch.value.trim().toLowerCase()
-  return base.filter(s =>
+  return unassigned.filter(s =>
     (s.controlNumber || '').toLowerCase().includes(term) ||
     (s.fullName || `${s.firstName} ${s.lastName}`).toLowerCase().includes(term) ||
     (s.career || '').toLowerCase().includes(term)

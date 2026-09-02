@@ -374,7 +374,7 @@ function openEditUserModal(u) {
     email: u.email,
     password: '',
     roleId: currentRoleId,
-    careerId: u.careerId || 4,
+    careerId: u.careerId || u.departmentId || 4,
     phone: u.phone || '',
     title: u.title || '',
     curp: u.curp || '',
@@ -435,8 +435,8 @@ async function handleSaveUser() {
     curp: userForm.value.curp.trim().toUpperCase() || null,
     gender: userForm.value.gender || null,
     academicPeriodId: userForm.value.academicPeriodId ? parseInt(userForm.value.academicPeriodId, 10) : 1,
-    departmentId: 1,
-    advisorType: 0,
+    departmentId: parseInt(userForm.value.careerId || 4, 10),
+    advisorType: 1,
   }
 
   if (isEdit) {

@@ -113,6 +113,17 @@ public class StudentsController : ControllerBase
         return Ok(result.Data);
     }
 
+    [HttpDelete("{id}/advisor")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,jefecarrera,careerhead")]
+    public async Task<IActionResult> UnassignAdvisor(long id)
+    {
+        var result = await _studentService.UnassignAdvisorAsync(id);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
+
     [HttpPost("batch-assign-advisor")]
     [Authorize(Roles = "admin,departmenthead,academic,academico,jefecarrera,careerhead")]
     public async Task<IActionResult> BatchAssignAdvisor([FromBody] BatchAssignAdvisorDto dto)
