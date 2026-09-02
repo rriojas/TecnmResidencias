@@ -7,16 +7,23 @@ namespace TecNM.Residency.Advisors;
 public class AdvisorRepository : IAdvisorRepository
 {
     private readonly AppDbContext _context;
+    private readonly ICurrentUserService _currentUser;
 
-    public AdvisorRepository(AppDbContext context)
+    public AdvisorRepository(AppDbContext context, ICurrentUserService currentUser)
     {
         _context = context;
+        _currentUser = currentUser;
     }
 
     public async Task<PaginatedResult<Advisor>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
     {
         IQueryable<Advisor> q = _context.Advisors.Include(a => a.User).AsNoTracking()
             .Where(a => a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic);
+
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            q = q.Where(a => a.DepartmentId == _currentUser.CareerId.Value);
+        }
 
         if (status == "active")
             q = q.Where(a => a.IsActive);
@@ -45,6 +52,11 @@ public class AdvisorRepository : IAdvisorRepository
         IQueryable<Advisor> q = _context.Advisors.Include(a => a.User).AsNoTracking()
             .Where(a => a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic);
 
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            q = q.Where(a => a.DepartmentId == _currentUser.CareerId.Value);
+        }
+
         if (!includeInactive)
             q = q.Where(a => a.IsActive);
 
@@ -65,26 +77,42 @@ public class AdvisorRepository : IAdvisorRepository
 
     public async Task<List<Advisor>> GetOptionsAsync()
     {
-        return await _context.Advisors
+        IQueryable<Advisor> q = _context.Advisors
             .Include(a => a.User)
             .AsNoTracking()
-            .Where(a => a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic)
-            .OrderBy(a => a.FullName)
+            .Where(a => a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic);
+
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            q = q.Where(a => a.DepartmentId == _currentUser.CareerId.Value);
+        }
+
+        return await q.OrderBy(a => a.FullName)
             .ToListAsync();
     }
 
     public async Task<Advisor?> GetByIdAsync(long id)
     {
-        return await _context.Advisors
+        var advisor = await _context.Advisors
             .Include(a => a.User)
             .FirstOrDefaultAsync(a => a.Id == id && (a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic));
+
+        if (advisor != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue && advisor.DepartmentId != _currentUser.CareerId.Value)
+            return null;
+
+        return advisor;
     }
 
     public async Task<Advisor?> GetByUserIdAsync(long userId)
     {
-        return await _context.Advisors
+        var advisor = await _context.Advisors
             .Include(a => a.User)
             .FirstOrDefaultAsync(a => a.UserId == userId && (a.User == null || a.User.Role == UserRole.Advisor || a.User.Role == UserRole.Academic));
+
+        if (advisor != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue && advisor.DepartmentId != _currentUser.CareerId.Value)
+            return null;
+
+        return advisor;
     }
 
     public async Task<Advisor> AddAsync(Advisor advisor)

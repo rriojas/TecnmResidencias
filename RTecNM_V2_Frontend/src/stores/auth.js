@@ -40,10 +40,20 @@ export const useAuthStore = defineStore('auth', () => {
     return currentRole.value === 'director'
   })
 
+  const isCareerHead = computed(() => {
+    return currentRole.value === 'jefecarrera' || currentRole.value === 'careerhead'
+  })
+
+  const userCareerId = computed(() => {
+    return user.value?.careerId ?? user.value?.career_id ?? null
+  })
+
   const roleLabel = computed(() => {
     const map = {
       admin: 'Administrador',
       departmenthead: 'Jefe de División',
+      jefecarrera: 'Jefe de Carrera',
+      careerhead: 'Jefe de Carrera',
       advisor: 'Asesor Académico',
       student: 'Estudiante',
       vinculacion: 'Vinculación',
@@ -123,6 +133,22 @@ export const useAuthStore = defineStore('auth', () => {
     ],
     academic: [
       'companies.view', 'companies.manage', 'documents.digital', 'documents.verify', 'projects.proposals', 'projects.review'
+    ],
+    jefecarrera: [
+      'students.profile.view',
+      'projects.advisor.assign',
+      'activities.schedule',
+      'evaluations.advisories', 'advisories.session.view',
+      'evaluations.summary.view',
+      'documents.digital'
+    ],
+    careerhead: [
+      'students.profile.view',
+      'projects.advisor.assign',
+      'activities.schedule',
+      'evaluations.advisories', 'advisories.session.view',
+      'evaluations.summary.view',
+      'documents.digital'
     ]
   }
 
@@ -263,6 +289,8 @@ export const useAuthStore = defineStore('auth', () => {
     permissions,
     isAdmin,
     isReadOnly,
+    isCareerHead,
+    userCareerId,
     roleLabel,
     userDisplayName,
     userAvatarInitials,

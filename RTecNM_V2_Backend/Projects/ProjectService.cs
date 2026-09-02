@@ -470,6 +470,14 @@ public class ProjectService : IProjectService
             return Result<bool>.Failure("No tiene acceso a este anteproyecto.", 403);
         }
 
+        if (_currentUser.IsInRole(UserRole.CareerHead))
+        {
+            if (_currentUser.CareerId.HasValue && project.Student != null && project.Student.CareerId == _currentUser.CareerId.Value)
+                return Result<bool>.Success(true);
+
+            return Result<bool>.Failure("No tiene acceso a este anteproyecto.", 403);
+        }
+
         return Result<bool>.Failure("No autorizado.", 403);
     }
 

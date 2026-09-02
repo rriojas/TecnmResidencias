@@ -45,12 +45,9 @@ public class AuthService : IAuthService
             user.IsAdmin = true;
         }
 
-        var permissions = await GetUserPermissionSlugsAsync(user);
-        var token = GenerateJwtToken(user, permissions);
-        var expiresIn = (int)TimeSpan.FromMinutes(_jwtSettings.ExpirationMinutes).TotalSeconds;
-
         string? fullName = null;
         string? controlNumber = null;
+        long? careerId = null;
 
         if (user.Role == UserRole.Student)
         {
@@ -59,7 +56,8 @@ public class AuthService : IAuthService
                 .Where(s => s.UserId == user.Id)
                 .Select(s => new {
                     FullName = (s.FirstName + " " + s.LastName + (string.IsNullOrWhiteSpace(s.LastName2) ? "" : " " + s.LastName2)).Trim(),
-                    s.ControlNumber
+                    s.ControlNumber,
+                    s.CareerId
                 })
                 .FirstOrDefaultAsync();
 
@@ -67,6 +65,7 @@ public class AuthService : IAuthService
             {
                 fullName = student.FullName;
                 controlNumber = student.ControlNumber;
+                careerId = student.CareerId;
             }
         }
         else if (user.Role == UserRole.Advisor)
@@ -79,6 +78,24 @@ public class AuthService : IAuthService
 
             fullName = advisor;
         }
+        else if (user.Role == UserRole.CareerHead)
+        {
+            var careerHead = await _context.CareerHeads
+                .AsNoTracking()
+                .Where(ch => ch.UserId == user.Id && ch.IsActive)
+                .Select(ch => new { ch.FullName, ch.CareerId })
+                .FirstOrDefaultAsync();
+
+            if (careerHead != null)
+            {
+                fullName = careerHead.FullName;
+                careerId = careerHead.CareerId;
+            }
+        }
+
+        var permissions = await GetUserPermissionSlugsAsync(user);
+        var token = GenerateJwtToken(user, permissions, careerId);
+        var expiresIn = (int)TimeSpan.FromMinutes(_jwtSettings.ExpirationMinutes).TotalSeconds;
 
         var response = new AuthTokenResponseDto
         {
@@ -90,7 +107,8 @@ public class AuthService : IAuthService
                 Email = user.Email,
                 FullName = fullName,
                 ControlNumber = controlNumber,
-                Role = user.Role.ToString().ToLowerInvariant(),
+                CareerId = careerId,
+                Role = user.Role == UserRole.CareerHead ? "jefecarrera" : user.Role.ToString().ToLowerInvariant(),
                 IsActive = user.IsActive,
                 IsAdmin = user.IsAdmin,
                 Permissions = permissions
@@ -156,19 +174,31 @@ public class AuthService : IAuthService
         return storedHash == computedHash;
     }
 
-    private string GenerateJwtToken(User user, List<string> permissions)
+    private string GenerateJwtToken(User user, List<string> permissions, long? careerId = null)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+        var roleCode = user.Role == UserRole.CareerHead ? "jefecarrera" : user.Role.ToString().ToLowerInvariant();
         var claimsList = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Email, user.Email),
-            new(ClaimTypes.Role, user.Role.ToString().ToLowerInvariant()),
+            new(ClaimTypes.Role, roleCode),
             new("isAdmin", user.IsAdmin.ToString().ToLowerInvariant()),
             new("is_admin", user.IsAdmin.ToString().ToLowerInvariant())
         };
+
+        if (user.Role == UserRole.CareerHead)
+        {
+            claimsList.Add(new Claim(ClaimTypes.Role, "careerhead"));
+        }
+
+        if (careerId.HasValue && careerId.Value > 0)
+        {
+            claimsList.Add(new Claim("career_id", careerId.Value.ToString()));
+            claimsList.Add(new Claim("careerId", careerId.Value.ToString()));
+        }
 
         foreach (var perm in permissions)
         {

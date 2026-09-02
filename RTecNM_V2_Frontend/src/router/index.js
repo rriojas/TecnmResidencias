@@ -29,7 +29,8 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Estudiantes - Sistema de Residencias',
-      permission: 'students.manage',
+      roles: ['admin', 'vinculacion', 'departmenthead', 'academic', 'director', 'jefecarrera', 'careerhead'],
+      permission: 'students.profile.view',
       navActive: 'students',
     },
   },
@@ -40,6 +41,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Perfil de Estudiante - Sistema de Residencias',
+      roles: ['admin', 'vinculacion', 'departmenthead', 'academic', 'director', 'jefecarrera', 'careerhead', 'student'],
       navActive: 'students',
     },
   },
@@ -50,7 +52,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Asesores - Sistema de Residencias',
-      roles: ['admin', 'vinculacion', 'departmenthead', 'academic', 'director'],
+      roles: ['admin', 'vinculacion', 'departmenthead', 'academic', 'director', 'jefecarrera', 'careerhead'],
       permission: 'advisors.manage',
       navActive: 'advisors',
     },
@@ -62,7 +64,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Asignación de Asesores - Sistema de Residencias',
-      roles: ['admin', 'departmenthead', 'academic'],
+      roles: ['admin', 'departmenthead', 'academic', 'jefecarrera', 'careerhead'],
       permission: 'advisors.manage',
       navActive: 'advisor-assignments',
     },
@@ -74,6 +76,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Empresas Receptoras - Sistema de Residencias',
+      roles: ['admin', 'vinculacion', 'departmenthead', 'academic', 'director'],
       permission: 'companies.view',
       navActive: 'companies',
     },
@@ -96,8 +99,8 @@ const routes = [
     component: () => import('@/views/projects/ReviewView.vue'),
     meta: {
       requiresAuth: true,
-      title: 'Dictamen de División - Sistema de Residencias',
-      roles: ['admin', 'vinculacion', 'departmenthead', 'advisor', 'director'],
+      title: 'Anteproyectos de Residencia - Sistema de Residencias',
+      roles: ['admin', 'vinculacion', 'departmenthead', 'advisor', 'director', 'jefecarrera', 'careerhead'],
       permission: 'projects.review',
       navActive: 'review',
     },
@@ -131,7 +134,8 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Evaluaciones - Sistema de Residencias',
-      permission: 'evaluations.grading',
+      roles: ['admin', 'departmenthead', 'academic', 'advisor', 'director', 'jefecarrera', 'careerhead'],
+      permission: 'evaluations.summary.view',
       navActive: 'grading',
     },
   },
@@ -166,6 +170,7 @@ const routes = [
       requiresAuth: true,
       title: 'Usuarios y Roles - Sistema de Residencias',
       permission: 'admin.roles',
+      roles: ['admin'],
       navActive: 'roles',
     },
   },

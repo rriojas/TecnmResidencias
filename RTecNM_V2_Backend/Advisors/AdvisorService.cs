@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
 using TecNM.Residency.Projects;
@@ -12,19 +13,22 @@ public class AdvisorService : IAdvisorService
     private readonly IStudentRepository _studentRepository;
     private readonly IRoleRepository _roleRepository;
     private readonly ICurrentUserService _currentUser;
+    private readonly AppDbContext _context;
 
     public AdvisorService(
         IAdvisorRepository advisorRepository,
         IProjectRepository projectRepository,
         IStudentRepository studentRepository,
         IRoleRepository roleRepository,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser,
+        AppDbContext context)
     {
         _advisorRepository = advisorRepository;
         _projectRepository = projectRepository;
         _studentRepository = studentRepository;
         _roleRepository = roleRepository;
         _currentUser = currentUser;
+        _context = context;
     }
 
     public async Task<Result<PaginatedResult<AdvisorResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
@@ -102,10 +106,16 @@ public class AdvisorService : IAdvisorService
             return Result<AdvisorResponseDto>.Failure("Ya existe un asesor registrado con este usuario.");
         }
 
+        var departmentId = dto.DepartmentId;
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            departmentId = _currentUser.CareerId.Value;
+        }
+
         var advisor = new Advisor
         {
             UserId = dto.UserId,
-            DepartmentId = dto.DepartmentId,
+            DepartmentId = departmentId,
             AdvisorType = dto.AdvisorType,
             FullName = dto.FullName,
             Title = dto.Title,
@@ -132,7 +142,14 @@ public class AdvisorService : IAdvisorService
             return Result<AdvisorResponseDto>.Failure("Asesor no encontrado.");
         }
 
-        advisor.DepartmentId = dto.DepartmentId;
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            advisor.DepartmentId = _currentUser.CareerId.Value;
+        }
+        else
+        {
+            advisor.DepartmentId = dto.DepartmentId;
+        }
         advisor.AdvisorType = dto.AdvisorType;
         advisor.FullName = dto.FullName;
         advisor.Title = dto.Title;
@@ -207,6 +224,104 @@ public class AdvisorService : IAdvisorService
         }
 
         return Result<bool>.Success(true);
+    }
+
+    public async Task<Result<AdvisorResidentsResponseDto>> GetAdvisorResidentsAsync(long id)
+    {
+        var advisor = await _advisorRepository.GetByIdAsync(id);
+        if (advisor == null)
+        {
+            return Result<AdvisorResidentsResponseDto>.Failure("Asesor no encontrado o fuera del alcance de tu carrera.", 404);
+        }
+
+        var deptName = advisor.DepartmentId switch
+        {
+            1 => "Ingeniería Informática",
+            2 => "Ingeniería Industrial",
+            3 => "Ingeniería Mecatrónica",
+            4 => "Ingeniería en Sistemas Computacionales",
+            5 => "Ingeniería Electrónica",
+            6 => "Ingeniería en Gestión Empresarial",
+            _ => "Departamento Académico"
+        };
+
+        IQueryable<Student> query = _context.Students
+            .Include(s => s.User)
+            .Where(s => s.AdvisorId == advisor.Id && s.IsActive);
+
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            query = query.Where(s => s.CareerId == _currentUser.CareerId.Value);
+        }
+
+        var students = await query.ToListAsync();
+        var studentIds = students.Select(s => s.Id).ToList();
+
+        var projects = await _context.Projects
+            .Include(p => p.Company)
+            .Where(p => studentIds.Contains(p.StudentId) && p.IsActive)
+            .ToListAsync();
+
+        var projectMap = projects
+            .GroupBy(p => p.StudentId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.Id).First());
+
+        var projectIds = projects.Select(p => p.Id).ToList();
+        var advisoryCounts = await _context.AdvisorySessions
+            .Where(a => a.AdvisorId == advisor.Id && projectIds.Contains(a.ProjectId))
+            .GroupBy(a => a.ProjectId)
+            .Select(g => new { ProjectId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ProjectId, x => x.Count);
+
+        var residentItems = students.Select(s =>
+        {
+            projectMap.TryGetValue(s.Id, out var proj);
+            var advCount = (proj != null && advisoryCounts.TryGetValue(proj.Id, out var count)) ? count : 0;
+            var fullName = $"{s.FirstName} {s.LastName}".Trim();
+            var email = s.User?.Email ?? string.Empty;
+
+            var carName = s.CareerId switch
+            {
+                1 => "Ing. Informática",
+                2 => "Ing. Industrial",
+                3 => "Ing. Mecatrónica",
+                4 => "Ing. en Sistemas Computacionales",
+                5 => "Ing. Electrónica",
+                6 => "Ing. en Gestión Empresarial",
+                _ => "Ingeniería"
+            };
+
+            return new AdvisorResidentItemDto
+            {
+                StudentId = s.Id,
+                FullName = fullName,
+                ControlNumber = s.ControlNumber,
+                Email = email,
+                Phone = null,
+                CareerId = s.CareerId,
+                CareerName = carName,
+                ProjectId = proj?.Id,
+                ProjectTitle = proj?.Title,
+                ProjectStatus = proj?.Status.ToString(),
+                CompanyName = proj?.Company?.Name,
+                AdvisoryCount = advCount
+            };
+        }).OrderBy(r => r.FullName).ToList();
+
+        var dto = new AdvisorResidentsResponseDto
+        {
+            AdvisorId = advisor.Id,
+            FullName = advisor.FullName,
+            Title = advisor.Title,
+            Email = advisor.User?.Email ?? string.Empty,
+            Phone = advisor.Phone,
+            DepartmentId = advisor.DepartmentId,
+            DepartmentName = deptName,
+            TotalResidents = residentItems.Count,
+            Residents = residentItems
+        };
+
+        return Result<AdvisorResidentsResponseDto>.Success(dto);
     }
 
     private static AdvisorResponseDto MapToResponseDto(Advisor advisor)

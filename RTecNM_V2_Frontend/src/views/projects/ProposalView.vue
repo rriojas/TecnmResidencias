@@ -91,6 +91,12 @@ function canCancelProposal(proposal) {
 
 const studentProfile = ref(null)
 
+const assignedAdvisorName = computed(() => {
+  if (initialAdvisor.value?.fullName) return initialAdvisor.value.fullName
+  if (studentProfile.value?.advisorName) return studentProfile.value.advisorName
+  return ''
+})
+
 const hasAdvisor = computed(() => {
   if (isStaff.value) return true
   return !!(studentProfile.value && studentProfile.value.advisorId)
@@ -162,11 +168,13 @@ function openCreateModal() {
   editingProposalId.value = null
   initialStudent.value = null
   initialCompany.value = null
-  initialAdvisor.value = null
+  initialAdvisor.value = studentProfile.value?.advisorId
+    ? { id: studentProfile.value.advisorId, fullName: studentProfile.value.advisorName }
+    : null
   form.value = {
     studentId: '',
     companyId: '',
-    advisorId: '',
+    advisorId: studentProfile.value?.advisorId || '',
     title: '',
     projectType: '',
     problemStatement: '',
@@ -697,18 +705,26 @@ onMounted(() => {
             </div>
           </div>
 
+          <!-- Asesor Académico (Asignado previamente por Jefatura) -->
           <div class="tecnm-form-group">
-            <label for="advisorId" class="tecnm-label">
-              Asesor Interno <span class="tecnm-text-muted">(Opcional / Pendiente de asignación)</span>
+            <label class="tecnm-label">
+              Asesor Académico
             </label>
-            <div id="advisorAutocompleteWrapper">
-              <TecnmAutocomplete
-                v-model="form.advisorId"
-                endpoint="/v1/advisors"
-                global-search-source="ADVISORS"
-                placeholder="Buscar asesor interno por nombre (opcional)..."
-                :initial-item="initialAdvisor"
-              />
+            <div
+              v-if="assignedAdvisorName"
+              class="tecnm-d-flex tecnm-align-center tecnm-gap-2"
+              style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background-color: var(--tecnm-surface-neutral, #f8fafc); border: 1px solid var(--tecnm-border-color, #e2e8f0); border-radius: 0.375rem;"
+            >
+              <span class="tecnm-badge tecnm-badge-success" style="font-size: 0.8rem;">Asignado por Jefatura</span>
+              <strong style="color: var(--tecnm-text-primary, #0f172a); font-size: 0.95rem;">{{ assignedAdvisorName }}</strong>
+            </div>
+            <div
+              v-else
+              class="tecnm-d-flex tecnm-align-center tecnm-gap-2"
+              style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background-color: #fffbeb; border: 1px solid #fef3c7; border-radius: 0.375rem;"
+            >
+              <span class="tecnm-badge tecnm-badge-warning" style="font-size: 0.8rem;">Pendiente</span>
+              <span style="color: #92400e; font-size: 0.875rem;">Tu Asesor Académico será asignado formalmente por la Jefatura de Carrera.</span>
             </div>
           </div>
 

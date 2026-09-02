@@ -127,7 +127,7 @@ public static class DbSeeder
         var existingUserRoles = await db.UserRoles.ToListAsync();
         var existingRolePerms = await db.RolePermissions.ToListAsync();
 
-        var validRoleCodes = new HashSet<string> { "admin", "academico", "vinculacion", "director", "advisor", "student" };
+        var validRoleCodes = new HashSet<string> { "admin", "academico", "vinculacion", "director", "advisor", "student", "jefecarrera" };
         var obsoleteRoles = existingRoles.Where(r => !validRoleCodes.Contains(r.Code)).ToList();
         foreach (var obs in obsoleteRoles)
         {
@@ -152,7 +152,8 @@ public static class DbSeeder
             ("Gestión Tecnológica y Vinculación", "vinculacion", "Alta de empresas, solicitudes de perfiles, cartas de presentación y expedientes"),
             ("Director / Directivos", "director", "Acceso de solo lectura global a todos los módulos"),
             ("Asesores Académicos", "advisor", "Asesoría académica, revisión de 26 semanas y evaluación"),
-            ("Estudiantes", "student", "Registro de anteproyectos vinculados a empresas, cronograma y expediente")
+            ("Estudiantes", "student", "Registro de anteproyectos vinculados a empresas, cronograma y expediente"),
+            ("Jefe de Carrera", "jefecarrera", "Asignación de asesores y seguimiento académico filtrado por carrera")
         };
 
         foreach (var rdef in roleDefs)
@@ -172,7 +173,7 @@ public static class DbSeeder
         await db.SaveChangesAsync();
         existingRoles = await db.Roles.ToListAsync();
 
-        // 4. Sembrado Idempotente de Mapeo role_permissions para los 6 Roles
+        // 4. Sembrado Idempotente de Mapeo role_permissions para los Roles
         var academicSlugs = new HashSet<string>
         {
             "students.profile.view", "students.profile.update", "students.eligibility.verify", "students.manage", "advisors.manage",
@@ -218,6 +219,17 @@ public static class DbSeeder
             "companies.view"
         };
 
+        var jefeCarreraSlugs = new HashSet<string>
+        {
+            "students.profile.view",
+            "projects.advisor.assign",
+            "activities.schedule",
+            "evaluations.advisories", "advisories.session.view",
+            "evaluations.summary.view",
+            "documents.digital",
+            "companies.view"
+        };
+
         foreach (var role in existingRoles)
         {
             HashSet<string> allowedSlugs;
@@ -227,6 +239,7 @@ public static class DbSeeder
             else if (role.Code == "director") allowedSlugs = directorSlugs;
             else if (role.Code == "advisor") allowedSlugs = advisorSlugs;
             else if (role.Code == "student") allowedSlugs = studentSlugs;
+            else if (role.Code == "jefecarrera") allowedSlugs = jefeCarreraSlugs;
             else continue;
 
             // Purgar permisos no permitidos para este rol
@@ -279,6 +292,75 @@ public static class DbSeeder
             await db.SaveChangesAsync();
         }
 
+        // Sembrado del Jefe de Carrera por Defecto (ISC)
+        const string jefeEmail = "jefe.sistemas@monclova.tecnm.mx";
+        const string jefePassword = "JefeSistemas2026!";
+        var jefeUser = await db.Users.FirstOrDefaultAsync(u => u.Email == jefeEmail);
+        if (jefeUser is null)
+        {
+            jefeUser = new User
+            {
+                Email = jefeEmail,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(jefePassword),
+                Role = UserRole.CareerHead,
+                IsAdmin = false,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            db.Users.Add(jefeUser);
+            await db.SaveChangesAsync();
+
+            var jefeRole = existingRoles.FirstOrDefault(r => r.Code == "jefecarrera");
+            if (jefeRole != null)
+            {
+                db.UserRoles.Add(new UserRoleAssignment { UserId = jefeUser.Id, RoleId = jefeRole.Id, IsActive = true });
+            }
+
+            db.CareerHeads.Add(new CareerHead
+            {
+                UserId = jefeUser.Id,
+                CareerId = 4, // Ing. en Sistemas Computacionales
+                FullName = "M.C. Roberto Carlos Riojas",
+                Title = "Jefe de Carrera ISC",
+                Phone = "8661234567",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+        }
+        else
+        {
+            if (!BCrypt.Net.BCrypt.Verify(jefePassword, jefeUser.PasswordHash))
+            {
+                jefeUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(jefePassword);
+                jefeUser.UpdatedAt = DateTime.UtcNow;
+            }
+            if (jefeUser.Role != UserRole.CareerHead)
+            {
+                jefeUser.Role = UserRole.CareerHead;
+            }
+            await db.SaveChangesAsync();
+
+            var existingProfile = await db.CareerHeads.FirstOrDefaultAsync(ch => ch.UserId == jefeUser.Id);
+            if (existingProfile is null)
+            {
+                db.CareerHeads.Add(new CareerHead
+                {
+                    UserId = jefeUser.Id,
+                    CareerId = 4,
+                    FullName = "M.C. Roberto Carlos Riojas",
+                    Title = "Jefe de Carrera ISC",
+                    Phone = "8661234567",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+                await db.SaveChangesAsync();
+            }
+        }
+
         // 6. Reconciliación idempotente de asignaciones rol-usuario
         var allUsers = await db.Users.Where(u => u.IsActive).ToListAsync();
 
@@ -291,6 +373,7 @@ public static class DbSeeder
                 UserRole.Vinculacion => "vinculacion",
                 UserRole.Director => "director",
                 UserRole.Advisor => "advisor",
+                UserRole.CareerHead => "jefecarrera",
                 _ => "student"
             };
 
@@ -433,6 +516,26 @@ public static class DbSeeder
                 UPDATE users SET role = LOWER(role);
                 DELETE FROM advisors WHERE user_id IN (SELECT id FROM users WHERE role NOT IN ('advisor', 'academico'));
                 DELETE FROM students WHERE user_id IN (SELECT id FROM users WHERE role NOT IN ('student'));
+
+                CREATE TABLE IF NOT EXISTS career_heads (
+                    id BIGSERIAL PRIMARY KEY,
+                    user_id BIGINT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    career_id BIGINT NOT NULL,
+                    full_name VARCHAR(150) NOT NULL,
+                    title VARCHAR(50) NULL,
+                    phone VARCHAR(20) NULL,
+                    is_active BOOLEAN DEFAULT TRUE NOT NULL,
+                    is_visible BOOLEAN DEFAULT TRUE NOT NULL,
+                    display_order INT DEFAULT 0 NOT NULL,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    deleted_at TIMESTAMP WITH TIME ZONE NULL,
+                    created_by BIGINT NULL,
+                    updated_by BIGINT NULL,
+                    deleted_by BIGINT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_career_heads_user_id ON career_heads(user_id);
+                CREATE INDEX IF NOT EXISTS idx_career_heads_career_id ON career_heads(career_id);
             END $$;
         ";
         try
@@ -488,6 +591,8 @@ public static class DbSeeder
                 CONCAT(s.first_name, ' ', s.last_name_1) AS student_name,
                 COALESCE(a.full_name, 'Sin Asignar') AS advisor_name,
                 COALESCE(c.name, 'Sin Empresa') AS company_name,
+                p.advisor_id AS advisor_id,
+                s.career_id AS career_id,
                 p.is_active AS is_active
             FROM projects p
             LEFT JOIN students s ON p.student_id = s.id
@@ -612,8 +717,58 @@ public static class DbSeeder
         }
         else if (!BCrypt.Net.BCrypt.Verify("Advisor2026!", advisorUser.PasswordHash))
         {
-            advisorUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword("Advisor2026!");
             advisorUser.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+        }
+
+        var alanAdvisor = await db.Advisors.Include(a => a.User).FirstOrDefaultAsync(a => a.User != null && a.User.Email == "botello123@monclova.tecnm.mx");
+        if (alanAdvisor != null && alanAdvisor.DepartmentId != 4)
+        {
+            alanAdvisor.DepartmentId = 4;
+            await db.SaveChangesAsync();
+        }
+
+        var jefeUser = await db.Users.FirstOrDefaultAsync(u => u.Email == "jefe.sistemas@monclova.tecnm.mx");
+        if (jefeUser is null)
+        {
+            jefeUser = new User
+            {
+                Email = "jefe.sistemas@monclova.tecnm.mx",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("JefeSistemas2026!"),
+                Role = UserRole.CareerHead,
+                IsAdmin = false,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            db.Users.Add(jefeUser);
+            await db.SaveChangesAsync();
+
+            var jefeRole = roles.FirstOrDefault(r => r.Code == "jefecarrera");
+            if (jefeRole != null)
+            {
+                db.UserRoles.Add(new UserRoleAssignment { UserId = jefeUser.Id, RoleId = jefeRole.Id, IsActive = true });
+                await db.SaveChangesAsync();
+            }
+
+            var careerHeadProfile = new CareerHead
+            {
+                UserId = jefeUser.Id,
+                Title = "Ing.",
+                FullName = "Coordinador de Sistemas Computacionales",
+                Phone = "8661234568",
+                CareerId = 4, // ISC
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            db.CareerHeads.Add(careerHeadProfile);
+            await db.SaveChangesAsync();
+        }
+        else if (!BCrypt.Net.BCrypt.Verify("JefeSistemas2026!", jefeUser.PasswordHash))
+        {
+            jefeUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword("JefeSistemas2026!");
+            jefeUser.UpdatedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
         }
 

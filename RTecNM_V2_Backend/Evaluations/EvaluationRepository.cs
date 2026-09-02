@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
 
 namespace TecNM.Residency.Evaluations;
@@ -6,10 +7,12 @@ namespace TecNM.Residency.Evaluations;
 public class EvaluationRepository : IEvaluationRepository
 {
     private readonly AppDbContext _context;
+    private readonly ICurrentUserService _currentUser;
 
-    public EvaluationRepository(AppDbContext context)
+    public EvaluationRepository(AppDbContext context, ICurrentUserService currentUser)
     {
         _context = context;
+        _currentUser = currentUser;
     }
 
     public async Task<Evaluation> SaveEvaluationAsync(Evaluation evaluation)
@@ -81,12 +84,18 @@ public class EvaluationRepository : IEvaluationRepository
 
     public async Task<AdvisorySession?> GetSessionByIdAsync(long id)
     {
-        return await _context.AdvisorySessions
+        var session = await _context.AdvisorySessions
             .Include(s => s.Project)
                 .ThenInclude(p => p!.Student)
                 .ThenInclude(s => s!.User)
             .Include(s => s.Advisor)
             .FirstOrDefaultAsync(s => s.Id == id);
+
+        if (session != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue
+            && session.Project?.Student != null && session.Project.Student.CareerId != _currentUser.CareerId.Value)
+            return null;
+
+        return session;
     }
 
     public async Task UpdateSessionAsync(AdvisorySession session)
@@ -119,6 +128,11 @@ public class EvaluationRepository : IEvaluationRepository
             .Include(s => s.Advisor)
             .Where(s => s.ProjectId == projectId);
 
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            q = q.Where(s => s.Project != null && s.Project.Student != null && s.Project.Student.CareerId == _currentUser.CareerId.Value);
+        }
+
         if (!includeInactive)
             q = q.Where(s => s.IsActive);
 
@@ -143,6 +157,11 @@ public class EvaluationRepository : IEvaluationRepository
                 .ThenInclude(p => p!.Student)
                 .ThenInclude(s => s!.User)
             .Include(s => s.Advisor);
+
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            q = q.Where(s => s.Project != null && s.Project.Student != null && s.Project.Student.CareerId == _currentUser.CareerId.Value);
+        }
 
         if (!includeInactive)
             q = q.Where(s => s.IsActive);
@@ -172,6 +191,11 @@ public class EvaluationRepository : IEvaluationRepository
                 .ThenInclude(s => s!.User)
             .Include(s => s.Advisor)
             .AsNoTracking();
+
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            q = q.Where(s => s.Project != null && s.Project.Student != null && s.Project.Student.CareerId == _currentUser.CareerId.Value);
+        }
 
         if (!includeInactive)
             q = q.Where(s => s.IsActive);

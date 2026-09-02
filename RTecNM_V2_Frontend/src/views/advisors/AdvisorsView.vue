@@ -8,6 +8,7 @@ import apiClient from '@/services/api'
 import TecnmPagination from '@/components/common/TecnmPagination.vue'
 import TecnmBadge from '@/components/common/TecnmBadge.vue'
 import TecnmAutocomplete from '@/components/common/TecnmAutocomplete.vue'
+import AdvisorWorkloadModal from '@/components/advisors/AdvisorWorkloadModal.vue'
 
 const authStore = useAuthStore()
 const { confirm } = useConfirm()
@@ -27,6 +28,15 @@ const pageNumber = ref(1)
 const pageSize = ref(10)
 const totalCount = ref(0)
 const totalPages = ref(0)
+
+// Modal de Expediente de Carga Docente
+const selectedAdvisorForModal = ref(null)
+const isWorkloadModalOpen = ref(false)
+
+function openAdvisorWorkloadModal(advId) {
+  selectedAdvisorForModal.value = advId
+  isWorkloadModalOpen.value = true
+}
 
 // Notificaciones
 const alertMessage = ref('')
@@ -49,11 +59,20 @@ const editingAdvisorId = ref(null)
 const isSubmitting = ref(false)
 const formError = ref('')
 
+const DEPARTMENTS = {
+  1: 'Ingeniería Informática',
+  2: 'Ingeniería Industrial',
+  3: 'Ingeniería Mecatrónica',
+  4: 'Ing. en Sistemas Computacionales',
+  5: 'Ingeniería Electrónica',
+  6: 'Ingeniería en Gestión Empresarial',
+}
+
 const form = ref({
   userId: '',
   fullName: '',
   title: '',
-  departmentId: 1,
+  departmentId: 4,
   advisorType: 1,
   phone: '',
 })
@@ -61,7 +80,7 @@ const form = ref({
 const selectedUserInitial = ref(null)
 
 const canCreate = computed(() => {
-  if (authStore.hasRole('vinculacion')) return false
+  if (authStore.hasRole('vinculacion') || authStore.isCareerHead) return false
   return (
     authStore.isAdmin ||
     authStore.hasPermission('advisors.manage') ||
@@ -158,7 +177,7 @@ function openCreateModal() {
     userId: '',
     fullName: '',
     title: '',
-    departmentId: 1,
+    departmentId: authStore.isCareerHead ? (authStore.user?.careerId || 4) : 4,
     advisorType: 1,
     phone: '',
   }
@@ -458,20 +477,39 @@ onMounted(() => {
                 v-else
                 :key="a.id"
               >
-                <td><strong>{{ a.fullName || a.name }}</strong></td>
+                <td>
+                  <strong
+                    style="cursor: pointer; color: var(--tecnm-blue-primary, #1B396A);"
+                    :title="`Ver expediente de ${a.fullName || a.name}`"
+                    @click="openAdvisorWorkloadModal(a.id)"
+                  >
+                    {{ a.fullName || a.name }}
+                  </strong>
+                </td>
                 <td>
                   <span class="tecnm-badge tecnm-badge-neutral">
                     {{ a.advisorType === 2 ? 'Externo (Empresa)' : 'Interno (TecNM)' }}
                   </span>
                 </td>
                 <td>{{ a.title || '—' }}</td>
-                <td>{{ a.departmentName || (a.departmentId === 1 ? 'ISC' : a.departmentId === 2 ? 'Industrial' : a.departmentId === 3 ? 'IGE' : 'Mecatrónica') }}</td>
+                <td>{{ a.departmentName || DEPARTMENTS[a.departmentId] || 'General' }}</td>
                 <td>{{ a.phone || '—' }}</td>
                 <td>
                   <TecnmBadge :status="a.isActive ? 'Activo' : 'Inactivo'" />
                 </td>
                 <td>
                   <div class="tecnm-row-actions">
+                    <button
+                      type="button"
+                      class="tecnm-btn tecnm-btn-outline-primary tecnm-btn-sm"
+                      title="Ver residentes asignados y carga docente"
+                      @click="openAdvisorWorkloadModal(a.id)"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+                      </svg>
+                      <span>Residentes</span>
+                    </button>
                     <button
                       v-if="!authStore.isReadOnly && canCreate"
                       type="button"
@@ -481,7 +519,7 @@ onMounted(() => {
                       Editar
                     </button>
                     <button
-                      v-if="authStore.canSeeAudit"
+                      v-if="authStore.canSeeAudit && !authStore.isCareerHead"
                       type="button"
                       class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                       @click="handleAudit(a)"
@@ -607,13 +645,12 @@ onMounted(() => {
                 id="departmentId"
                 v-model="form.departmentId"
                 class="tecnm-form-control"
-                :disabled="isSubmitting"
+                :disabled="isSubmitting || authStore.isCareerHead"
                 required
               >
-                <option :value="1">Ingeniería en Sistemas Computacionales</option>
-                <option :value="2">Ingeniería Industrial</option>
-                <option :value="3">Ingeniería en Gestión Empresarial</option>
-                <option :value="4">Ingeniería Mecatrónica</option>
+                <option v-for="(name, id) in DEPARTMENTS" :key="id" :value="Number(id)">
+                  {{ name }}
+                </option>
               </select>
             </div>
 
@@ -667,6 +704,12 @@ onMounted(() => {
       </div>
     </div>
   </div>
+
+  <!-- Modal de Detalle de Carga y Residentes por Asesor -->
+  <AdvisorWorkloadModal
+    v-model="isWorkloadModalOpen"
+    :advisor-id="selectedAdvisorForModal"
+  />
 </template>
 
 <style scoped>

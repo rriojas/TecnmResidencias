@@ -220,9 +220,12 @@ async function resolveStudentProject() {
   }
 }
 
+const isEmptyState = ref(false)
+
 async function loadInitialProjectForStaff() {
   isLoading.value = true
   errorMessage.value = ''
+  isEmptyState.value = false
   try {
     const endpoint = isAdvisor.value
       ? '/v1/projects/advisor/me?pageSize=50'
@@ -235,16 +238,19 @@ async function loadInitialProjectForStaff() {
     list = list.filter((p) => (p.status || '').toLowerCase() !== 'draft')
 
     if (list.length === 0) {
-      errorMessage.value =
-        'No se encontraron anteproyectos asignados. Utilice el botón "Buscar Anteproyecto" para seleccionar uno.'
+      isEmptyState.value = true
       currentProject.value = null
       documents.value = []
       return
     }
 
     await selectProject(list[0])
-  } catch {
-    errorMessage.value = 'Haga clic en "Buscar Anteproyecto" para cargar documentos del expediente.'
+  } catch (err) {
+    if (err.response?.status === 404 || !err.response) {
+      isEmptyState.value = true
+    } else {
+      errorMessage.value = 'Error al consultar documentos del expediente.'
+    }
     currentProject.value = null
     documents.value = []
   } finally {
@@ -649,7 +655,7 @@ onMounted(() => {
             </svg>
             <span>Buscar Anteproyecto</span>
           </button>
-          <span id="selectedProjectBadge" class="tecnm-badge" :class="projectStatusBadgeClass">
+          <span v-if="currentProject" id="selectedProjectBadge" class="tecnm-badge" :class="projectStatusBadgeClass">
             {{ selectedProjectText }} — [{{ projectStatusLabel }}]
           </span>
         </div>
@@ -722,17 +728,43 @@ onMounted(() => {
                   Cargando documentos del expediente...
                 </td>
               </tr>
+              <tr v-else-if="isEmptyState || !currentProject">
+                <td colspan="6" style="padding: 3rem 1.5rem; text-align: center;">
+                  <div style="max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.75rem;">
+                    <div style="width: 54px; height: 54px; border-radius: 50%; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center;">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                      </svg>
+                    </div>
+                    <h4 style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #1e293b;">
+                      {{ authStore.isCareerHead ? 'Sin expedientes activos en tu carrera' : 'Sin anteproyecto seleccionado' }}
+                    </h4>
+                    <p style="margin: 0; font-size: 0.875rem; color: #64748b; line-height: 1.4;">
+                      {{ authStore.isCareerHead
+                        ? 'No se registran expedientes vigentes de estudiantes de tu carrera con documentos cargados. Los expedientes de proyectos aprobados se reflejarán aquí para tu consulta.'
+                        : 'No se encontraron anteproyectos asignados. Puedes buscar manualmente un anteproyecto para consultar o cargar sus documentos.' }}
+                    </p>
+                    <button
+                      v-if="!isStudent"
+                      type="button"
+                      class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                      style="margin-top: 0.5rem;"
+                      @click="openProjectPicker"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                      </svg>
+                      <span>Buscar Anteproyecto</span>
+                    </button>
+                    <router-link v-else to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm" style="margin-top: 0.5rem;">
+                      Registrar Solicitud de Anteproyecto
+                    </router-link>
+                  </div>
+                </td>
+              </tr>
               <tr v-else-if="errorMessage">
                 <td colspan="6" class="tecnm-table-empty tecnm-text-danger">
                   {{ errorMessage }}
-                </td>
-              </tr>
-              <tr v-else-if="!currentProject">
-                <td colspan="6" class="tecnm-table-empty">
-                  <p style="margin-bottom: 0.5rem;">No tienes un anteproyecto registrado para consultar el expediente.</p>
-                  <router-link v-if="isStudent" to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm">
-                    Registrar Solicitud de Anteproyecto
-                  </router-link>
                 </td>
               </tr>
               <tr v-else-if="documents.length === 0">

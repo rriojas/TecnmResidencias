@@ -78,12 +78,13 @@ const form = ref({
 })
 
 const canCreate = computed(() => {
-  if (authStore.isReadOnly) return false
+  if (authStore.isReadOnly || authStore.isCareerHead) return false
   if (authStore.hasRole('academic', 'departmenthead') && !authStore.isAdmin) return false
   return authStore.isAdmin || authStore.hasRole('vinculacion', 'director') || authStore.hasPermission('students.manage')
 })
 
 const canImport = computed(() => {
+  if (authStore.isCareerHead) return false
   return (
     authStore.isAdmin ||
     authStore.hasPermission('students.import.excel') ||
@@ -145,15 +146,19 @@ async function handleImportSubmit() {
 }
 
 const CAREERS = {
-  1: 'Ing. en Sistemas Computacionales',
+  1: 'Ing. Informática',
   2: 'Ing. Industrial',
   3: 'Ing. Mecatrónica',
-  4: 'Ing. en Gestión Empresarial',
+  4: 'Ing. en Sistemas Computacionales',
   5: 'Ing. Electrónica',
-  6: 'Ing. Informática',
+  6: 'Ing. en Gestión Empresarial',
 }
 
-const selectedCareerFilter = ref('all')
+const selectedCareerFilter = ref(
+  authStore.isCareerHead && authStore.userCareerId
+    ? String(authStore.userCareerId)
+    : 'all'
+)
 
 const sortedStudents = computed(() => {
   let list = [...students.value]
@@ -581,7 +586,7 @@ onMounted(() => {
       </div>
 
       <div class="tecnm-card-toolbar">
-        <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <div v-if="!authStore.isCareerHead" class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
           <label for="careerFilterSelect" class="tecnm-field-label" style="margin-bottom: 0; white-space: nowrap; font-size: 0.85rem;">Carrera:</label>
           <select
             id="careerFilterSelect"
@@ -737,7 +742,7 @@ onMounted(() => {
                     Expediente
                   </button>
                   <button
-                    v-if="!authStore.isReadOnly"
+                    v-if="!authStore.isReadOnly && !authStore.isCareerHead"
                     type="button"
                     class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                     @click="openEditModal(s)"
@@ -745,7 +750,7 @@ onMounted(() => {
                     Editar
                   </button>
                   <button
-                    v-if="authStore.canSeeAudit"
+                    v-if="authStore.canSeeAudit && !authStore.isCareerHead"
                     type="button"
                     class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                     @click="handleAudit(s)"
@@ -753,7 +758,7 @@ onMounted(() => {
                     Auditoría
                   </button>
                   <button
-                    v-if="s.isActive && !authStore.isReadOnly"
+                    v-if="s.isActive && !authStore.isReadOnly && !authStore.isCareerHead"
                     type="button"
                     class="tecnm-btn tecnm-btn-danger tecnm-btn-sm"
                     @click="handleDeactivate(s)"
@@ -761,7 +766,7 @@ onMounted(() => {
                     Desactivar
                   </button>
                   <button
-                    v-else-if="!authStore.isReadOnly"
+                    v-else-if="!authStore.isReadOnly && !authStore.isCareerHead"
                     type="button"
                     class="tecnm-btn tecnm-btn-success tecnm-btn-sm"
                     @click="handleReactivate(s)"

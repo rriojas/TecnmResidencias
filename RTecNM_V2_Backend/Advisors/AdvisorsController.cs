@@ -26,7 +26,7 @@ public class AdvisorsController : ControllerBase
     }
 
     [HttpGet("export")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead")]
     public async Task<IActionResult> ExportPdf([FromQuery] string? search, [FromQuery] string? sortBy, [FromQuery] string? sortDir, [FromQuery] bool includeInactive = false)
     {
         var result = await _advisorService.ExportPdfAsync(search, sortBy, sortDir, includeInactive);
@@ -56,8 +56,16 @@ public class AdvisorsController : ControllerBase
         return result.IsSuccess ? Ok(result.Data) : NotFound(new { message = result.ErrorMessage });
     }
 
+    [HttpGet("{id:long}/residents")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead")]
+    public async Task<IActionResult> GetAdvisorResidents(long id)
+    {
+        var result = await _advisorService.GetAdvisorResidentsAsync(id);
+        return result.IsSuccess ? Ok(result.Data) : StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+    }
+
     [HttpPost]
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico")]
     public async Task<IActionResult> Create([FromBody] CreateAdvisorDto dto)
     {
         var result = await _advisorService.CreateAdvisorAsync(dto);
@@ -65,7 +73,7 @@ public class AdvisorsController : ControllerBase
     }
 
     [HttpPost("assign")]
-    [Authorize(Roles = "admin,departmenthead,academic,academico")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,jefecarrera,careerhead")]
     public async Task<IActionResult> Assign([FromBody] AssignAdvisorDto dto)
     {
         var result = await _advisorService.AssignAdvisorAsync(dto);
@@ -73,7 +81,7 @@ public class AdvisorsController : ControllerBase
     }
 
     [HttpPut("{id:long}")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico")]
     public async Task<IActionResult> Update(long id, [FromBody] UpdateAdvisorDto dto)
     {
         var result = await _advisorService.UpdateAdvisorAsync(id, dto);
@@ -81,7 +89,7 @@ public class AdvisorsController : ControllerBase
     }
 
     [HttpDelete("{id:long}")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico")]
     public async Task<IActionResult> SoftDelete(long id)
     {
         var result = await _advisorService.SoftDeleteAdvisorAsync(id, _currentUser.UserId);
@@ -89,7 +97,7 @@ public class AdvisorsController : ControllerBase
     }
 
     [HttpPatch("{id:long}/activate")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico")]
     public async Task<IActionResult> Reactivate(long id)
     {
         var result = await _advisorService.ReactivateAdvisorAsync(id);

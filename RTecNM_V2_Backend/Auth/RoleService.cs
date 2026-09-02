@@ -148,6 +148,25 @@ public class RoleService : IRoleService
                 }
             }
 
+            var careerHead = await _roleRepository.GetCareerHeadByUserIdAsync(u.Id);
+            if (careerHead != null)
+            {
+                dto.FullName = careerHead.FullName;
+                dto.Title = careerHead.Title;
+                dto.CareerId = careerHead.CareerId;
+                if (!string.IsNullOrWhiteSpace(careerHead.Phone))
+                {
+                    dto.Phone = careerHead.Phone;
+                }
+
+                if (string.IsNullOrWhiteSpace(dto.FirstName) && !string.IsNullOrWhiteSpace(careerHead.FullName))
+                {
+                    var parts = careerHead.FullName.Trim().Split(' ', 2);
+                    dto.FirstName = parts[0];
+                    if (parts.Length > 1) dto.LastName = parts[1];
+                }
+            }
+
             dtos.Add(dto);
         }
 
@@ -319,6 +338,11 @@ public class RoleService : IRoleService
                 await _roleRepository.EnsureAdvisorProfileAsync(created.Id, created.Email, advisorFullName, dto.Title, dto.DepartmentId, dto.Phone, dto.AdvisorType, _currentUser.UserId, _currentUser.UserId);
             }
 
+            if (baseUserRole == UserRole.CareerHead)
+            {
+                await _roleRepository.EnsureCareerHeadProfileAsync(created.Id, created.Email, advisorFullName, dto.Title, dto.CareerId ?? 1, dto.Phone, _currentUser.UserId, _currentUser.UserId);
+            }
+
             await _roleRepository.CleanupProfilesForUserAsync(created.Id, baseUserRole);
 
             var responseDto = MapUserToDto(created);
@@ -346,6 +370,21 @@ public class RoleService : IRoleService
                 if (string.IsNullOrWhiteSpace(responseDto.FirstName) && !string.IsNullOrWhiteSpace(createdAdvisor.FullName))
                 {
                     var parts = createdAdvisor.FullName.Trim().Split(' ', 2);
+                    responseDto.FirstName = parts[0];
+                    if (parts.Length > 1) responseDto.LastName = parts[1];
+                }
+            }
+            var createdCareerHead = await _roleRepository.GetCareerHeadByUserIdAsync(created.Id);
+            if (createdCareerHead != null)
+            {
+                responseDto.FullName = createdCareerHead.FullName;
+                responseDto.Title = createdCareerHead.Title;
+                responseDto.CareerId = createdCareerHead.CareerId;
+                responseDto.Phone = createdCareerHead.Phone;
+
+                if (string.IsNullOrWhiteSpace(responseDto.FirstName) && !string.IsNullOrWhiteSpace(createdCareerHead.FullName))
+                {
+                    var parts = createdCareerHead.FullName.Trim().Split(' ', 2);
                     responseDto.FirstName = parts[0];
                     if (parts.Length > 1) responseDto.LastName = parts[1];
                 }
@@ -421,6 +460,11 @@ public class RoleService : IRoleService
                 await _roleRepository.EnsureAdvisorProfileAsync(updated.Id, updated.Email, advisorFullName, dto.Title, dto.DepartmentId, dto.Phone, dto.AdvisorType, _currentUser.UserId, _currentUser.UserId);
             }
 
+            if (updated.Role == UserRole.CareerHead)
+            {
+                await _roleRepository.EnsureCareerHeadProfileAsync(updated.Id, updated.Email, advisorFullName, dto.Title, dto.CareerId ?? 1, dto.Phone, _currentUser.UserId, _currentUser.UserId);
+            }
+
             await _roleRepository.CleanupProfilesForUserAsync(updated.Id, updated.Role);
 
             var responseDto = MapUserToDto(updated);
@@ -452,6 +496,21 @@ public class RoleService : IRoleService
                     if (parts.Length > 1) responseDto.LastName = parts[1];
                 }
             }
+            var updatedCareerHead = await _roleRepository.GetCareerHeadByUserIdAsync(updated.Id);
+            if (updatedCareerHead != null)
+            {
+                responseDto.FullName = updatedCareerHead.FullName;
+                responseDto.Title = updatedCareerHead.Title;
+                responseDto.CareerId = updatedCareerHead.CareerId;
+                responseDto.Phone = updatedCareerHead.Phone;
+
+                if (string.IsNullOrWhiteSpace(responseDto.FirstName) && !string.IsNullOrWhiteSpace(updatedCareerHead.FullName))
+                {
+                    var parts = updatedCareerHead.FullName.Trim().Split(' ', 2);
+                    responseDto.FirstName = parts[0];
+                    if (parts.Length > 1) responseDto.LastName = parts[1];
+                }
+            }
 
             return Result<UserRoleManagementDto>.Success(responseDto);
         }
@@ -469,6 +528,7 @@ public class RoleService : IRoleService
         "vinculacion" => UserRole.Vinculacion,
         "director" => UserRole.Director,
         "superadmin" or "admin" => UserRole.Admin,
+        "jefecarrera" or "careerhead" => UserRole.CareerHead,
         _ => UserRole.Student
     };
 

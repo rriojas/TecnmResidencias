@@ -7,16 +7,23 @@ namespace TecNM.Residency.Students;
 public class StudentRepository : IStudentRepository
 {
     private readonly AppDbContext _context;
+    private readonly ICurrentUserService _currentUser;
 
-    public StudentRepository(AppDbContext context)
+    public StudentRepository(AppDbContext context, ICurrentUserService currentUser)
     {
         _context = context;
+        _currentUser = currentUser;
     }
 
     public async Task<PaginatedResult<Student>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
     {
         IQueryable<Student> q = _context.Students.Include(s => s.User).Include(s => s.Advisor)
             .Where(s => s.User == null || s.User.Role == UserRole.Student);
+
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            q = q.Where(s => s.CareerId == _currentUser.CareerId.Value);
+        }
 
         if (status == "active")
             q = q.Where(s => s.IsActive);
@@ -46,6 +53,11 @@ public class StudentRepository : IStudentRepository
         IQueryable<Student> q = _context.Students.Include(s => s.User).AsNoTracking()
             .Where(s => s.User == null || s.User.Role == UserRole.Student);
 
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            q = q.Where(s => s.CareerId == _currentUser.CareerId.Value);
+        }
+
         if (!includeInactive)
             q = q.Where(s => s.IsActive);
 
@@ -67,37 +79,58 @@ public class StudentRepository : IStudentRepository
 
     public async Task<List<Student>> GetOptionsAsync()
     {
-        return await _context.Students
+        IQueryable<Student> q = _context.Students
             .Include(s => s.User)
             .AsNoTracking()
-            .Where(s => s.User == null || s.User.Role == UserRole.Student)
-            .OrderBy(s => s.LastName)
+            .Where(s => s.User == null || s.User.Role == UserRole.Student);
+
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            q = q.Where(s => s.CareerId == _currentUser.CareerId.Value);
+        }
+
+        return await q.OrderBy(s => s.LastName)
             .ThenBy(s => s.FirstName)
             .ToListAsync();
     }
 
     public async Task<Student?> GetByIdAsync(long id)
     {
-        return await _context.Students
+        var student = await _context.Students
             .Include(s => s.User)
             .Include(s => s.Advisor)
             .FirstOrDefaultAsync(s => s.Id == id && (s.User == null || s.User.Role == UserRole.Student));
+
+        if (student != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue && student.CareerId != _currentUser.CareerId.Value)
+            return null;
+
+        return student;
     }
 
     public async Task<Student?> GetByControlNumberAsync(string controlNumber)
     {
         var clean = (controlNumber ?? "").Trim().ToUpperInvariant();
-        return await _context.Students
+        var student = await _context.Students
             .Include(s => s.User)
             .FirstOrDefaultAsync(s => s.ControlNumber.ToUpper() == clean && (s.User == null || s.User.Role == UserRole.Student));
+
+        if (student != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue && student.CareerId != _currentUser.CareerId.Value)
+            return null;
+
+        return student;
     }
 
     public async Task<Student?> GetByUserIdAsync(long userId)
     {
-        return await _context.Students
+        var student = await _context.Students
             .Include(s => s.User)
             .Include(s => s.Advisor)
             .FirstOrDefaultAsync(s => s.UserId == userId && (s.User == null || s.User.Role == UserRole.Student));
+
+        if (student != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue && student.CareerId != _currentUser.CareerId.Value)
+            return null;
+
+        return student;
     }
 
     public async Task<Student> AddAsync(Student student)

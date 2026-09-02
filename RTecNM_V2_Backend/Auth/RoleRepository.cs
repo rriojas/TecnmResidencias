@@ -291,6 +291,11 @@ public class RoleRepository : IRoleRepository
         return await _context.Advisors.FirstOrDefaultAsync(a => a.UserId == userId && a.IsActive);
     }
 
+    public async Task<CareerHead?> GetCareerHeadByUserIdAsync(long userId)
+    {
+        return await _context.CareerHeads.FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive);
+    }
+
     public async Task<bool> IsEmailInUseAsync(string email, long? excludeUserId = null)
     {
         var cleanEmail = (email ?? "").Trim().ToLowerInvariant();
@@ -465,6 +470,40 @@ public class RoleRepository : IRoleRepository
         await _context.SaveChangesAsync();
     }
 
+    public async Task EnsureCareerHeadProfileAsync(long userId, string email, string? fullName, string? title, long careerId, string? phone, long? createdByUserId, long? updatedByUserId)
+    {
+        var existing = await _context.CareerHeads.FirstOrDefaultAsync(c => c.UserId == userId);
+        var namePart = (email ?? "").Split('@')[0];
+
+        if (existing == null)
+        {
+            _context.CareerHeads.Add(new CareerHead
+            {
+                UserId = userId,
+                FullName = !string.IsNullOrWhiteSpace(fullName) ? fullName.Trim() : namePart,
+                Title = !string.IsNullOrWhiteSpace(title) ? title.Trim() : "Jefe de Carrera",
+                CareerId = careerId > 0 ? careerId : 1,
+                Phone = phone?.Trim(),
+                IsActive = true,
+                IsVisible = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                CreatedBy = createdByUserId
+            });
+        }
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(fullName)) existing.FullName = fullName.Trim();
+            if (!string.IsNullOrWhiteSpace(title)) existing.Title = title.Trim();
+            if (careerId > 0) existing.CareerId = careerId;
+            if (phone != null) existing.Phone = phone.Trim();
+            existing.UpdatedAt = DateTime.UtcNow;
+            existing.UpdatedBy = updatedByUserId;
+            _context.CareerHeads.Update(existing);
+        }
+        await _context.SaveChangesAsync();
+    }
+
     public async Task CleanupProfilesForUserAsync(long userId, UserRole role)
     {
         if (role != UserRole.Advisor && role != UserRole.Academic)
@@ -484,6 +523,16 @@ public class RoleRepository : IRoleRepository
                 _context.Students.RemoveRange(students);
             }
         }
+
+        if (role != UserRole.CareerHead)
+        {
+            var careerHeads = await _context.CareerHeads.Where(c => c.UserId == userId).ToListAsync();
+            if (careerHeads.Any())
+            {
+                _context.CareerHeads.RemoveRange(careerHeads);
+            }
+        }
+
         await _context.SaveChangesAsync();
     }
 }

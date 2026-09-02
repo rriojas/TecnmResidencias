@@ -16,5 +16,6 @@ public class UserResponseDto
     public string Role { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public bool IsAdmin { get; set; }
+    public long? CareerId { get; set; }
     public List<string> Permissions { get; set; } = new();
 }

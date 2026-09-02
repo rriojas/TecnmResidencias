@@ -42,12 +42,14 @@ const isProjectRejected = computed(() => {
 })
 
 const isProjectReadOnly = computed(() => {
+  if (authStore.isCareerHead) return true
   if (!currentProject.value) return true
   const st = String(currentProject.value?.status || '').toLowerCase()
   return isProjectCompleted.value || ['cancelled', 'rejected', 'pending', 'under_review', 'proposed', 'draft'].includes(st)
 })
 
 const canAddActivity = computed(() => {
+  if (authStore.isCareerHead) return false
   if (authStore.hasRole('academic', 'departmenthead') && !authStore.isAdmin) return false
   if (isAdvisor.value) return false
   if (!currentProject.value?.id) return false
@@ -140,9 +142,12 @@ async function resolveStudentProject() {
   }
 }
 
+const isEmptyState = ref(false)
+
 async function loadInitialProjectForStaff() {
   isLoading.value = true
   errorMessage.value = ''
+  isEmptyState.value = false
   try {
     const endpoint = isAdvisor.value
       ? '/v1/projects/advisor/me?pageSize=50'
@@ -155,16 +160,19 @@ async function loadInitialProjectForStaff() {
     list = list.filter((p) => (p.status || '').toLowerCase() !== 'draft')
 
     if (list.length === 0) {
-      errorMessage.value =
-        'No se encontraron anteproyectos asignados. Utilice el botón "Buscar Anteproyecto" para seleccionar uno.'
+      isEmptyState.value = true
       currentProject.value = null
       activities.value = []
       return
     }
 
     await selectProject(list[0])
-  } catch {
-    errorMessage.value = 'Haga clic en "Buscar Anteproyecto" para cargar un cronograma.'
+  } catch (err) {
+    if (err.response?.status === 404 || !err.response) {
+      isEmptyState.value = true
+    } else {
+      errorMessage.value = 'Error al consultar el anteproyecto asignado.'
+    }
     currentProject.value = null
     activities.value = []
   } finally {
@@ -425,7 +433,7 @@ onMounted(() => {
               </svg>
               <span>Buscar Anteproyecto</span>
             </button>
-            <span id="selectedProjectBadge" class="tecnm-badge" :class="projectStatusBadgeClass">
+            <span v-if="currentProject" id="selectedProjectBadge" class="tecnm-badge" :class="projectStatusBadgeClass">
               {{ selectedProjectText }} — [{{ projectStatusLabel }}]
             </span>
           </div>
@@ -460,6 +468,37 @@ onMounted(() => {
               <tr v-if="isLoading">
                 <td colspan="28" class="tecnm-table-empty">
                   Cargando cronograma de actividades...
+                </td>
+              </tr>
+              <tr v-else-if="isEmptyState || !currentProject">
+                <td colspan="28" style="padding: 3rem 1.5rem; text-align: center;">
+                  <div style="max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.75rem;">
+                    <div style="width: 54px; height: 54px; border-radius: 50%; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center;">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                      </svg>
+                    </div>
+                    <h4 style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #1e293b;">
+                      {{ authStore.isCareerHead ? 'Sin anteproyectos activos en tu carrera' : 'Sin anteproyecto seleccionado' }}
+                    </h4>
+                    <p style="margin: 0; font-size: 0.875rem; color: #64748b; line-height: 1.4;">
+                      {{ authStore.isCareerHead
+                        ? 'No se registran anteproyectos vigentes de estudiantes de tu carrera con cronograma activo. Los proyectos aprobados por la academia se reflejarán automáticamente aquí.'
+                        : 'No se encontraron anteproyectos asignados. Puedes buscar manualmente un anteproyecto para consultar o registrar su cronograma.' }}
+                    </p>
+                    <button
+                      v-if="!isStudent"
+                      type="button"
+                      class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                      style="margin-top: 0.5rem;"
+                      @click="openProjectPicker"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                      </svg>
+                      <span>Buscar Anteproyecto</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
               <tr v-else-if="errorMessage">

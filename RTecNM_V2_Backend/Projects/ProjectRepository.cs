@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
 
 namespace TecNM.Residency.Projects;
@@ -6,10 +7,12 @@ namespace TecNM.Residency.Projects;
 public class ProjectRepository : IProjectRepository
 {
     private readonly AppDbContext _context;
+    private readonly ICurrentUserService _currentUser;
 
-    public ProjectRepository(AppDbContext context)
+    public ProjectRepository(AppDbContext context, ICurrentUserService currentUser)
     {
         _context = context;
+        _currentUser = currentUser;
     }
 
     private IQueryable<Project> QueryWithDetails() =>
@@ -22,8 +25,13 @@ public class ProjectRepository : IProjectRepository
 
     public async Task<Project?> GetByIdAsync(long id)
     {
-        return await QueryWithDetails()
+        var project = await QueryWithDetails()
             .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (project != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue && project.Student != null && project.Student.CareerId != _currentUser.CareerId.Value)
+            return null;
+
+        return project;
     }
 
     public async Task<Project?> GetByStudentIdAsync(long studentId)
@@ -75,6 +83,12 @@ public class ProjectRepository : IProjectRepository
         else
             q = q.Where(p => p.IsActive);
 
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            q = q.Where(p => p.Student != null && p.Student.CareerId == _currentUser.CareerId.Value);
+            q = q.Where(p => p.Status != ProjectStatus.Draft);
+        }
+
         q = ApplyStatusFilter(q, status);
 
         if (!string.IsNullOrWhiteSpace(query.Search))
@@ -97,6 +111,12 @@ public class ProjectRepository : IProjectRepository
         IQueryable<Project> q = QueryWithDetails().AsNoTracking();
         if (!includeInactive)
             q = q.Where(p => p.IsActive);
+
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            q = q.Where(p => p.Student != null && p.Student.CareerId == _currentUser.CareerId.Value);
+            q = q.Where(p => p.Status != ProjectStatus.Draft);
+        }
 
         q = ApplyStatusFilter(q, status);
 

@@ -5,6 +5,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useGlobalSearch } from '@/composables/useGlobalSearch'
 import apiClient from '@/services/api'
 import TecnmPagination from '@/components/common/TecnmPagination.vue'
+import TecnmAutocomplete from '@/components/common/TecnmAutocomplete.vue'
 
 const authStore = useAuthStore()
 const { confirm } = useConfirm()
@@ -25,6 +26,15 @@ const sortBy = ref('ControlNumber')
 const sortDir = ref('asc')
 const includeInactive = ref(false)
 
+const DEPARTMENTS = {
+  1: 'Ingeniería Informática',
+  2: 'Ingeniería Industrial',
+  3: 'Ingeniería Mecatrónica',
+  4: 'Ing. en Sistemas Computacionales',
+  5: 'Ingeniería Electrónica',
+  6: 'Ingeniería en Gestión Empresarial',
+}
+
 // Notificaciones
 const alertMessage = ref('')
 const alertType = ref('success')
@@ -43,6 +53,38 @@ function showAlert(msg, type = 'success') {
 const isBatchModalOpen = ref(false)
 const selectedAdvisorId = ref('')
 const selectedStudentIds = ref([])
+
+const selectedAdvisorObj = computed(() => {
+  if (!selectedAdvisorId.value) return null
+  const adv = advisors.value.find((a) => Number(a.id) === Number(selectedAdvisorId.value))
+  return adv
+    ? {
+        id: adv.id,
+        fullName: adv.fullName || adv.name,
+        title: adv.title,
+        departmentName: adv.departmentName || DEPARTMENTS[adv.departmentId] || 'General',
+      }
+    : null
+})
+
+const advisorTitleExtractor = (item) => {
+  if (!item) return ''
+  const title = item.title ? `${item.title} ` : ''
+  const name = item.fullName || item.name || ''
+  return `${title}${name}`.trim() || 'Asesor Académico'
+}
+
+const advisorSubtitleExtractor = (item) => {
+  if (!item) return ''
+  const dept = item.departmentName || DEPARTMENTS[item.departmentId] || ''
+  const email = item.email || item.userEmail || ''
+  if (dept && email) return `${dept} • ${email}`
+  return dept || email || ''
+}
+
+function handleClearIndividual(student) {
+  loadStudents({ silent: true })
+}
 
 async function loadAdvisorsOptions() {
   try {
@@ -274,7 +316,7 @@ onMounted(() => {
     <div class="tecnm-actions-bar">
       <div>
         <h1 class="tecnm-page-title">Asignación de Asesores Académicos</h1>
-        <p class="tecnm-page-subtitle">Asignación individual y masiva de asesores académicos a estudiantes residentes</p>
+        <p class="tecnm-page-subtitle" style="margin-top: 0.25rem;">Asignación individual y masiva de asesores académicos a estudiantes residentes</p>
       </div>
       <div class="tecnm-page-actions">
         <button
@@ -375,18 +417,19 @@ onMounted(() => {
                 <td><strong>{{ s.controlNumber }}</strong></td>
                 <td>{{ s.fullName || `${s.firstName} ${s.lastName}` }}</td>
                 <td>{{ s.career || 'ISC' }}</td>
-                <td>
-                  <select
-                    :value="s.advisorId || ''"
-                    class="tecnm-form-control tecnm-form-control-sm"
-                    style="max-width: 280px;"
-                    @change="handleIndividualAssign(s, $event.target.value)"
-                  >
-                    <option value="">-- Sin Asesor Asignado --</option>
-                    <option v-for="adv in advisors" :key="adv.id" :value="adv.id">
-                      {{ adv.title ? `${adv.title} ` : '' }}{{ adv.fullName || adv.name }}
-                    </option>
-                  </select>
+                <td style="min-width: 290px; max-width: 360px;">
+                  <TecnmAutocomplete
+                    :key="`${s.id}-${s.advisorId || 'none'}`"
+                    :model-value="s.advisorId"
+                    endpoint="/v1/advisors"
+                    global-search-source="ADVISORS"
+                    placeholder="Buscar asesor por nombre..."
+                    :initial-item="s.advisorId ? { id: s.advisorId, fullName: s.advisorName } : null"
+                    :title-extractor="advisorTitleExtractor"
+                    :subtitle-extractor="advisorSubtitleExtractor"
+                    @select="item => handleIndividualAssign(s, item.id)"
+                    @clear="handleClearIndividual(s)"
+                  />
                 </td>
                 <td>
                   <span v-if="s.advisorId" class="tecnm-badge tecnm-badge-success">Asignado</span>
@@ -433,12 +476,17 @@ onMounted(() => {
         <div class="tecnm-modal-body" style="padding: 1.25rem;">
           <div class="tecnm-form-group" style="margin-bottom: 1rem;">
             <label class="tecnm-label">Seleccionar Asesor Académico destinatario <span class="tecnm-required">*</span></label>
-            <select v-model="selectedAdvisorId" class="tecnm-form-control">
-              <option value="">-- Seleccionar Asesor --</option>
-              <option v-for="adv in advisors" :key="adv.id" :value="adv.id">
-                {{ adv.title ? `${adv.title} ` : '' }}{{ adv.fullName || adv.name }} ({{ adv.departmentName || 'General' }})
-              </option>
-            </select>
+            <TecnmAutocomplete
+              v-model="selectedAdvisorId"
+              endpoint="/v1/advisors"
+              global-search-source="ADVISORS"
+              placeholder="Buscar asesor académico por nombre o academia..."
+              :initial-item="selectedAdvisorObj"
+              :title-extractor="advisorTitleExtractor"
+              :subtitle-extractor="advisorSubtitleExtractor"
+              @select="item => selectedAdvisorId = item.id"
+              @clear="selectedAdvisorId = ''"
+            />
           </div>
 
           <div class="tecnm-form-group" style="margin-bottom: 1rem;">
@@ -512,3 +560,20 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.tecnm-table-responsive {
+  min-height: 320px;
+  padding-bottom: 3.5rem;
+}
+:deep(.tecnm-table) {
+  overflow: visible;
+}
+:deep(.tecnm-table td) {
+  position: relative;
+  overflow: visible;
+}
+:deep(.tecnm-autocomplete-dropdown) {
+  z-index: 1060 !important;
+}
+</style>

@@ -14,4 +14,5 @@ public interface IAdvisorService
     Task<Result<bool>> SoftDeleteAdvisorAsync(long id, long deletedByUserId);
     Task<Result<bool>> ReactivateAdvisorAsync(long id);
     Task<Result<bool>> AssignAdvisorAsync(AssignAdvisorDto dto);
+    Task<Result<AdvisorResidentsResponseDto>> GetAdvisorResidentsAsync(long id);
 }

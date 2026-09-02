@@ -57,7 +57,7 @@ const isProjectReadOnly = computed(() => {
 })
 
 const canGrade = computed(() => {
-  if (authStore.isReadOnly) return false
+  if (authStore.isReadOnly || authStore.isCareerHead) return false
   if (!authStore.hasRole('admin', 'departmenthead', 'advisor')) return false
   if (!currentProject.value?.id) return false
   if (isAdvisor.value && isProjectReadOnly.value) return false
@@ -198,9 +198,12 @@ async function resolveStudentProject() {
   }
 }
 
+const isEmptyState = ref(false)
+
 async function loadInitialProjectForStaff() {
   isLoading.value = true
   errorMessage.value = ''
+  isEmptyState.value = false
   try {
     const endpoint = isAdvisor.value
       ? '/v1/projects/advisor/me?pageSize=50'
@@ -213,16 +216,19 @@ async function loadInitialProjectForStaff() {
     list = list.filter((p) => (p.status || '').toLowerCase() !== 'draft')
 
     if (list.length === 0) {
-      errorMessage.value =
-        'No se encontraron anteproyectos asignados. Utilice el botón "Buscar Anteproyecto" para seleccionar uno.'
+      isEmptyState.value = true
       currentProject.value = null
       evaluations.value = []
       return
     }
 
     await selectProject(list[0])
-  } catch {
-    errorMessage.value = 'Haga clic en "Buscar Anteproyecto" para cargar calificaciones.'
+  } catch (err) {
+    if (err.response?.status === 404 || !err.response) {
+      isEmptyState.value = true
+    } else {
+      errorMessage.value = 'Error al consultar anteproyectos para calificaciones.'
+    }
     currentProject.value = null
     evaluations.value = []
   } finally {
@@ -550,7 +556,7 @@ onMounted(() => {
             </svg>
             <span>Buscar Anteproyecto</span>
           </button>
-          <span id="selectedProjectBadge" class="tecnm-badge" :class="projectStatusBadgeClass">
+          <span v-if="currentProject" id="selectedProjectBadge" class="tecnm-badge" :class="projectStatusBadgeClass">
             {{ selectedProjectText }} — [{{ projectStatusLabel }}]
           </span>
         </div>
@@ -600,17 +606,43 @@ onMounted(() => {
                   Cargando evaluaciones...
                 </td>
               </tr>
+              <tr v-else-if="isEmptyState || !currentProject">
+                <td colspan="6" style="padding: 3rem 1.5rem; text-align: center;">
+                  <div style="max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.75rem;">
+                    <div style="width: 54px; height: 54px; border-radius: 50%; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center;">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
+                      </svg>
+                    </div>
+                    <h4 style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #1e293b;">
+                      {{ authStore.isCareerHead ? 'Sin anteproyectos activos en tu carrera' : 'Sin anteproyecto seleccionado' }}
+                    </h4>
+                    <p style="margin: 0; font-size: 0.875rem; color: #64748b; line-height: 1.4;">
+                      {{ authStore.isCareerHead
+                        ? 'No se registran evaluaciones vigentes de estudiantes de tu carrera. Las evaluaciones parciales y finales aparecerán aquí para tu supervisión y seguimiento.'
+                        : 'No se encontraron anteproyectos asignados. Puedes buscar un anteproyecto para consultar o asentar sus calificaciones.' }}
+                    </p>
+                    <button
+                      v-if="!isStudent"
+                      type="button"
+                      class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                      style="margin-top: 0.5rem;"
+                      @click="openProjectPicker"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                      </svg>
+                      <span>Buscar Anteproyecto</span>
+                    </button>
+                    <router-link v-else to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm" style="margin-top: 0.5rem;">
+                      Registrar Solicitud de Anteproyecto
+                    </router-link>
+                  </div>
+                </td>
+              </tr>
               <tr v-else-if="errorMessage">
                 <td colspan="6" class="tecnm-table-empty tecnm-text-danger">
                   {{ errorMessage }}
-                </td>
-              </tr>
-              <tr v-else-if="!currentProject">
-                <td colspan="6" class="tecnm-table-empty">
-                  <p style="margin-bottom: 0.5rem;">No tienes un anteproyecto registrado para consultar calificaciones.</p>
-                  <router-link v-if="isStudent" to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm">
-                    Registrar Solicitud de Anteproyecto
-                  </router-link>
                 </td>
               </tr>
               <tr v-else-if="sortedEvaluations.length === 0">
@@ -643,6 +675,7 @@ onMounted(() => {
                       Editar
                     </button>
                     <button
+                      v-if="!authStore.isCareerHead"
                       type="button"
                       class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                       @click="handleOpenAudit(e)"

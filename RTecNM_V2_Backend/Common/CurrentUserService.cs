@@ -26,6 +26,18 @@ public class CurrentUserService : ICurrentUserService
         }
     }
 
+    public long? CareerId
+    {
+        get
+        {
+            var user = _httpContextAccessor.HttpContext?.User;
+            var claim = user?.FindFirstValue("career_id")
+                     ?? user?.FindFirstValue("careerId")
+                     ?? user?.FindFirstValue("CareerId");
+            return long.TryParse(claim, out var parsed) && parsed > 0 ? parsed : null;
+        }
+    }
+
     public string? Email
     {
         get
@@ -52,6 +64,7 @@ public class CurrentUserService : ICurrentUserService
                 "vinculacion" => UserRole.Vinculacion,
                 "director" => UserRole.Director,
                 "admin" or "superadmin" => UserRole.Admin,
+                "jefecarrera" or "careerhead" => UserRole.CareerHead,
                 _ => null
             };
         }

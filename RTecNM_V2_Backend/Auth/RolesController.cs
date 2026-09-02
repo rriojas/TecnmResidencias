@@ -6,7 +6,7 @@ namespace TecNM.Residency.Auth;
 
 [ApiController]
 [Route("api/v1/roles")]
-[Authorize]
+[Authorize(Roles = "admin")]
 [RequirePermission("admin.roles")]
 public class RolesController : ControllerBase
 {

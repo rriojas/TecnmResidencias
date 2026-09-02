@@ -161,6 +161,23 @@ public class SearchService : ISearchService
             }
         }
 
+        // Seguridad RBAC: Si el usuario es Jefe de Carrera, aislar búsquedas de Alumnos, Asesores y Proyectos a su carrera/departamento.
+        if (_currentUser.IsInRole(UserRole.CareerHead) && _currentUser.CareerId.HasValue)
+        {
+            if (request.SourceKey.Equals("STUDENTS", StringComparison.OrdinalIgnoreCase))
+            {
+                whereConditions.Add($"\"career_id\" = {_currentUser.CareerId.Value}");
+            }
+            else if (request.SourceKey.Equals("ADVISORS", StringComparison.OrdinalIgnoreCase))
+            {
+                whereConditions.Add($"\"department_id\" = {_currentUser.CareerId.Value}");
+            }
+            else if (request.SourceKey.Equals("PROJECTS", StringComparison.OrdinalIgnoreCase))
+            {
+                whereConditions.Add($"\"career_id\" = {_currentUser.CareerId.Value}");
+            }
+        }
+
         var whereClause = whereConditions.Count > 0 ? "WHERE " + string.Join(" AND ", whereConditions) : "";
 
         var countSql = $"SELECT COUNT(*) FROM \"{sourceConfig.ViewName}\" {whereClause};";
@@ -296,6 +313,7 @@ public class SearchService : ISearchService
                     COALESCE(a.full_name, 'Sin Asignar') AS advisor_name,
                     COALESCE(c.name, 'Sin Empresa') AS company_name,
                     p.advisor_id AS advisor_id,
+                    s.career_id AS career_id,
                     p.is_active AS is_active
                 FROM projects p
                 LEFT JOIN students s ON p.student_id = s.id

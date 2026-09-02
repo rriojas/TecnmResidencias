@@ -43,7 +43,7 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpGet("export")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead")]
     public async Task<IActionResult> ExportPdf([FromQuery] string? status, [FromQuery] string? search, [FromQuery] string? sortBy, [FromQuery] string? sortDir, [FromQuery] bool includeInactive = false)
     {
         var result = await _projectService.ExportPdfAsync(status, search, sortBy, sortDir, includeInactive);

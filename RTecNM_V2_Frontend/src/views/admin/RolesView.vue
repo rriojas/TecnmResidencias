@@ -1143,6 +1143,8 @@ onMounted(async () => {
                 <option :value="1">Ingeniería Informática</option>
                 <option :value="2">Ingeniería Industrial</option>
                 <option :value="3">Ingeniería Mecatrónica</option>
+                <option :value="5">Ingeniería Electrónica</option>
+                <option :value="6">Ingeniería en Gestión Empresarial</option>
               </select>
             </div>
 

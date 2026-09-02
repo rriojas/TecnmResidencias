@@ -99,7 +99,7 @@ public class EvaluationsController : ControllerBase
     }
 
     [HttpGet("sessions")]
-    [Authorize(Roles = "admin,departmenthead,academic,academico")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,jefecarrera,careerhead")]
     public async Task<IActionResult> GetAllSessions([FromQuery] PaginationQuery query, [FromQuery] long? projectId, [FromQuery] bool includeInactive = false)
     {
         var result = await _evaluationService.GetAllAdvisorySessionsPagedAsync(query, projectId, includeInactive);
@@ -110,7 +110,7 @@ public class EvaluationsController : ControllerBase
     }
 
     [HttpGet("sessions/export")]
-    [Authorize(Roles = "admin,departmenthead,academic,academico")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,jefecarrera,careerhead")]
     public async Task<IActionResult> ExportSessionsPdf([FromQuery] long? projectId, [FromQuery] string? search, [FromQuery] string? sortBy, [FromQuery] string? sortDir, [FromQuery] bool includeInactive = false)
     {
         var result = await _evaluationService.ExportSessionsPdfAsync(projectId, search, sortBy, sortDir, includeInactive);

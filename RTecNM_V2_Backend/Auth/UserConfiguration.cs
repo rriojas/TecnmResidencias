@@ -93,6 +93,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         UserRole.Vinculacion => "vinculacion",
         UserRole.Director => "director",
         UserRole.Admin => "admin",
+        UserRole.CareerHead => "jefecarrera",
         _ => "student"
     };
 
@@ -104,6 +105,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         "vinculacion" => UserRole.Vinculacion,
         "director" => UserRole.Director,
         "admin" or "administrador" or "superadmin" => UserRole.Admin,
+        "jefecarrera" or "jefe_carrera" or "careerhead" => UserRole.CareerHead,
         _ => UserRole.Student
     };
 }

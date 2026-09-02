@@ -8,5 +8,7 @@ public enum UserRole
     DepartmentHead = 2, // Compatibility alias
     Vinculacion = 3,
     Director = 4,
-    Admin = 5
+    Admin = 5,
+    CareerHead = 6,
+    JefeCarrera = 6
 }

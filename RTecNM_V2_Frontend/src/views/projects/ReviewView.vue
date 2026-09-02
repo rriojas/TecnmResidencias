@@ -59,7 +59,7 @@ function isDictaminable(status) {
 function getActionLabel(project) {
   if (!project) return 'Ver Detalle'
   const st = (project.status || '').toLowerCase()
-  if (!authStore.isReadOnly && !authStore.hasRole('vinculacion') && isDictaminable(st)) {
+  if (!authStore.isReadOnly && !authStore.isCareerHead && !authStore.hasRole('vinculacion') && isDictaminable(st)) {
     return 'Revisar y Dictaminar'
   }
   if (st === 'rejected' || st === 'rechazado') {
@@ -78,12 +78,12 @@ const isSubmitting = ref(false)
 
 // Catálogo de Carreras
 const CAREERS = {
-  1: 'Ing. en Sistemas Computacionales',
+  1: 'Ing. Informática',
   2: 'Ing. Industrial',
   3: 'Ing. Mecatrónica',
-  4: 'Ing. en Gestión Empresarial',
+  4: 'Ing. en Sistemas Computacionales',
   5: 'Ing. Electrónica',
-  6: 'Ing. Informática',
+  6: 'Ing. en Gestión Empresarial',
 }
 
 const selectedCareerFilter = ref('all')
@@ -95,6 +95,10 @@ const sortedProjects = computed(() => {
   if (selectedCareerFilter.value !== 'all') {
     const cid = Number(selectedCareerFilter.value)
     list = list.filter((p) => Number(p.careerId) === cid)
+  }
+
+  if (authStore.isCareerHead) {
+    list = list.filter((p) => String(p.status || '').toLowerCase() !== 'draft')
   }
 
   if (searchTerm.value.trim()) {
@@ -158,8 +162,11 @@ async function loadProjects({ silent = false } = {}) {
 
     const res = await apiClient.get('/v1/projects', { params })
     const data = res.data
-    projects.value = data.items || []
-    totalCount.value = data.totalCount || 0
+    const items = data.items || []
+    projects.value = authStore.isCareerHead
+      ? items.filter((p) => String(p.status || '').toLowerCase() !== 'draft')
+      : items
+    totalCount.value = authStore.isCareerHead ? projects.value.length : (data.totalCount || 0)
     totalPages.value = data.totalPages || 0
   } catch (err) {
     if (!silent) {
@@ -373,8 +380,12 @@ onMounted(() => {
     <!-- Barra de Acciones -->
     <div class="tecnm-actions-bar">
       <div>
-        <h1 class="tecnm-page-title">Revisión y Dictamen de Anteproyectos</h1>
-        <p class="tecnm-page-subtitle">Evaluación técnica y emisión de dictamen de anteproyectos de residencia profesional</p>
+        <h1 class="tecnm-page-title">
+          {{ authStore.isCareerHead ? 'Anteproyectos de Residencia Profesional' : 'Revisión y Dictamen de Anteproyectos' }}
+        </h1>
+        <p class="tecnm-page-subtitle">
+          {{ authStore.isCareerHead ? 'Consulta y seguimiento de solicitudes de anteproyecto de los estudiantes de tu carrera' : 'Evaluación técnica y emisión de dictamen de anteproyectos de residencia profesional' }}
+        </p>
       </div>
       <div class="tecnm-page-actions">
         <button
@@ -406,7 +417,7 @@ onMounted(() => {
           />
         </div>
 
-        <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <div v-if="!authStore.isCareerHead" class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
           <label for="reviewCareerFilter" class="tecnm-field-label" style="margin-bottom: 0; white-space: nowrap; font-size: 0.85rem;">Carrera:</label>
           <select
             id="reviewCareerFilter"
@@ -739,7 +750,7 @@ onMounted(() => {
           </template>
 
           <!-- 5. Proyecto Pendiente / En Revisión (Dictaminable) -->
-          <template v-else-if="isDictaminable(selectedProject.status) && !authStore.isReadOnly">
+          <template v-else-if="isDictaminable(selectedProject.status) && !authStore.isReadOnly && !authStore.isCareerHead">
             <div id="reviewCommentsGroup" class="tecnm-form-group">
               <label for="reviewComments" class="tecnm-label">
                 Comentarios u Observaciones del Dictamen *
@@ -758,9 +769,9 @@ onMounted(() => {
         </div>
 
         <div class="tecnm-modal-footer">
-          <!-- Botón de Soft Delete (solo admin/jefatura y si no es read-only) -->
+          <!-- Botón de Soft Delete (solo admin/jefatura y si no es read-only ni jefe de carrera) -->
           <button
-            v-if="authStore.canManageRegistry && !authStore.isReadOnly && !authStore.hasRole('vinculacion')"
+            v-if="authStore.canManageRegistry && !authStore.isReadOnly && !authStore.hasRole('vinculacion') && !authStore.isCareerHead"
             id="modalSoftDeleteBtn"
             type="button"
             class="tecnm-btn tecnm-btn-danger"
@@ -782,15 +793,15 @@ onMounted(() => {
 
           <!-- Asignar Asesor Interno directo si está aprobado -->
           <router-link
-            v-if="PRINTABLE_STATUSES.includes((selectedProject.status || '').toLowerCase()) && (authStore.isAdmin || authStore.hasRole('departmenthead', 'academic'))"
+            v-if="PRINTABLE_STATUSES.includes((selectedProject.status || '').toLowerCase()) && (authStore.isAdmin || authStore.hasRole('departmenthead', 'academic') || authStore.isCareerHead)"
             to="/advisors/assignments"
             class="tecnm-btn tecnm-btn-primary"
           >
             Asignar Asesor &rarr;
           </router-link>
 
-          <!-- Botones de Dictamen solo si está Pendiente/En Revisión y usuario tiene permisos operativos -->
-          <template v-if="isDictaminable(selectedProject.status) && !authStore.isReadOnly && !authStore.hasRole('vinculacion')">
+          <!-- Botones de Dictamen solo si está Pendiente/En Revisión y usuario tiene permisos operativos (no CareerHead) -->
+          <template v-if="isDictaminable(selectedProject.status) && !authStore.isReadOnly && !authStore.hasRole('vinculacion') && !authStore.isCareerHead">
             <button
               id="rejectBtn"
               type="button"

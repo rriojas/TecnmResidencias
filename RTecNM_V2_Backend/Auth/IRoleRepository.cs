@@ -22,6 +22,7 @@ public interface IRoleRepository
     Task<User> UpdateUserAsync(User user, List<long> roleIds, long performedByUserId);
     Task<Student?> GetStudentByUserIdAsync(long userId);
     Task<Advisor?> GetAdvisorByUserIdAsync(long userId);
+    Task<CareerHead?> GetCareerHeadByUserIdAsync(long userId);
     Task<bool> IsEmailInUseAsync(string email, long? excludeUserId = null);
     Task<bool> IsControlNumberInUseAsync(string controlNumber, long? excludeUserId = null);
     Task EnsureUserRoleAsync(long userId, string roleCode, long performedByUserId);
@@ -30,5 +31,6 @@ public interface IRoleRepository
     Task<List<User>> GetAllUsersForExportAsync(string? search, string? roleFilter, string? sortBy, string? sortDir, bool includeInactive = false);
     Task EnsureStudentProfileAsync(long userId, string email, string? controlNum, string? firstName, string? lastName, string? lastName2, string? curp, string? gender, long? careerId, int? academicPeriodId, long? createdByUserId, long? updatedByUserId);
     Task EnsureAdvisorProfileAsync(long userId, string email, string? fullName, string? title, long? departmentId, string? phone, int? advisorType, long? createdByUserId, long? updatedByUserId);
+    Task EnsureCareerHeadProfileAsync(long userId, string email, string? fullName, string? title, long careerId, string? phone, long? createdByUserId, long? updatedByUserId);
     Task CleanupProfilesForUserAsync(long userId, UserRole role);
 }
