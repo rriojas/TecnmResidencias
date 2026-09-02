@@ -100,10 +100,53 @@ public class AdvisorService : IAdvisorService
 
     public async Task<Result<AdvisorResponseDto>> CreateAdvisorAsync(CreateAdvisorDto dto)
     {
-        var existing = await _advisorRepository.GetByUserIdAsync(dto.UserId);
-        if (existing != null)
+        var resolvedName = !string.IsNullOrWhiteSpace(dto.FullName)
+            ? dto.FullName.Trim()
+            : $"{dto.FirstName?.Trim()} {dto.LastName?.Trim()}".Trim();
+
+        if (string.IsNullOrWhiteSpace(resolvedName))
         {
-            return Result<AdvisorResponseDto>.Failure("Ya existe un asesor registrado con este usuario.");
+            return Result<AdvisorResponseDto>.Failure("El nombre y apellidos del asesor son obligatorios.");
+        }
+
+        var cleanEmail = (dto.Email ?? string.Empty).Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(cleanEmail) || !cleanEmail.Contains('@') || !cleanEmail.Contains('.'))
+        {
+            return Result<AdvisorResponseDto>.Failure("Debe ingresar un correo electrónico válido para la cuenta del asesor.");
+        }
+
+        long userId;
+        var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == cleanEmail);
+        if (existingUser != null)
+        {
+            userId = existingUser.Id;
+            var existingAdvisor = await _advisorRepository.GetByUserIdAsync(userId);
+            if (existingAdvisor != null)
+            {
+                return Result<AdvisorResponseDto>.Failure($"Ya existe un asesor registrado con el correo '{cleanEmail}'.");
+            }
+            await _roleRepository.EnsureUserRoleAsync(userId, "advisor", _currentUser.UserId);
+        }
+        else
+        {
+            var rawPassword = string.IsNullOrWhiteSpace(dto.Password) ? "Docente2026!" : dto.Password.Trim();
+            var passwordHash = BCrypt.Net.BCrypt.HashPassword(rawPassword);
+
+            var newUser = new User
+            {
+                Email = cleanEmail,
+                PasswordHash = passwordHash,
+                Role = UserRole.Advisor,
+                IsActive = true,
+                CreatedBy = _currentUser.UserId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _context.Users.Add(newUser);
+            await _context.SaveChangesAsync();
+            userId = newUser.Id;
+
+            await _roleRepository.EnsureUserRoleAsync(userId, "advisor", _currentUser.UserId);
         }
 
         var departmentId = dto.DepartmentId;
@@ -114,12 +157,12 @@ public class AdvisorService : IAdvisorService
 
         var advisor = new Advisor
         {
-            UserId = dto.UserId,
+            UserId = userId,
             DepartmentId = departmentId,
             AdvisorType = dto.AdvisorType,
-            FullName = dto.FullName,
-            Title = dto.Title,
-            Phone = dto.Phone,
+            FullName = resolvedName,
+            Title = dto.Title?.Trim(),
+            Phone = dto.Phone?.Trim(),
             IsActive = true,
             IsVisible = true,
             CreatedAt = DateTime.UtcNow,
@@ -166,8 +209,15 @@ public class AdvisorService : IAdvisorService
         {
             advisor.DepartmentId = dto.DepartmentId;
         }
+        var resolvedName = !string.IsNullOrWhiteSpace(dto.FullName)
+            ? dto.FullName.Trim()
+            : $"{dto.FirstName?.Trim()} {dto.LastName?.Trim()}".Trim();
+
+        if (!string.IsNullOrWhiteSpace(resolvedName))
+        {
+            advisor.FullName = resolvedName;
+        }
         advisor.AdvisorType = dto.AdvisorType;
-        advisor.FullName = dto.FullName;
         advisor.Title = dto.Title;
         advisor.Phone = dto.Phone;
         advisor.UpdatedAt = DateTime.UtcNow;
@@ -377,5 +427,169 @@ public class AdvisorService : IAdvisorService
             advisor.DeletedBy,
             advisor.DeletedAt
         );
+    }
+
+    public async Task<Result<BatchImportResultDto>> ImportExcelAsync(Microsoft.AspNetCore.Http.IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return Result<BatchImportResultDto>.Failure("El archivo Excel no fue proporcionado o está vacío.");
+        }
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (ext != ".xlsx" && ext != ".xls")
+        {
+            return Result<BatchImportResultDto>.Failure("El formato del archivo debe ser .xlsx o .xls.");
+        }
+
+        using var stream = file.OpenReadStream();
+        var expectedColumns = new List<string> { "Nombre", "Titulo", "Email", "Telefono", "Departamento" };
+        var (isValid, errorMessage, rows) = ExcelHelper.ParseExcelFile(stream, expectedColumns);
+
+        if (!isValid)
+        {
+            return Result<BatchImportResultDto>.Failure(errorMessage ?? "Error de validación de encabezados en el archivo Excel.", 400);
+        }
+
+        var result = new BatchImportResultDto
+        {
+            TotalRows = rows.Count
+        };
+
+        var rowNum = 1;
+        foreach (var row in rows)
+        {
+            rowNum++;
+            var name = row.GetValueOrDefault("Nombre");
+            var title = row.GetValueOrDefault("Titulo");
+            var email = row.GetValueOrDefault("Email");
+            var phone = row.GetValueOrDefault("Telefono");
+            var deptStr = row.GetValueOrDefault("Departamento");
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El nombre completo del asesor es obligatorio.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El título/grado académico es obligatorio.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El correo institucional del asesor es obligatorio.");
+                continue;
+            }
+
+            var cleanEmail = email.Trim().ToLowerInvariant();
+            if (!cleanEmail.Contains('@') || !cleanEmail.Contains('.'))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El correo '{cleanEmail}' no es una dirección válida.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(phone))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El teléfono de contacto del asesor es obligatorio.");
+                continue;
+            }
+
+            long departmentId;
+            if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+            {
+                departmentId = _currentUser.CareerId.Value;
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(deptStr) || !long.TryParse(deptStr.Trim(), out var parsedDept) || parsedDept < 1 || parsedDept > 6)
+                {
+                    result.ErrorCount++;
+                    result.Errors.Add($"Fila {rowNum}: El ID de departamento es obligatorio y debe ser un número del 1 al 6 (1=INF, 2=IND, 3=MEC, 4=ISC, 5=ELE, 6=IGE).");
+                    continue;
+                }
+                departmentId = parsedDept;
+            }
+
+            var cleanName = name.Trim();
+            var cleanTitle = title.Trim();
+            var cleanPhone = phone.Trim();
+
+            // Check if user account exists
+            var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == cleanEmail);
+            long userId;
+
+            if (existingUser != null)
+            {
+                userId = existingUser.Id;
+                var existingAdvisor = await _advisorRepository.GetByUserIdAsync(userId);
+                if (existingAdvisor != null)
+                {
+                    result.SkippedCount++;
+                    result.Skipped.Add($"Fila {rowNum}: Omitido. Ya existe el asesor '{cleanName}' asociado al correo '{cleanEmail}'.");
+                    continue;
+                }
+                await _roleRepository.EnsureUserRoleAsync(userId, "advisor", _currentUser.UserId);
+            }
+            else
+            {
+                var defaultPasswordHash = BCrypt.Net.BCrypt.HashPassword("Docente2026!");
+                var newUser = new User
+                {
+                    Email = cleanEmail,
+                    PasswordHash = defaultPasswordHash,
+                    Role = UserRole.Advisor,
+                    IsActive = true,
+                    CreatedBy = _currentUser.UserId,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _context.Users.Add(newUser);
+                await _context.SaveChangesAsync();
+                userId = newUser.Id;
+                await _roleRepository.EnsureUserRoleAsync(userId, "advisor", _currentUser.UserId);
+            }
+
+            var advisor = new Advisor
+            {
+                UserId = userId,
+                DepartmentId = departmentId,
+                AdvisorType = AdvisorType.Internal,
+                FullName = cleanName,
+                Title = cleanTitle,
+                Phone = cleanPhone,
+                IsActive = true,
+                IsVisible = true,
+                CreatedBy = _currentUser.UserId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await _advisorRepository.AddAsync(advisor);
+
+            var advDept = new AdvisorDepartment
+            {
+                AdvisorId = advisor.Id,
+                DepartmentId = departmentId,
+                IsActive = true,
+                IsVisible = true,
+                CreatedBy = _currentUser.UserId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _context.AdvisorDepartments.Add(advDept);
+            await _context.SaveChangesAsync();
+
+            result.SuccessCount++;
+        }
+
+        return Result<BatchImportResultDto>.Success(result);
     }
 }

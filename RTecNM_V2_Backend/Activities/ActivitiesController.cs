@@ -35,7 +35,7 @@ public class ActivitiesController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "admin,departmenthead,student")]
+    [Authorize(Roles = "student")]
     public async Task<IActionResult> CreateActivity(long projectId, [FromBody] CreateActivityDto dto)
     {
         var denied = await EnsureProjectAccessAsync(projectId);
@@ -57,7 +57,7 @@ public class ActivitiesController : ControllerBase
     }
 
     [HttpPost("progress")]
-    [Authorize(Roles = "admin,departmenthead,advisor,student")]
+    [Authorize(Roles = "student")]
     public async Task<IActionResult> SaveProgress(long projectId, [FromBody] SaveWeeklyProgressDto dto)
     {
         var denied = await EnsureProjectAccessAsync(projectId);

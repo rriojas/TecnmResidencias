@@ -42,5 +42,17 @@ public static class ExcelTemplateSeeder
 
         MiniExcel.SaveAs(companyTemplatePath, companyTable, overwriteFile: true);
         logger.LogInformation("Generada plantilla limpia para empresas en: {Path}", companyTemplatePath);
+
+        // 3. Plantilla Asesores (Solo encabezados limpios sin filas de ejemplo ni colores)
+        var advisorTemplatePath = Path.Combine(templatesDir, "Plantilla_Asesores.xlsx");
+        var advisorTable = new DataTable();
+        advisorTable.Columns.Add("Nombre");
+        advisorTable.Columns.Add("Titulo");
+        advisorTable.Columns.Add("Email");
+        advisorTable.Columns.Add("Telefono");
+        advisorTable.Columns.Add("Departamento");
+
+        MiniExcel.SaveAs(advisorTemplatePath, advisorTable, overwriteFile: true);
+        logger.LogInformation("Generada plantilla limpia para asesores en: {Path}", advisorTemplatePath);
     }
 }

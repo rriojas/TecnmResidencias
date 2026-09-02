@@ -170,7 +170,6 @@ public class SearchService : ISearchService
             }
             else if (request.SourceKey.Equals("ADVISORS", StringComparison.OrdinalIgnoreCase))
             {
-                whereConditions.Add($"(\"department_id\"::text = '{_currentUser.CareerId.Value}' OR id IN (SELECT advisor_id FROM advisor_departments WHERE department_id = {_currentUser.CareerId.Value} AND is_active = true))");
                 whereConditions.Add("(\"advisor_type\"::text = '1' OR \"advisor_type\"::text = 'internal' OR \"advisor_type\"::text = 'Internal')");
             }
             else if (request.SourceKey.Equals("PROJECTS", StringComparison.OrdinalIgnoreCase))

@@ -15,4 +15,5 @@ public interface IAdvisorService
     Task<Result<bool>> ReactivateAdvisorAsync(long id);
     Task<Result<bool>> AssignAdvisorAsync(AssignAdvisorDto dto);
     Task<Result<AdvisorResidentsResponseDto>> GetAdvisorResidentsAsync(long id);
+    Task<Result<BatchImportResultDto>> ImportExcelAsync(Microsoft.AspNetCore.Http.IFormFile file);
 }

@@ -2233,6 +2233,11 @@ textarea.tecnm-form-control {
   transition: background-color 0.2s ease;
 }
 
+.week-cell.readonly,
+.readonly-matrix .week-cell {
+  cursor: default;
+}
+
 .week-cell.completed {
   background-color: var(--tecnm-status-approved-bg);
   color: var(--tecnm-status-approved-text);

@@ -266,7 +266,7 @@ public class StudentService : IStudentService
 
         var advisor = await _advisorRepository.GetByIdAsync(advisorId);
         if (advisor is null)
-            return Result<StudentResponseDto>.Failure("Asesor no encontrado o no pertenece al departamento de tu carrera.", 404);
+            return Result<StudentResponseDto>.Failure("Asesor institucional no encontrado.", 404);
 
         student.AdvisorId = advisor.Id;
         student.Advisor = advisor;
@@ -443,35 +443,69 @@ public class StudentService : IStudentService
                 continue;
             }
 
+            if (string.IsNullOrWhiteSpace(apellidosStr))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: Los apellidos del estudiante son obligatorios.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(sexoStr))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El sexo/género del estudiante es obligatorio.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(carreraStr) || !long.TryParse(carreraStr.Trim(), out var careerId) || careerId < 1 || careerId > 6)
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: La columna Carrera debe contener únicamente un ID de carrera válido del 1 al 6 (1=INF, 2=IND, 3=MEC, 4=ISC, 5=ELE, 6=IGE).");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(semestreStr) || !int.TryParse(semestreStr.Trim(), out var parsedSem) || parsedSem < 1 || parsedSem > 12)
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El semestre es obligatorio y debe ser un número entero entre 1 y 12.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(emailStr))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El correo institucional del estudiante es obligatorio.");
+                continue;
+            }
+
             var cleanControlNum = controlNum.Trim().ToUpperInvariant();
 
             // Split surnames
             string lastName1 = "SN";
             string? lastName2 = null;
-            if (!string.IsNullOrWhiteSpace(apellidosStr))
+            var parts = apellidosStr.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 1)
             {
-                var parts = apellidosStr.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length == 1)
-                {
-                    lastName1 = parts[0];
-                }
-                else if (parts.Length == 2)
-                {
-                    lastName1 = parts[0];
-                    lastName2 = parts[1];
-                }
-                else if (parts.Length > 2)
-                {
-                    lastName1 = string.Join(" ", parts.Take(parts.Length - 1));
-                    lastName2 = parts.Last();
-                }
+                lastName1 = parts[0];
+            }
+            else if (parts.Length == 2)
+            {
+                lastName1 = parts[0];
+                lastName2 = parts[1];
+            }
+            else if (parts.Length > 2)
+            {
+                lastName1 = string.Join(" ", parts.Take(parts.Length - 1));
+                lastName2 = parts.Last();
             }
 
             // Resolve email (ensure valid institutional domain)
-            string cleanEmail = !string.IsNullOrWhiteSpace(emailStr) ? emailStr.Trim().ToLowerInvariant() : string.Empty;
-            if (string.IsNullOrWhiteSpace(cleanEmail) || !InstitutionalEmail.IsValid(cleanEmail))
+            string cleanEmail = emailStr.Trim().ToLowerInvariant();
+            if (!InstitutionalEmail.IsValid(cleanEmail))
             {
-                cleanEmail = $"{cleanControlNum.ToLowerInvariant()}@monclova.tecnm.mx";
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El correo '{cleanEmail}' debe ser un correo institucional válido (@monclova.tecnm.mx).");
+                continue;
             }
 
             var existingStudent = await _studentRepository.GetByControlNumberAsync(cleanControlNum);
@@ -491,22 +525,11 @@ public class StudentService : IStudentService
             }
 
             // Map Gender
-            string? gender = null;
-            if (!string.IsNullOrWhiteSpace(sexoStr))
-            {
-                var s = sexoStr.Trim().ToUpperInvariant();
-                gender = s.StartsWith("M") ? "Masculino" : s.StartsWith("F") ? "Femenino" : sexoStr.Trim();
-            }
-
-            // Map Career
-            long careerId = MapCareerNameToId(carreraStr);
+            var s = sexoStr.Trim().ToUpperInvariant();
+            string gender = s.StartsWith("M") ? "Masculino" : s.StartsWith("F") ? "Femenino" : sexoStr.Trim();
 
             // Map Academic Semester
-            int? periodId = null;
-            if (int.TryParse(semestreStr, out var parsedSem) && parsedSem > 0)
-            {
-                periodId = parsedSem;
-            }
+            int? periodId = parsedSem;
 
             var defaultPasswordHash = BCrypt.Net.BCrypt.HashPassword(cleanControlNum);
             var newUser = new User
@@ -558,12 +581,13 @@ public class StudentService : IStudentService
     {
         if (string.IsNullOrWhiteSpace(name)) return 1;
         var clean = name.Trim().ToUpperInvariant();
-        if (clean.Contains("SISTEMA") || clean.Contains("ISC")) return 4;
-        if (clean.Contains("INDUSTRIAL")) return 2;
-        if (clean.Contains("MECATRONICA") || clean.Contains("MECATRÓNICA")) return 3;
-        if (clean.Contains("INFORMATICA") || clean.Contains("INFORMÁTICA")) return 1;
-        if (clean.Contains("ELECTRONICA") || clean.Contains("ELECTRÓNICA")) return 1;
-        if (clean.Contains("RENOVABLE") || clean.Contains("ENERGIA")) return 2;
+        if (long.TryParse(clean, out var id) && id >= 1 && id <= 20) return id;
+        if (clean.Contains("SISTEMA") || clean == "ISC" || clean.StartsWith("ISC ")) return 4;
+        if (clean.Contains("INDUSTRIAL") || clean == "IND" || clean.StartsWith("IND ")) return 2;
+        if (clean.Contains("MECATRONICA") || clean.Contains("MECATRÓNICA") || clean == "MEC" || clean.StartsWith("MEC ")) return 3;
+        if (clean.Contains("INFORMATICA") || clean.Contains("INFORMÁTICA") || clean == "INF" || clean.StartsWith("INF ")) return 1;
+        if (clean.Contains("ELECTRONICA") || clean.Contains("ELECTRÓNICA") || clean == "ELE" || clean.StartsWith("ELE ")) return 5;
+        if (clean.Contains("GESTION") || clean.Contains("GESTIÓN") || clean.Contains("EMPRESARIAL") || clean == "IGE" || clean.StartsWith("IGE ")) return 6;
         return 1;
     }
 

@@ -11,11 +11,19 @@ public class AdvisorsController : ControllerBase
 {
     private readonly IAdvisorService _advisorService;
     private readonly ICurrentUserService _currentUser;
+    private readonly IWebHostEnvironment _env;
+    private readonly ILogger<AdvisorsController> _logger;
 
-    public AdvisorsController(IAdvisorService advisorService, ICurrentUserService currentUser)
+    public AdvisorsController(
+        IAdvisorService advisorService,
+        ICurrentUserService currentUser,
+        IWebHostEnvironment env,
+        ILogger<AdvisorsController> logger)
     {
         _advisorService = advisorService;
         _currentUser = currentUser;
+        _env = env;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -65,7 +73,7 @@ public class AdvisorsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "admin,departmenthead,academic,academico")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead")]
     public async Task<IActionResult> Create([FromBody] CreateAdvisorDto dto)
     {
         var result = await _advisorService.CreateAdvisorAsync(dto);
@@ -81,7 +89,7 @@ public class AdvisorsController : ControllerBase
     }
 
     [HttpPut("{id:long}")]
-    [Authorize(Roles = "admin,departmenthead,academic,academico")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead")]
     public async Task<IActionResult> Update(long id, [FromBody] UpdateAdvisorDto dto)
     {
         var result = await _advisorService.UpdateAdvisorAsync(id, dto);
@@ -89,7 +97,7 @@ public class AdvisorsController : ControllerBase
     }
 
     [HttpDelete("{id:long}")]
-    [Authorize(Roles = "admin,departmenthead,academic,academico")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead")]
     public async Task<IActionResult> SoftDelete(long id)
     {
         var result = await _advisorService.SoftDeleteAdvisorAsync(id, _currentUser.UserId);
@@ -97,10 +105,34 @@ public class AdvisorsController : ControllerBase
     }
 
     [HttpPatch("{id:long}/activate")]
-    [Authorize(Roles = "admin,departmenthead,academic,academico")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead")]
     public async Task<IActionResult> Reactivate(long id)
     {
         var result = await _advisorService.ReactivateAdvisorAsync(id);
         return result.IsSuccess ? Ok(new { message = "Asesor reactivado exitosamente." }) : BadRequest(new { message = result.ErrorMessage });
+    }
+
+    [HttpGet("import/template")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead")]
+    public IActionResult DownloadExcelTemplate()
+    {
+        var filePath = Path.Combine(_env.ContentRootPath, "uploads", "templates", "excel", "Plantilla_Asesores.xlsx");
+        if (!System.IO.File.Exists(filePath))
+        {
+            ExcelTemplateSeeder.EnsureTemplatesExist(_env.ContentRootPath, _logger);
+        }
+        var bytes = System.IO.File.ReadAllBytes(filePath);
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Plantilla_Asesores.xlsx");
+    }
+
+    [HttpPost("import/excel")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead")]
+    public async Task<IActionResult> ImportExcel(IFormFile file)
+    {
+        var result = await _advisorService.ImportExcelAsync(file);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
     }
 }

@@ -42,7 +42,7 @@ const isProjectRejected = computed(() => {
 })
 
 const isProjectReadOnly = computed(() => {
-  if (authStore.isCareerHead) return true
+  if (!isStudent.value) return true
   if (!currentProject.value) return true
   const st = String(currentProject.value?.status || '').toLowerCase()
   return isProjectCompleted.value || ['cancelled', 'rejected', 'pending', 'under_review', 'proposed', 'draft'].includes(st)
@@ -65,9 +65,7 @@ const TOTAL_WEEKS = computed(() => {
 })
 
 const canAddActivity = computed(() => {
-  if (authStore.isCareerHead) return false
-  if (authStore.hasRole('academic', 'departmenthead') && !authStore.isAdmin) return false
-  if (isAdvisor.value) return false
+  if (!isStudent.value) return false
   if (!currentProject.value?.id) return false
   return !isProjectReadOnly.value
 })
@@ -262,6 +260,11 @@ function getStatusLabelSpanish(status) {
 async function cycleWeekStatus(act, weekNum) {
   if (!currentProject.value?.id) return
 
+  if (!isStudent.value) {
+    showAlert('El cronograma de actividades solo puede ser editado por el alumno residente titular.', 'info')
+    return
+  }
+
   if (isProjectReadOnly.value) {
     if (isProjectCompleted.value) {
       showAlert('Este proyecto se encuentra concluido. El cronograma está en modo solo lectura.', 'info')
@@ -411,6 +414,9 @@ onMounted(() => {
         </router-link>
       </div>
     </template>
+    <div v-else-if="!isStudent && currentProject" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
+      <span><strong>Modo Consulta (Solo Lectura):</strong> El cronograma de actividades y el registro de avance semanal son de edición única y exclusiva del alumno residente titular.</span>
+    </div>
 
     <!-- Alert de Notificación Flotante Institucional -->
     <div
@@ -474,7 +480,7 @@ onMounted(() => {
 
       <div class="tecnm-card-body">
         <div class="tecnm-table-responsive">
-          <table class="matrix-table tecnm-table">
+          <table class="matrix-table tecnm-table" :class="{ 'readonly-matrix': !isStudent || isProjectReadOnly }">
             <thead>
               <tr>
                 <th>#</th>
@@ -557,11 +563,11 @@ onMounted(() => {
                   v-for="w in TOTAL_WEEKS"
                   :key="w"
                   class="week-cell"
-                  :class="getStatusClass(getWeekProgress(act, w).status)"
+                  :class="[getStatusClass(getWeekProgress(act, w).status), { 'readonly': !isStudent || isProjectReadOnly }]"
                   :data-activity-id="act.id"
                   :data-week="w"
                   :data-status="getWeekProgress(act, w).status"
-                  :title="isProjectReadOnly ? `Actividad: ${act.title} - Semana ${w} (${getStatusLabelSpanish(getWeekProgress(act, w).status)})` : `Actividad: ${act.title} - Semana ${w} (${getStatusLabelSpanish(getWeekProgress(act, w).status)}) - Haga clic para cambiar`"
+                  :title="(!isStudent || isProjectReadOnly) ? `Actividad: ${act.title} - Semana ${w} (${getStatusLabelSpanish(getWeekProgress(act, w).status)}) [Solo lectura]` : `Actividad: ${act.title} - Semana ${w} (${getStatusLabelSpanish(getWeekProgress(act, w).status)}) - Haga clic para cambiar`"
                   @click="cycleWeekStatus(act, w)"
                 >
                   <svg v-if="getStatusClass(getWeekProgress(act, w).status) === 'completed'" xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" style="display: block; margin: auto;">

@@ -1035,21 +1035,80 @@ onMounted(() => {
         </div>
 
         <form @submit.prevent="handleImportSubmit">
-          <div class="tecnm-alert tecnm-alert-warning" style="margin-bottom: 1rem;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; flex-wrap: wrap;">
-              <div>
-                <strong>Requisito Estricto de Columnas:</strong><br />
-                El archivo Excel debe contener las siguientes columnas en la primera fila:<br />
-                <code>Matricula, Apellidos, Nombre, Sexo, Carrera, Semestre, Email</code>
-              </div>
+          <div class="tecnm-card" style="margin-bottom: 1rem; border: 1px solid var(--tecnm-border-color, #e2e8f0); background: #f8fafc; padding: 0.75rem; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+              <span style="font-weight: 700; font-size: 0.9rem; color: var(--tecnm-primary, #1b396a); display: inline-flex; align-items: center; gap: 0.35rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                </svg>
+                <span>Especificación de Columnas</span>
+                <span style="font-size: 0.8rem; color: #b91c1c; font-weight: 600;">(Todos los campos son obligatorios sin excepción)</span>
+              </span>
               <button
                 type="button"
                 class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
-                style="margin-top: 0.25rem;"
                 @click="handleDownloadStudentTemplate"
               >
-                Descargar Plantilla Excel
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem; display: inline-block; vertical-align: middle;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                <span>Descargar Plantilla Excel</span>
               </button>
+            </div>
+            <div style="overflow-x: auto;">
+              <table class="tecnm-table" style="font-size: 0.8rem; margin-bottom: 0; background: #fff;">
+                <thead>
+                  <tr style="background: #eef2f6;">
+                    <th style="padding: 0.4rem 0.6rem;">Columna</th>
+                    <th style="padding: 0.4rem 0.6rem;">Formato Esperado</th>
+                    <th style="padding: 0.4rem 0.6rem;">Valores Aceptados / Ejemplo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style="padding: 0.35rem 0.6rem;"><code>Matricula</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">N° de control oficial único</td>
+                    <td style="padding: 0.35rem 0.6rem;"><code>20051234</code></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 0.35rem 0.6rem;"><code>Apellidos</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">Apellido paterno y materno separados por espacio</td>
+                    <td style="padding: 0.35rem 0.6rem;"><em>Pérez Gómez</em></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 0.35rem 0.6rem;"><code>Nombre</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">Nombre(s) del alumno</td>
+                    <td style="padding: 0.35rem 0.6rem;"><em>Juan Carlos</em></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 0.35rem 0.6rem;"><code>Sexo</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">Género</td>
+                    <td style="padding: 0.35rem 0.6rem;"><em>M, F, Masculino, Femenino</em></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 0.35rem 0.6rem;"><code>Carrera</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">Únicamente ID numérico de la carrera</td>
+                    <td style="padding: 0.35rem 0.6rem;">
+                      <code>1</code>: Ing. Informática (INF)<br />
+                      <code>2</code>: Ing. Industrial (IND)<br />
+                      <code>3</code>: Ing. Mecatrónica (MEC)<br />
+                      <code>4</code>: Ing. en Sistemas Computacionales (ISC)<br />
+                      <code>5</code>: Ing. Electrónica (ELE)<br />
+                      <code>6</code>: Ing. en Gestión Empresarial (IGE)
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 0.35rem 0.6rem;"><code>Semestre</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">Número entero de semestre (1 a 12)</td>
+                    <td style="padding: 0.35rem 0.6rem;"><code>9</code></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 0.35rem 0.6rem;"><code>Email</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">Correo institucional del estudiante (@monclova.tecnm.mx)</td>
+                    <td style="padding: 0.35rem 0.6rem;"><code>20051234@monclova.tecnm.mx</code></td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 

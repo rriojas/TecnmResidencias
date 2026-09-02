@@ -694,21 +694,73 @@ onMounted(() => {
         </div>
 
         <form @submit.prevent="handleImportSubmit">
-          <div class="tecnm-alert tecnm-alert-warning" style="margin-bottom: 1rem;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; flex-wrap: wrap;">
-              <div>
-                <strong>Requisito Estricto de Columnas:</strong><br />
-                El archivo Excel debe contener exactamente las siguientes columnas en la primera fila:<br />
-                <code>Nombre, RFC, Sector, Dirección, NombreContacto, CorreoContacto, TeléfonoContacto</code>
-              </div>
+          <div class="tecnm-card" style="margin-bottom: 1rem; border: 1px solid var(--tecnm-border-color, #e2e8f0); background: #f8fafc; padding: 0.75rem; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+              <span style="font-weight: 700; font-size: 0.9rem; color: var(--tecnm-primary, #1b396a); display: inline-flex; align-items: center; gap: 0.35rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                </svg>
+                <span>Especificación de Columnas</span>
+                <span style="font-size: 0.8rem; color: #b91c1c; font-weight: 600;">(Todos los campos son obligatorios sin excepción)</span>
+              </span>
               <button
                 type="button"
                 class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
-                style="margin-top: 0.25rem;"
                 @click="handleDownloadCompanyTemplate"
               >
-                Descargar Plantilla Excel
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem; display: inline-block; vertical-align: middle;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                <span>Descargar Plantilla Excel</span>
               </button>
+            </div>
+            <div style="overflow-x: auto;">
+              <table class="tecnm-table" style="font-size: 0.8rem; margin-bottom: 0; background: #fff;">
+                <thead>
+                  <tr style="background: #eef2f6;">
+                    <th style="padding: 0.4rem 0.6rem;">Columna</th>
+                    <th style="padding: 0.4rem 0.6rem;">Formato Esperado</th>
+                    <th style="padding: 0.4rem 0.6rem;">Ejemplo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style="padding: 0.35rem 0.6rem;"><code>Nombre</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">Nombre comercial o razón social completa</td>
+                    <td style="padding: 0.35rem 0.6rem;"><em>Servicios Industriales del Norte S.A. de C.V.</em></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 0.35rem 0.6rem;"><code>RFC</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">RFC oficial con homoclave (12 o 13 caracteres)</td>
+                    <td style="padding: 0.35rem 0.6rem;"><code>SIN900101AB1</code></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 0.35rem 0.6rem;"><code>Sector</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">Sector empresarial (Privado, Público, Social, Educativo)</td>
+                    <td style="padding: 0.35rem 0.6rem;"><em>Privado</em></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 0.35rem 0.6rem;"><code>Dirección</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">Calle, número exterior/interior, colonia y municipio</td>
+                    <td style="padding: 0.35rem 0.6rem;"><em>Av. Tecnológico #123, Col. Centro, Monclova</em></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 0.35rem 0.6rem;"><code>NombreContacto</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">Nombre completo del titular o enlace de vinculación/RRHH</td>
+                    <td style="padding: 0.35rem 0.6rem;"><em>Lic. Ana Torres Martínez</em></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 0.35rem 0.6rem;"><code>CorreoContacto</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">Correo electrónico corporativo válido</td>
+                    <td style="padding: 0.35rem 0.6rem;"><code>rh@empresa.com</code></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 0.35rem 0.6rem;"><code>TeléfonoContacto</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">Número telefónico a 10 dígitos</td>
+                    <td style="padding: 0.35rem 0.6rem;"><code>8661234567</code></td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 

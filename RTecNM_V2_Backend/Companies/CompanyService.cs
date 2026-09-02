@@ -195,7 +195,57 @@ public class CompanyService : ICompanyService
                 continue;
             }
 
+            if (string.IsNullOrWhiteSpace(sector))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El sector de la empresa es obligatorio.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(address))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: La dirección de la empresa es obligatoria.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(contactName))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El nombre de contacto es obligatorio.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(contactEmail))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El correo de contacto es obligatorio.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(contactPhone))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El teléfono de contacto es obligatorio.");
+                continue;
+            }
+
             var cleanRfc = rfc.Trim().ToUpperInvariant();
+            if (cleanRfc.Length < 12 || cleanRfc.Length > 13)
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El RFC '{cleanRfc}' debe contener 12 o 13 caracteres.");
+                continue;
+            }
+
+            var cleanEmail = contactEmail.Trim().ToLowerInvariant();
+            if (!cleanEmail.Contains('@') || !cleanEmail.Contains('.'))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El correo de contacto '{cleanEmail}' no es una dirección de correo válida.");
+                continue;
+            }
+
             var existing = await _repository.GetByRfcAsync(cleanRfc);
             if (existing != null)
             {
@@ -208,11 +258,11 @@ public class CompanyService : ICompanyService
             {
                 Name = name.Trim(),
                 Rfc = cleanRfc,
-                Sector = !string.IsNullOrWhiteSpace(sector) ? sector.Trim() : null,
-                Address = !string.IsNullOrWhiteSpace(address) ? address.Trim() : null,
-                ContactName = !string.IsNullOrWhiteSpace(contactName) ? contactName.Trim() : string.Empty,
-                ContactEmail = !string.IsNullOrWhiteSpace(contactEmail) ? contactEmail.Trim() : string.Empty,
-                ContactPhone = !string.IsNullOrWhiteSpace(contactPhone) ? contactPhone.Trim() : null,
+                Sector = sector.Trim(),
+                Address = address.Trim(),
+                ContactName = contactName.Trim(),
+                ContactEmail = cleanEmail,
+                ContactPhone = contactPhone.Trim(),
                 IsActive = true,
                 IsVisible = true,
                 CreatedBy = createdByUserId,
