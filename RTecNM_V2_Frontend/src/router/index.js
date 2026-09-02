@@ -128,6 +128,18 @@ const routes = [
     },
   },
   {
+    path: '/evaluations/timeline',
+    name: 'TrackingTimeline',
+    component: () => import('@/views/evaluations/TrackingTimelineView.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Supervisión de Asesorías - Sistema de Residencias',
+      roles: ['admin', 'departmenthead', 'academic', 'director', 'jefecarrera', 'careerhead'],
+      permission: 'evaluations.advisories',
+      navActive: 'timeline',
+    },
+  },
+  {
     path: '/evaluations/grading',
     name: 'Grading',
     component: () => import('@/views/evaluations/GradingView.vue'),

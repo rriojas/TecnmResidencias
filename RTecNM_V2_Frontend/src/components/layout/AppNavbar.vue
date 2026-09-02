@@ -137,8 +137,14 @@ const showDocuments = computed(() =>
   authStore.hasPermission('documents.digital')
 )
 
+const showTrackingTimeline = computed(() =>
+  authStore.isAdmin ||
+  authStore.isCareerHead ||
+  authStore.hasRole('departmenthead', 'academic', 'director')
+)
+
 const showEvaluacionGroup = computed(() =>
-  showAdvisories.value || showGrading.value || showDocuments.value
+  showAdvisories.value || showTrackingTimeline.value || showGrading.value || showDocuments.value
 )
 
 const showReports = computed(() =>
@@ -431,6 +437,22 @@ const showAdminGroup = computed(() =>
                     </svg>
                   </span>
                   Bitácora de Asesorías
+                </router-link>
+              </li>
+              <li v-if="showTrackingTimeline">
+                <router-link
+                  to="/evaluations/timeline"
+                  class="tecnm-nav-item"
+                  :class="{ active: route.path === '/evaluations/timeline' }"
+                  data-nav-icon="clock"
+                  @click="closeAll"
+                >
+                  <span class="tecnm-nav-item-icon" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    </svg>
+                  </span>
+                  Supervisión de Asesorías
                 </router-link>
               </li>
               <li v-if="showGrading">

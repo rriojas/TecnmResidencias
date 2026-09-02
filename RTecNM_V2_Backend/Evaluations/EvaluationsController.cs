@@ -133,4 +133,48 @@ public class EvaluationsController : ControllerBase
 
         return Ok(result.Data);
     }
+
+    [HttpGet("timeline")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead")]
+    public async Task<IActionResult> GetTimeline([FromQuery] AdvisoryTimelineQuery query)
+    {
+        var result = await _evaluationService.GetAdvisoryTimelinePagedAsync(query);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
+
+    [HttpGet("timeline/health")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead")]
+    public async Task<IActionResult> GetTimelineHealth([FromQuery] long? careerId)
+    {
+        var result = await _evaluationService.GetAdvisorsHealthStatusAsync(careerId);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
+
+    [HttpPatch("sessions/{id:long}/supervision-note")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,jefecarrera,careerhead")]
+    public async Task<IActionResult> SaveSupervisionNote(long id, [FromBody] SaveSupervisionNoteDto dto)
+    {
+        var result = await _evaluationService.SaveSupervisionNoteAsync(id, dto);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(new { message = "Nota de supervisión guardada correctamente." });
+    }
+
+    [HttpGet("timeline/export")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead")]
+    public async Task<IActionResult> ExportTimelinePdf([FromQuery] AdvisoryTimelineQuery query)
+    {
+        var result = await _evaluationService.ExportTimelinePdfAsync(query);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return File(result.Data!, "application/pdf", "timeline_asesorias_tecnm.pdf");
+    }
 }

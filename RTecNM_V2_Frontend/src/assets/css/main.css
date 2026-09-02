@@ -3093,4 +3093,649 @@ textarea.tecnm-form-control {
   color: var(--tecnm-danger-strong, #DC2626);
 }
 
+/* ============================================================
+   24. TIMELINE DE SEGUIMIENTO Y SEMÁFORO DE ASESORES
+   ============================================================ */
+
+/* Grid de Semáforos / KPIs de Asesores */
+.tecnm-semaphore-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--tecnm-spacing-md, 1rem);
+  margin-bottom: var(--tecnm-spacing-lg, 1.5rem);
+}
+
+.tecnm-semaphore-card {
+  background-color: var(--tecnm-surface-white, #FFFFFF);
+  border: 1px solid var(--tecnm-border-color, #E2E8F0);
+  border-radius: var(--tecnm-radius-md, 0.5rem);
+  padding: 1.125rem 1.25rem;
+  box-shadow: var(--tecnm-shadow-sm, 0 1px 2px rgba(0,0,0,0.05));
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all var(--tecnm-transition-fast, 0.2s ease);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.tecnm-semaphore-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 5px;
+}
+
+.tecnm-semaphore-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--tecnm-shadow-md, 0 4px 6px -1px rgba(0,0,0,0.1));
+}
+
+.tecnm-semaphore-card.active {
+  ring: 2px solid var(--tecnm-blue-primary, #1B396A);
+  border-color: var(--tecnm-blue-primary, #1B396A);
+  background-color: #F8FAFC;
+}
+
+.tecnm-semaphore-healthy::before { background-color: #10B981; }
+.tecnm-semaphore-warning::before { background-color: #F59E0B; }
+.tecnm-semaphore-critical::before { background-color: #EF4444; }
+.tecnm-semaphore-irregular::before { background-color: #8B5CF6; }
+
+.tecnm-semaphore-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.tecnm-semaphore-title {
+  font-size: var(--tecnm-font-size-xs, 0.75rem);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--tecnm-text-secondary, #64748B);
+}
+
+.tecnm-semaphore-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.tecnm-semaphore-healthy .tecnm-semaphore-icon { background-color: #D1FAE5; color: #065F46; }
+.tecnm-semaphore-warning .tecnm-semaphore-icon { background-color: #FEF3C7; color: #92400E; }
+.tecnm-semaphore-critical .tecnm-semaphore-icon { background-color: #FEE2E2; color: #991B1B; }
+.tecnm-semaphore-irregular .tecnm-semaphore-icon { background-color: #EDE9FE; color: #5B21B6; }
+
+.tecnm-semaphore-count {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--tecnm-text-primary, #1E293B);
+  margin-bottom: 0.25rem;
+}
+
+.tecnm-semaphore-desc {
+  font-size: var(--tecnm-font-size-xs, 0.75rem);
+  color: var(--tecnm-text-secondary, #64748B);
+}
+
+/* Timeline Cronológico */
+.tecnm-timeline {
+  position: relative;
+  padding: 1rem 0 2rem 2.5rem;
+}
+
+.tecnm-timeline::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 1rem;
+  width: 3px;
+  background: linear-gradient(180deg, var(--tecnm-blue-primary, #1B396A) 0%, var(--tecnm-gold-accent, #C5A059) 100%);
+  border-radius: 2px;
+}
+
+.tecnm-timeline-group-header {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--tecnm-blue-primary, #1B396A);
+  color: #FFFFFF;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  font-size: var(--tecnm-font-size-xs, 0.75rem);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin: 1.5rem 0 1rem -1.75rem;
+  box-shadow: var(--tecnm-shadow-sm, 0 1px 2px rgba(0,0,0,0.1));
+  z-index: 2;
+}
+
+.tecnm-timeline-item {
+  position: relative;
+  margin-bottom: 1.75rem;
+}
+
+.tecnm-timeline-item:last-child {
+  margin-bottom: 0;
+}
+
+.tecnm-timeline-node {
+  position: absolute;
+  left: -2.05rem;
+  top: 1.25rem;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: #FFFFFF;
+  border: 3px solid var(--tecnm-blue-primary, #1B396A);
+  box-shadow: 0 0 0 3px rgba(27, 57, 106, 0.15);
+  z-index: 1;
+  transition: all var(--tecnm-transition-fast, 0.2s ease);
+}
+
+.tecnm-timeline-node.approved {
+  border-color: #10B981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.tecnm-timeline-node.observed {
+  border-color: #EF4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+.tecnm-timeline-node.pending {
+  border-color: #F59E0B;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+}
+
+.tecnm-timeline-card {
+  background-color: var(--tecnm-surface-white, #FFFFFF);
+  border: 1px solid var(--tecnm-border-color, #E2E8F0);
+  border-radius: var(--tecnm-radius-md, 0.5rem);
+  box-shadow: var(--tecnm-shadow-sm, 0 1px 3px rgba(0,0,0,0.05));
+  padding: 1.25rem;
+  transition: all var(--tecnm-transition-fast, 0.2s ease);
+}
+
+.tecnm-timeline-card:hover {
+  border-color: #CBD5E1;
+  box-shadow: var(--tecnm-shadow-md, 0 4px 6px -1px rgba(0,0,0,0.08));
+}
+
+.tecnm-timeline-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--tecnm-gray-100, #F1F5F9);
+  margin-bottom: 0.875rem;
+}
+
+.tecnm-timeline-date-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 700;
+  font-size: var(--tecnm-font-size-sm, 0.875rem);
+  color: var(--tecnm-blue-primary, #1B396A);
+  background-color: #F1F5F9;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--tecnm-radius-sm, 0.25rem);
+}
+
+.tecnm-timeline-actors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .tecnm-timeline-actors {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tecnm-timeline-actor-box {
+  background-color: #F8FAFC;
+  border: 1px solid var(--tecnm-gray-200, #E2E8F0);
+  border-radius: var(--tecnm-radius-sm, 0.375rem);
+  padding: 0.75rem 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tecnm-timeline-actor-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background-color: var(--tecnm-blue-primary, #1B396A);
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tecnm-timeline-actor-avatar.student {
+  background-color: var(--tecnm-gold-accent, #C5A059);
+  color: var(--tecnm-blue-primary, #1B396A);
+}
+
+.tecnm-timeline-actor-details {
+  overflow: hidden;
+}
+
+.tecnm-timeline-actor-role {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--tecnm-text-secondary, #64748B);
+  letter-spacing: 0.05em;
+}
+
+.tecnm-timeline-actor-name {
+  font-size: var(--tecnm-font-size-sm, 0.875rem);
+  font-weight: 600;
+  color: var(--tecnm-text-primary, #1E293B);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tecnm-timeline-actor-meta {
+  font-size: var(--tecnm-font-size-xs, 0.75rem);
+  color: var(--tecnm-text-secondary, #64748B);
+}
+
+.tecnm-timeline-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  font-size: var(--tecnm-font-size-sm, 0.875rem);
+}
+
+.tecnm-timeline-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--tecnm-blue-primary, #1B396A);
+  margin-bottom: 0.25rem;
+}
+
+.tecnm-timeline-review-alert {
+  background-color: #FEF2F2;
+  border-left: 3px solid #EF4444;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0 var(--tecnm-radius-sm, 0.25rem) var(--tecnm-radius-sm, 0.25rem) 0;
+  font-size: var(--tecnm-font-size-xs, 0.75rem);
+  color: #991B1B;
+}
+
+.tecnm-timeline-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--tecnm-gray-200, #E2E8F0);
+}
+
+/* ============================================================
+   25. LÍNEA DE TIEMPO HORIZONTAL DE ASESOR Y ESTUDIANTES
+   ============================================================ */
+
+/* Pestañas de Vista en Bitácora */
+.tecnm-view-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--tecnm-border-color, #E2E8F0);
+  padding-bottom: 0.5rem;
+}
+
+.tecnm-view-tab {
+  background: transparent;
+  border: none;
+  border-radius: var(--tecnm-radius-md, 0.375rem);
+  padding: 0.6rem 1.25rem;
+  font-size: var(--tecnm-font-size-sm, 0.875rem);
+  font-weight: 600;
+  color: var(--tecnm-text-secondary, #64748B);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all var(--tecnm-transition-fast, 0.2s ease);
+}
+
+.tecnm-view-tab:hover {
+  background-color: var(--tecnm-blue-tint-50, #EBF3FF);
+  color: var(--tecnm-blue-primary, #1B396A);
+}
+
+.tecnm-view-tab.active {
+  background-color: var(--tecnm-blue-primary, #1B396A);
+  color: #FFFFFF;
+}
+
+/* Tarjeta Contenedora del Asesor */
+.tecnm-advisor-card {
+  background-color: var(--tecnm-surface-white, #FFFFFF);
+  border: 1px solid var(--tecnm-border-color, #E2E8F0);
+  border-radius: var(--tecnm-radius-md, 0.5rem);
+  box-shadow: var(--tecnm-shadow-sm, 0 1px 3px rgba(0,0,0,0.05));
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+  transition: all var(--tecnm-transition-fast, 0.2s ease);
+}
+
+.tecnm-advisor-card:hover {
+  box-shadow: var(--tecnm-shadow-md, 0 4px 6px -1px rgba(0,0,0,0.08));
+}
+
+.tecnm-advisor-card.healthy { border-left: 5px solid #10B981; }
+.tecnm-advisor-card.warning { border-left: 5px solid #F59E0B; }
+.tecnm-advisor-card.critical { border-left: 5px solid #EF4444; }
+.tecnm-advisor-card.irregular { border-left: 5px solid #8B5CF6; }
+
+.tecnm-advisor-header {
+  padding: 1rem 1.25rem;
+  background-color: #FAFAFA;
+  border-bottom: 1px solid var(--tecnm-border-color, #E2E8F0);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tecnm-advisor-header:hover {
+  background-color: #F1F5F9;
+}
+
+.tecnm-advisor-info {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.tecnm-advisor-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: var(--tecnm-blue-primary, #1B396A);
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tecnm-advisor-name {
+  font-size: var(--tecnm-font-size-base, 1rem);
+  font-weight: 700;
+  color: var(--tecnm-text-primary, #1E293B);
+  margin-bottom: 0.15rem;
+}
+
+.tecnm-advisor-subtext {
+  font-size: var(--tecnm-font-size-xs, 0.75rem);
+  color: var(--tecnm-text-secondary, #64748B);
+}
+
+.tecnm-advisor-kpis {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.tecnm-advisor-body {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Tarjeta de Cada Estudiante y su Pista Temporal */
+.tecnm-student-timeline-box {
+  background-color: #FFFFFF;
+  border: 1px solid var(--tecnm-gray-200, #E2E8F0);
+  border-radius: var(--tecnm-radius-sm, 0.375rem);
+  padding: 1rem 1.25rem;
+  transition: all var(--tecnm-transition-fast, 0.2s ease);
+}
+
+.tecnm-student-timeline-box:hover {
+  border-color: #CBD5E1;
+  background-color: #FDFDFD;
+}
+
+.tecnm-student-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.tecnm-student-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--tecnm-text-primary, #1E293B);
+}
+
+.tecnm-student-project {
+  font-size: 0.8rem;
+  color: #475569;
+  margin-top: 0.15rem;
+}
+
+/* Pista de Línea de Tiempo Horizontal (Timeline Track) */
+.tecnm-track-container {
+  overflow-x: auto;
+  padding: 0.75rem 0.5rem 0.5rem 0.5rem;
+}
+
+.tecnm-track {
+  display: inline-flex;
+  align-items: center;
+  min-width: 100%;
+}
+
+.tecnm-track-node-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.tecnm-track-node {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+
+.tecnm-track-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #FFFFFF;
+  border: 2px solid var(--tecnm-blue-primary, #1B396A);
+  color: var(--tecnm-blue-primary, #1B396A);
+  font-weight: 700;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 3px rgba(27, 57, 106, 0.1);
+  transition: all var(--tecnm-transition-fast, 0.2s ease);
+}
+
+.tecnm-track-circle:hover {
+  transform: scale(1.15);
+  background-color: var(--tecnm-blue-primary, #1B396A);
+  color: #FFFFFF;
+}
+
+.tecnm-track-circle.has-note {
+  border-color: #8B5CF6;
+  color: #8B5CF6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+.tecnm-track-date {
+  margin-top: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--tecnm-text-secondary, #64748B);
+  white-space: nowrap;
+}
+
+.tecnm-track-connector {
+  position: relative;
+  height: 3px;
+  min-width: 50px;
+  max-width: 110px;
+  background-color: #CBD5E1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0.35rem;
+}
+
+.tecnm-track-connector-label {
+  position: absolute;
+  top: -16px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #64748B;
+  background-color: #F1F5F9;
+  padding: 0 4px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.tecnm-track-connector.warning {
+  background-color: #F59E0B;
+}
+
+.tecnm-track-connector.warning .tecnm-track-connector-label {
+  color: #B45309;
+  background-color: #FEF3C7;
+}
+
+.tecnm-track-connector.critical {
+  background-color: #EF4444;
+}
+
+.tecnm-track-connector.critical .tecnm-track-connector-label {
+  color: #B91C1C;
+  background-color: #FEE2E2;
+}
+
+/* Nodo de Estado Final / Inactividad */
+.tecnm-track-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.725rem;
+  font-weight: 700;
+  padding: 0.3rem 0.65rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+  margin-left: 0.5rem;
+}
+
+.tecnm-track-status-pill.healthy {
+  background-color: #D1FAE5;
+  color: #065F46;
+  border: 1px solid #A7F3D0;
+}
+
+.tecnm-track-status-pill.warning {
+  background-color: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+}
+
+.tecnm-track-status-pill.critical {
+  background-color: #FEE2E2;
+  color: #991B1B;
+  border: 1px solid #FECACA;
+}
+
+/* Filtros tipo Pills para Supervisión */
+.tecnm-filter-pills {
+  display: inline-flex;
+  background-color: #F1F5F9;
+  border-radius: 9999px;
+  padding: 0.25rem;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.tecnm-filter-pill {
+  border: none;
+  background: transparent;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  font-size: var(--tecnm-font-size-xs, 0.75rem);
+  font-weight: 600;
+  color: var(--tecnm-text-secondary, #64748B);
+  cursor: pointer;
+  transition: all var(--tecnm-transition-fast, 0.2s ease);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tecnm-filter-pill:hover {
+  color: var(--tecnm-text-primary, #1E293B);
+  background-color: #E2E8F0;
+}
+
+.tecnm-filter-pill.active {
+  background-color: var(--tecnm-blue-primary, #1B396A);
+  color: #FFFFFF;
+}
+
+.tecnm-filter-pill.active.alert-filter {
+  background-color: #DC2626;
+  color: #FFFFFF;
+}
+
+.tecnm-filter-pill.active.healthy {
+  background-color: #059669;
+  color: #FFFFFF;
+}
+
+
+
+
 

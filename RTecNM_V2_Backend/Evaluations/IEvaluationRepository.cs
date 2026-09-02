@@ -15,4 +15,7 @@ public interface IEvaluationRepository
     Task<PaginatedResult<AdvisorySession>> GetAdvisorySessionsByProjectIdPagedAsync(long projectId, PaginationQuery query, bool includeInactive = false);
     Task<PaginatedResult<AdvisorySession>> GetAdvisorySessionsPagedAsync(PaginationQuery query, long? projectId, bool includeInactive = false);
     Task<List<AdvisorySession>> GetAllSessionsForExportAsync(long? projectId, string? search, string? sortBy, string? sortDir, bool includeInactive = false);
+    Task<PaginatedResult<AdvisorySession>> GetAdvisoryTimelinePagedAsync(AdvisoryTimelineQuery query);
+    Task<AdvisoryTimelineSummaryDto> GetAdvisorsHealthStatusAsync(long? careerId);
+    Task<bool> SaveSupervisionNoteAsync(long id, string? notes, long supervisorId);
 }

@@ -534,6 +534,21 @@ public static class DbSeeder
                     END IF;
                 END IF;
 
+                IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='advisory_sessions') THEN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='advisory_sessions' AND column_name='review_status') THEN
+                        ALTER TABLE advisory_sessions ADD COLUMN review_status character varying(30) NOT NULL DEFAULT 'pending';
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='advisory_sessions' AND column_name='review_notes') THEN
+                        ALTER TABLE advisory_sessions ADD COLUMN review_notes text NULL;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='advisory_sessions' AND column_name='reviewed_at') THEN
+                        ALTER TABLE advisory_sessions ADD COLUMN reviewed_at timestamp with time zone NULL;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='advisory_sessions' AND column_name='reviewed_by') THEN
+                        ALTER TABLE advisory_sessions ADD COLUMN reviewed_by bigint NULL;
+                    END IF;
+                END IF;
+
                 -- Convertir columnas de tipo ENUM de PostgreSQL a VARCHAR para compatibilidad total con EF Core
                 IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='projects' AND column_name='status' AND data_type='USER-DEFINED') THEN
                     ALTER TABLE projects ALTER COLUMN status TYPE VARCHAR(50) USING status::text;

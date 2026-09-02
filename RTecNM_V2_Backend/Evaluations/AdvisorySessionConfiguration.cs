@@ -34,6 +34,21 @@ public class AdvisorySessionConfiguration : IEntityTypeConfiguration<AdvisorySes
         builder.Property(a => a.StudentAgreements)
             .HasColumnName("student_agreements");
 
+        builder.Property(a => a.ReviewStatus)
+            .HasColumnName("review_status")
+            .HasMaxLength(30)
+            .HasDefaultValue("pending")
+            .IsRequired();
+
+        builder.Property(a => a.ReviewNotes)
+            .HasColumnName("review_notes");
+
+        builder.Property(a => a.ReviewedAt)
+            .HasColumnName("reviewed_at");
+
+        builder.Property(a => a.ReviewedBy)
+            .HasColumnName("reviewed_by");
+
         builder.HasOne(a => a.Project)
             .WithMany()
             .HasForeignKey(a => a.ProjectId)

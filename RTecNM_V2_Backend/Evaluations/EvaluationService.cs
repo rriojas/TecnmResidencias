@@ -36,7 +36,15 @@ public class EvaluationService : IEvaluationService
         _currentUser.IsInRole(UserRole.Academic) ||
         _currentUser.IsInRole(UserRole.Vinculacion) ||
         _currentUser.IsInRole(UserRole.Director) ||
-        _currentUser.IsInRole(UserRole.DepartmentHead);
+        _currentUser.IsInRole(UserRole.DepartmentHead) ||
+        _currentUser.IsInRole(UserRole.CareerHead);
+
+    private bool IsAuthorizedForTimeline() =>
+        _currentUser.IsInRole(UserRole.Admin) ||
+        _currentUser.IsInRole(UserRole.DepartmentHead) ||
+        _currentUser.IsInRole(UserRole.CareerHead) ||
+        _currentUser.IsInRole(UserRole.Academic) ||
+        _currentUser.IsInRole(UserRole.Director);
 
     public async Task<Result<EvaluationResponseDto>> GradeEvaluationAsync(GradeEvaluationDto dto)
     {
@@ -303,7 +311,118 @@ public class EvaluationService : IEvaluationService
             s.CreatedBy,
             s.UpdatedBy,
             s.DeletedBy,
-            s.DeletedAt
+            s.DeletedAt,
+            s.ReviewStatus ?? "pending",
+            s.ReviewNotes,
+            s.ReviewedAt,
+            s.ReviewedBy
         );
+    }
+
+    public async Task<Result<PaginatedResult<AdvisoryTimelineItemDto>>> GetAdvisoryTimelinePagedAsync(AdvisoryTimelineQuery query)
+    {
+        if (!IsAuthorizedForTimeline())
+            return Result<PaginatedResult<AdvisoryTimelineItemDto>>.Failure("No tiene permisos para consultar el timeline de seguimiento.", 403);
+
+        var paged = await _repository.GetAdvisoryTimelinePagedAsync(query);
+        var dtos = paged.Items.Select(MapTimelineItem);
+        var result = PaginatedResult<AdvisoryTimelineItemDto>.Create(
+            dtos, paged.TotalCount, paged.PageNumber, paged.PageSize);
+
+        return Result<PaginatedResult<AdvisoryTimelineItemDto>>.Success(result);
+    }
+
+    public async Task<Result<AdvisoryTimelineSummaryDto>> GetAdvisorsHealthStatusAsync(long? careerId)
+    {
+        if (!IsAuthorizedForTimeline())
+            return Result<AdvisoryTimelineSummaryDto>.Failure("No tiene permisos para consultar el estado de salud de los asesores.", 403);
+
+        var summary = await _repository.GetAdvisorsHealthStatusAsync(careerId);
+        return Result<AdvisoryTimelineSummaryDto>.Success(summary);
+    }
+
+    public async Task<Result<bool>> SaveSupervisionNoteAsync(long id, SaveSupervisionNoteDto dto)
+    {
+        if (!_currentUser.IsInRole(UserRole.Admin) && !_currentUser.IsInRole(UserRole.DepartmentHead) && !_currentUser.IsInRole(UserRole.CareerHead))
+            return Result<bool>.Failure("Solo el Jefe de Carrera o personal directivo pueden registrar notas de supervisión.", 403);
+
+        var ok = await _repository.SaveSupervisionNoteAsync(id, dto.Notes, _currentUser.UserId);
+        if (!ok)
+            return Result<bool>.Failure("No se encontró la asesoría o no pertenece a su carrera asignada.", 404);
+
+        return Result<bool>.Success(true);
+    }
+
+    public async Task<Result<byte[]>> ExportTimelinePdfAsync(AdvisoryTimelineQuery query)
+    {
+        if (!IsAuthorizedForTimeline())
+            return Result<byte[]>.Failure("No tiene permisos para exportar el timeline de seguimiento.", 403);
+
+        query.PageSize = 1000;
+        var paged = await _repository.GetAdvisoryTimelinePagedAsync(query);
+
+        var definition = new PdfTableDefinition
+        {
+            Title = "Timeline de Seguimiento de Asesorías - TecNM Campus Monclova",
+            Headers = new List<string> { "ID", "Fecha", "Asesor", "Estudiante", "Proyecto", "Temas Abordados", "Nota Jefatura" },
+            Rows = paged.Items.Select(s => new List<string>
+            {
+                s.Id.ToString(),
+                s.SessionDate.ToString("dd/MM/yyyy"),
+                s.Advisor?.FullName ?? $"#{s.AdvisorId}",
+                s.Project?.Student != null ? $"{s.Project.Student.FirstName} {s.Project.Student.LastName}".Trim() : $"#{s.Project?.StudentId}",
+                s.Project?.Title ?? $"#{s.ProjectId}",
+                s.TopicsCovered,
+                !string.IsNullOrWhiteSpace(s.ReviewNotes) ? s.ReviewNotes : "Sin observaciones"
+            }).ToList()
+        };
+
+        return Result<byte[]>.Success(PdfExportService.GenerateTablePdf(definition));
+    }
+
+    private static AdvisoryTimelineItemDto MapTimelineItem(AdvisorySession s)
+    {
+        var student = s.Project?.Student;
+        var studentName = student is null
+            ? $"Estudiante #{s.Project?.StudentId}"
+            : $"{student.FirstName} {student.LastName}".Trim();
+
+        var careerId = student?.CareerId ?? 0;
+        var careerName = careerId switch
+        {
+            1 => "Ing. Informática",
+            2 => "Ing. Industrial",
+            3 => "Ing. Mecatrónica",
+            4 => "Ing. en Sistemas Computacionales",
+            5 => "Ing. Electrónica",
+            6 => "Ing. en Gestión Empresarial",
+            _ => "Ingeniería"
+        };
+
+        return new AdvisoryTimelineItemDto
+        {
+            Id = s.Id,
+            ProjectId = s.ProjectId,
+            ProjectTitle = s.Project?.Title ?? $"Proyecto #{s.ProjectId}",
+            ProjectStatus = s.Project?.Status.ToString() ?? string.Empty,
+            AdvisorId = s.AdvisorId,
+            AdvisorName = s.Advisor?.FullName ?? $"Asesor #{s.AdvisorId}",
+            AdvisorTitle = s.Advisor?.Title,
+            AdvisorEmail = s.Advisor?.User?.Email,
+            StudentId = student?.Id ?? 0,
+            StudentName = studentName,
+            StudentControlNumber = student?.ControlNumber ?? string.Empty,
+            CareerId = careerId,
+            CareerName = careerName,
+            SessionDate = s.SessionDate,
+            TopicsCovered = s.TopicsCovered,
+            StudentAgreements = s.StudentAgreements,
+            SupervisionNotes = s.ReviewNotes,
+            SupervisedAt = s.ReviewedAt,
+            SupervisedBy = s.ReviewedBy,
+            CreatedAt = s.CreatedAt,
+            UpdatedAt = s.UpdatedAt,
+            IsActive = s.IsActive
+        };
     }
 }

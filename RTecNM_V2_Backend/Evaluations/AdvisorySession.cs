@@ -12,6 +12,11 @@ public class AdvisorySession : BaseEntity
     public string TopicsCovered { get; set; } = string.Empty;
     public string? StudentAgreements { get; set; }
 
+    public string ReviewStatus { get; set; } = "pending"; // pending | approved | observed
+    public string? ReviewNotes { get; set; }
+    public DateTime? ReviewedAt { get; set; }
+    public long? ReviewedBy { get; set; }
+
     public Project? Project { get; set; }
     public Advisor? Advisor { get; set; }
 }

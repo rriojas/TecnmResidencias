@@ -59,5 +59,9 @@ public record AdvisorySessionResponseDto(
     long? CreatedBy,
     long? UpdatedBy,
     long? DeletedBy,
-    DateTime? DeletedAt
+    DateTime? DeletedAt,
+    string ReviewStatus = "pending",
+    string? ReviewNotes = null,
+    DateTime? ReviewedAt = null,
+    long? ReviewedBy = null
 );
