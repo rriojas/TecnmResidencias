@@ -48,6 +48,22 @@ const isProjectReadOnly = computed(() => {
   return isProjectCompleted.value || ['cancelled', 'rejected', 'pending', 'under_review', 'proposed', 'draft'].includes(st)
 })
 
+const MIN_WEEKS = 16
+const MAX_WEEKS = 26
+const visibleWeeksCount = ref(16)
+
+const TOTAL_WEEKS = computed(() => {
+  let maxUsed = visibleWeeksCount.value
+  for (const act of activities.value || []) {
+    for (const p of act.progresses || []) {
+      if (p.status && p.status !== 'pending' && p.weekNumber > maxUsed) {
+        maxUsed = p.weekNumber
+      }
+    }
+  }
+  return Math.min(MAX_WEEKS, Math.max(MIN_WEEKS, maxUsed))
+})
+
 const canAddActivity = computed(() => {
   if (authStore.isCareerHead) return false
   if (authStore.hasRole('academic', 'departmenthead') && !authStore.isAdmin) return false
@@ -360,8 +376,8 @@ onMounted(() => {
     <!-- Barra de Título y Acciones -->
     <div class="tecnm-actions-bar">
       <div>
-        <h1 class="tecnm-page-title">Cronograma de Actividades (26 Semanas)</h1>
-        <p class="tecnm-page-subtitle">Seguimiento semanal del plan de trabajo de residencia profesional</p>
+        <h1 class="tecnm-page-title">Cronograma de Actividades (16 - 26 Semanas)</h1>
+        <p class="tecnm-page-subtitle">Planeación y seguimiento semanal de Residencia Profesional (Mínimo 16 semanas / 500 hrs)</p>
       </div>
       <button
         v-if="canAddActivity"
@@ -439,7 +455,16 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="tecnm-legend">
+        <div class="tecnm-legend tecnm-d-flex tecnm-align-center tecnm-gap-2" style="flex-wrap: wrap;">
+          <div class="tecnm-d-flex tecnm-align-center tecnm-gap-1">
+            <label class="tecnm-label tecnm-mb-0" style="font-size: 0.8rem; color: var(--tecnm-text-muted); font-weight: 500;">Vista:</label>
+            <select v-model.number="visibleWeeksCount" class="tecnm-form-control tecnm-form-control-sm" style="width: auto; padding: 0.15rem 0.4rem; font-size: 0.8rem;">
+              <option :value="16">16 Semanas (Mínimo TecNM)</option>
+              <option :value="20">20 Semanas</option>
+              <option :value="24">24 Semanas</option>
+              <option :value="26">26 Semanas (Completo)</option>
+            </select>
+          </div>
           <span>Leyenda:</span>
           <span class="tecnm-badge tecnm-badge-approved">Completado</span>
           <span class="tecnm-badge tecnm-badge-pending">En Proceso</span>
@@ -455,7 +480,7 @@ onMounted(() => {
                 <th>#</th>
                 <th class="act-title-col">Descripción de la Actividad</th>
                 <th
-                  v-for="w in 26"
+                  v-for="w in TOTAL_WEEKS"
                   :key="w"
                   class="matrix-week-header"
                   :title="`Semana ${w}`"
@@ -466,12 +491,12 @@ onMounted(() => {
             </thead>
             <tbody id="scheduleTableBody">
               <tr v-if="isLoading">
-                <td colspan="28" class="tecnm-table-empty">
+                <td :colspan="TOTAL_WEEKS + 2" class="tecnm-table-empty">
                   Cargando cronograma de actividades...
                 </td>
               </tr>
               <tr v-else-if="isEmptyState || !currentProject">
-                <td colspan="28" style="padding: 3rem 1.5rem; text-align: center;">
+                <td :colspan="TOTAL_WEEKS + 2" style="padding: 3rem 1.5rem; text-align: center;">
                   <div style="max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.75rem;">
                     <div style="width: 54px; height: 54px; border-radius: 50%; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center;">
                       <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
@@ -502,12 +527,12 @@ onMounted(() => {
                 </td>
               </tr>
               <tr v-else-if="errorMessage">
-                <td colspan="28" class="tecnm-table-empty tecnm-text-danger">
+                <td :colspan="TOTAL_WEEKS + 2" class="tecnm-table-empty tecnm-text-danger">
                   {{ errorMessage }}
                 </td>
               </tr>
               <tr v-else-if="!currentProject">
-                <td colspan="28" class="tecnm-table-empty">
+                <td :colspan="TOTAL_WEEKS + 2" class="tecnm-table-empty">
                   <p style="margin-bottom: 0.5rem;">No tienes un anteproyecto registrado para consultar el cronograma.</p>
                   <router-link v-if="isStudent" to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm">
                     Registrar Solicitud de Anteproyecto
@@ -515,7 +540,7 @@ onMounted(() => {
                 </td>
               </tr>
               <tr v-else-if="activities.length === 0">
-                <td colspan="28" class="tecnm-table-empty">
+                <td :colspan="TOTAL_WEEKS + 2" class="tecnm-table-empty">
                   <span v-if="isProjectCompleted">No se registraron actividades en este proyecto concluido.</span>
                   <span v-else-if="isProjectPending">El cronograma se habilitará una vez dictaminado favorablemente el anteproyecto.</span>
                   <span v-else>No hay actividades registradas en el cronograma. Haga clic en "+ Nueva Actividad".</span>

@@ -10,7 +10,7 @@ import AdvisorWorkloadModal from '@/components/advisors/AdvisorWorkloadModal.vue
 const router = useRouter()
 const authStore = useAuthStore()
 
-const TOTAL_WEEKS = 26
+const TOTAL_WEEKS = 16
 const CAREERS = {
   1: 'Ing. Informática',
   2: 'Ing. Industrial',

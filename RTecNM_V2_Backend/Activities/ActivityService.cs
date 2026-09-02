@@ -37,8 +37,8 @@ public class ActivityService : IActivityService
             UpdatedAt = DateTime.UtcNow
         };
 
-        // Pre-generate 26 week progress slots
-        for (int w = 1; w <= 26; w++)
+        // Pre-generate 16 week progress slots (minimum TecNM requirement, up to 26 supported)
+        for (int w = 1; w <= 16; w++)
         {
             activity.Progresses.Add(new WeeklyProgress
             {
@@ -95,11 +95,15 @@ public class ActivityService : IActivityService
             ))
             .ToList();
 
-        // Ensure 26 weeks exist in response even if empty
-        if (progresses.Count < 26)
+        // Ensure at least 16 weeks exist in response (minimum TecNM requirement)
+        int minWeeks = 16;
+        int maxWeekInProgress = progresses.Any() ? progresses.Max(p => p.WeekNumber) : minWeeks;
+        int totalWeeksToEnsure = Math.Max(minWeeks, Math.Min(26, maxWeekInProgress));
+
+        if (progresses.Count < totalWeeksToEnsure)
         {
             var existingWeeks = progresses.Select(p => p.WeekNumber).ToHashSet();
-            for (int w = 1; w <= 26; w++)
+            for (int w = 1; w <= totalWeeksToEnsure; w++)
             {
                 if (!existingWeeks.Contains(w))
                 {
