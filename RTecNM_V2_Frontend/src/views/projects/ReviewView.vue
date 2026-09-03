@@ -381,10 +381,10 @@ onMounted(() => {
     <div class="tecnm-actions-bar">
       <div>
         <h1 class="tecnm-page-title">
-          {{ authStore.isCareerHead ? 'Anteproyectos de Residencia Profesional' : 'Revisión y Dictamen de Anteproyectos' }}
+          {{ authStore.isCareerHead ? 'Dictamen de Anteproyectos' : 'Revisión y Dictamen de Anteproyectos' }}
         </h1>
         <p class="tecnm-page-subtitle">
-          {{ authStore.isCareerHead ? 'Consulta y seguimiento de solicitudes de anteproyecto de los estudiantes de tu carrera' : 'Evaluación técnica y emisión de dictamen de anteproyectos de residencia profesional' }}
+          {{ authStore.isCareerHead ? 'Evaluación técnica y emisión de dictamen de anteproyectos de los estudiantes de tu carrera' : 'Evaluación técnica y emisión de dictamen de anteproyectos de residencia profesional' }}
         </p>
       </div>
       <div class="tecnm-page-actions">

@@ -492,6 +492,14 @@ public class ProjectService : IProjectService
             return Result<ProjectResponseDto>.Failure("Únicamente el Jefe de Carrera puede dictaminar y validar anteproyectos.", 403);
         }
 
+        if (_currentUser.IsInRole(UserRole.CareerHead) && !_currentUser.IsInRole(UserRole.Admin))
+        {
+            if (_currentUser.CareerId.HasValue && project.Student != null && project.Student.CareerId != _currentUser.CareerId.Value)
+            {
+                return Result<ProjectResponseDto>.Failure("No tiene permisos para dictaminar anteproyectos de otra carrera.", 403);
+            }
+        }
+
         if (project.Status == ProjectStatus.Completed)
             return Result<ProjectResponseDto>.Failure("El proyecto ya se encuentra completado y no se puede modificar su dictamen.", 400);
 
@@ -533,9 +541,9 @@ public class ProjectService : IProjectService
             return Result<ProjectResponseDto>.Failure("Un proyecto en progreso no puede ser dictaminado ni retornado a revisión.", 400);
         }
 
-        if (newStatus == ProjectStatus.Approved && !_currentUser.IsInRole(UserRole.Admin) && !_currentUser.IsInRole(UserRole.Vinculacion))
+        if (newStatus == ProjectStatus.Approved && !_currentUser.IsInRole(UserRole.Admin) && !_currentUser.IsInRole(UserRole.CareerHead))
         {
-            return Result<ProjectResponseDto>.Failure("Solo el Administrador y el personal de Vinculación tienen permiso para aprobar anteproyectos.", 403);
+            return Result<ProjectResponseDto>.Failure("Solo el Administrador y el Jefe de Carrera tienen permiso para aprobar anteproyectos.", 403);
         }
 
         project.Status = newStatus;

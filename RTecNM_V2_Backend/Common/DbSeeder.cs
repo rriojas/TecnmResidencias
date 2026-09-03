@@ -223,6 +223,7 @@ public static class DbSeeder
         var jefeCarreraSlugs = new HashSet<string>
         {
             "students.profile.view",
+            "projects.review",
             "projects.advisor.assign",
             "activities.schedule",
             "evaluations.advisories", "advisories.session.view",

@@ -136,6 +136,7 @@ export const useAuthStore = defineStore('auth', () => {
     ],
     jefecarrera: [
       'students.profile.view',
+      'projects.review',
       'projects.advisor.assign',
       'activities.schedule',
       'evaluations.advisories', 'advisories.session.view',
@@ -144,6 +145,7 @@ export const useAuthStore = defineStore('auth', () => {
     ],
     careerhead: [
       'students.profile.view',
+      'projects.review',
       'projects.advisor.assign',
       'activities.schedule',
       'evaluations.advisories', 'advisories.session.view',
