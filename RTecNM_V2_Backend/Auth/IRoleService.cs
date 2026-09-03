@@ -10,7 +10,7 @@ public interface IRoleService
     Task<Result<RoleResponseDto>> UpdateRoleAsync(long id, UpdateRoleDto dto);
     Task<Result<bool>> SoftDeleteRoleAsync(long id);
     Task<Result<List<ModulePermissionsDto>>> GetModulesWithPermissionsAsync();
-    Task<Result<PaginatedResult<UserRoleManagementDto>>> GetUsersForManagementPagedAsync(PaginationQuery query, string? roleFilter, string? search, bool includeInactive = false);
+    Task<Result<PaginatedResult<UserRoleManagementDto>>> GetUsersForManagementPagedAsync(PaginationQuery query, string? roleFilter, string? search, bool includeInactive = false, long? careerId = null);
     Task<Result<List<UserOptionDto>>> GetUserOptionsAsync();
     Task<Result<byte[]>> ExportRolesPdfAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false);
     Task<Result<byte[]>> ExportUsersPdfAsync(string? search, string? roleFilter, string? sortBy, string? sortDir, bool includeInactive = false);

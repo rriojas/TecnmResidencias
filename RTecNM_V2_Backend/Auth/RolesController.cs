@@ -86,9 +86,9 @@ public class RolesController : ControllerBase
     }
 
     [HttpGet("users")]
-    public async Task<IActionResult> GetUsersForManagement([FromQuery] PaginationQuery query, [FromQuery] string? roleFilter, [FromQuery] string? search, [FromQuery] bool includeInactive = false)
+    public async Task<IActionResult> GetUsersForManagement([FromQuery] PaginationQuery query, [FromQuery] string? roleFilter, [FromQuery] string? search, [FromQuery] bool includeInactive = false, [FromQuery] long? careerId = null)
     {
-        var result = await _roleService.GetUsersForManagementPagedAsync(query, roleFilter, search, includeInactive);
+        var result = await _roleService.GetUsersForManagementPagedAsync(query, roleFilter, search, includeInactive, careerId);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 

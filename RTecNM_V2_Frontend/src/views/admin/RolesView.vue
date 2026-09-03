@@ -36,6 +36,7 @@ const usersPageSize = ref(10)
 const usersTotalCount = ref(0)
 const usersTotalPages = ref(0)
 const userRoleFilter = ref('all')
+const userCareerFilter = ref('all')
 const userSearch = ref('')
 const usersSortBy = ref('Email')
 const usersSortDir = ref('asc')
@@ -297,6 +298,7 @@ async function loadUsersData() {
       sortBy: usersSortBy.value,
       sortDir: usersSortDir.value,
       includeInactive: usersIncludeInactive.value,
+      careerId: userCareerFilter.value !== 'all' ? Number(userCareerFilter.value) : undefined,
     }
     const res = await apiClient.get('/v1/roles/users', { params })
     const data = res.data || {}
@@ -488,19 +490,37 @@ function getUserDisplayName(u) {
   return displayName || u.fullName || 'Usuario'
 }
 
+const defaultCareers = [
+  { id: 1, code: 'INF', name: 'Ingeniería Informática' },
+  { id: 2, code: 'IND', name: 'Ingeniería Industrial' },
+  { id: 3, code: 'MEC', name: 'Ingeniería Mecatrónica' },
+  { id: 4, code: 'IER', name: 'Ingeniería en Energías Renovables' },
+  { id: 5, code: 'ELE', name: 'Ingeniería Electrónica' },
+  { id: 6, code: 'IGE', name: 'Ingeniería en Gestión Empresarial' },
+  { id: 7, code: 'IME', name: 'Ingeniería Mecánica' },
+]
+
 const careersOptions = ref([])
+
+function getCareerName(id) {
+  if (!id) return ''
+  const c = (careersOptions.value.length > 0 ? careersOptions.value : defaultCareers).find(x => Number(x.id) === Number(id))
+  return c ? c.name : ''
+}
 
 async function loadCareersOptions() {
   try {
     const res = await apiClient.get('/v1/careers/all')
-    careersOptions.value = res.data || []
+    const list = res.data || []
+    careersOptions.value = list.length > 0 ? list : defaultCareers
   } catch (err) {
-    careersOptions.value = []
+    careersOptions.value = defaultCareers
   }
 }
 
 onMounted(async () => {
-  await Promise.all([loadRolesData(), loadRoleOptions(), loadModulesData(), loadCareersOptions()])
+  await loadCareersOptions()
+  await Promise.all([loadRolesData(), loadRoleOptions(), loadModulesData(), loadUsersData()])
 })
 </script>
 
@@ -728,9 +748,27 @@ onMounted(async () => {
             class="tecnm-form-control tecnm-filter-select"
             @change="usersPageNumber = 1; loadUsersData()"
           >
-            <option value="all">Todos los usuarios</option>
+            <option value="all">Todos los roles</option>
             <option value="with_role">Con Rol Asignado</option>
             <option value="without_role">Sin Rol Asignado</option>
+          </select>
+
+          <select
+            id="userCareerFilter"
+            v-model="userCareerFilter"
+            class="tecnm-form-control tecnm-filter-select"
+            aria-label="Filtrar por Carrera"
+            style="min-width: 220px;"
+            @change="usersPageNumber = 1; loadUsersData()"
+          >
+            <option value="all">Todas las Carreras</option>
+            <option
+              v-for="c in (careersOptions.length > 0 ? careersOptions : defaultCareers)"
+              :key="c.id"
+              :value="String(c.id)"
+            >
+              {{ c.name }} ({{ c.code }})
+            </option>
           </select>
 
           <input
@@ -807,22 +845,23 @@ onMounted(async () => {
                       {{ usersSortBy === 'Role' ? (usersSortDir === 'asc' ? '↑' : '↓') : '↕' }}
                     </span>
                   </th>
+                  <th>Carrera / Área</th>
                   <th class="tecnm-th-actions">Acciones</th>
                 </tr>
               </thead>
               <tbody id="usersTableBody">
                 <tr v-if="usersLoading">
-                  <td colspan="5" class="tecnm-table-empty">
+                  <td colspan="6" class="tecnm-table-empty">
                     Cargando usuarios...
                   </td>
                 </tr>
                 <tr v-else-if="usersError">
-                  <td colspan="5" class="tecnm-table-empty tecnm-text-danger">
+                  <td colspan="6" class="tecnm-table-empty tecnm-text-danger">
                     {{ usersError }}
                   </td>
                 </tr>
                 <tr v-else-if="users.length === 0">
-                  <td colspan="5" class="tecnm-table-empty">
+                  <td colspan="6" class="tecnm-table-empty">
                     No se encontraron usuarios registrados.
                   </td>
                 </tr>
@@ -855,6 +894,11 @@ onMounted(async () => {
                       class="tecnm-badge tecnm-badge-pending"
                     >
                       Sin Rol Asignado
+                    </span>
+                  </td>
+                  <td>
+                    <span style="font-size: 0.85rem; color: #334155; font-weight: 500;">
+                      {{ u.careerName || getCareerName(u.careerId || u.departmentId) || '—' }}
                     </span>
                   </td>
                   <td>

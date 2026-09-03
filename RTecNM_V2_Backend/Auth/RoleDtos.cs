@@ -75,6 +75,7 @@ public class UserRoleManagementDto
     public string? Curp { get; set; }
     public string? Gender { get; set; }
     public long? CareerId { get; set; }
+    public string? CareerName { get; set; }
     public int? AcademicPeriodId { get; set; }
 
     // Linked Advisor profile data

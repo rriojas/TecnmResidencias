@@ -106,7 +106,7 @@ public class RoleService : IRoleService
         return Result<List<ModulePermissionsDto>>.Success(dtos);
     }
 
-    public async Task<Result<PaginatedResult<UserRoleManagementDto>>> GetUsersForManagementPagedAsync(PaginationQuery query, string? roleFilter, string? search, bool includeInactive = false)
+    public async Task<Result<PaginatedResult<UserRoleManagementDto>>> GetUsersForManagementPagedAsync(PaginationQuery query, string? roleFilter, string? search, bool includeInactive = false, long? careerId = null)
     {
         var usersList = await _roleRepository.GetUsersForManagementListAsync(roleFilter, search, includeInactive);
         var dtos = new List<UserRoleManagementDto>();
@@ -167,7 +167,18 @@ public class RoleService : IRoleService
                 }
             }
 
+            var effCareerId = dto.CareerId ?? dto.DepartmentId;
+            if (effCareerId.HasValue && effCareerId.Value > 0)
+            {
+                dto.CareerName = GetCareerName(effCareerId.Value);
+            }
+
             dtos.Add(dto);
+        }
+
+        if (careerId.HasValue && careerId.Value > 0)
+        {
+            dtos = dtos.Where(d => (d.CareerId == careerId.Value) || (d.DepartmentId == careerId.Value)).ToList();
         }
 
         var isDesc = (query.SortDir ?? "").Equals("desc", StringComparison.OrdinalIgnoreCase);
@@ -586,4 +597,16 @@ public class RoleService : IRoleService
                 }).ToList()
         };
     }
+
+    private static string GetCareerName(long id) => id switch
+    {
+        1 => "Ing. Informática",
+        2 => "Ing. Industrial",
+        3 => "Ing. Mecatrónica",
+        4 => "Ing. en Energías Renovables",
+        5 => "Ing. Electrónica",
+        6 => "Ing. en Gestión Empresarial",
+        7 => "Ing. Mecánica",
+        _ => "General"
+    };
 }
