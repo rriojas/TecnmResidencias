@@ -312,10 +312,21 @@ public class EvaluationRepository : IEvaluationRepository
             effectiveCareerId = _currentUser.CareerId.Value;
         }
 
-        // Estudiantes activos con asesor asignado
+        // Proyectos operativos activos (con dictamen aprobado, en progreso o completado)
+        var operationalProjects = await _context.Projects
+            .Where(p => p.IsActive && (p.Status == ProjectStatus.Approved || p.Status == ProjectStatus.InProgress || p.Status == ProjectStatus.Completed))
+            .Select(p => new { p.Id, p.StudentId, p.Title, p.Status })
+            .ToListAsync();
+
+        var studentIdsWithApprovedProjects = operationalProjects.Select(p => p.StudentId).ToHashSet();
+        var projectsByStudent = operationalProjects
+            .GroupBy(p => p.StudentId)
+            .ToDictionary(g => g.Key, g => g.FirstOrDefault());
+
+        // Estudiantes activos con asesor asignado y con anteproyecto formalmente aprobado o en curso
         var studentsQuery = _context.Students
             .Include(s => s.Advisor)
-            .Where(s => s.IsActive && s.AdvisorId.HasValue);
+            .Where(s => s.IsActive && s.AdvisorId.HasValue && studentIdsWithApprovedProjects.Contains(s.Id));
 
         if (effectiveCareerId.HasValue && effectiveCareerId.Value > 0)
         {
@@ -338,18 +349,10 @@ public class EvaluationRepository : IEvaluationRepository
 
         var careers = await _context.Careers.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Name);
 
-        var activeProjects = await _context.Projects
-            .Where(p => p.IsActive)
-            .Select(p => new { p.Id, p.StudentId, p.Title, p.Status })
-            .ToListAsync();
-        var projectsByStudent = activeProjects
-            .GroupBy(p => p.StudentId)
-            .ToDictionary(g => g.Key, g => g.FirstOrDefault());
-
         var sessionQuery = _context.AdvisorySessions
             .Include(s => s.Project)
                 .ThenInclude(p => p!.Student)
-            .Where(s => s.IsActive);
+            .Where(s => s.IsActive && s.Project != null && (s.Project.Status == ProjectStatus.Approved || s.Project.Status == ProjectStatus.InProgress || s.Project.Status == ProjectStatus.Completed));
 
         if (effectiveCareerId.HasValue && effectiveCareerId.Value > 0)
         {
@@ -374,7 +377,7 @@ public class EvaluationRepository : IEvaluationRepository
             int daysWithoutActivity = 0;
             if (lastSessionDate.HasValue)
             {
-                daysWithoutActivity = (int)Math.Max(0, (now - lastSessionDate.Value).TotalDays);
+                daysWithoutActivity = (int)(now.Date - lastSessionDate.Value.Date).TotalDays;
             }
             else if (totalResidents > 0)
             {
@@ -382,7 +385,7 @@ public class EvaluationRepository : IEvaluationRepository
                     .Select(s => s.AdvisorAssignedAt!.Value)
                     .DefaultIfEmpty(adv.CreatedAt)
                     .Min();
-                daysWithoutActivity = (int)Math.Max(15, (now - oldestAssignment).TotalDays);
+                daysWithoutActivity = Math.Max(15, (int)(now.Date - oldestAssignment.Date).TotalDays);
             }
 
             var groupedByCreatedDay = mySessions
@@ -396,8 +399,8 @@ public class EvaluationRepository : IEvaluationRepository
             if (totalResidents == 0)
             {
                 healthStatus = "healthy";
-                healthLabel = "Sin Alumnos Asignados";
-                alertMessage = "El asesor no tiene alumnos asignados actualmente.";
+                healthLabel = "Sin Residentes en Curso";
+                alertMessage = "El asesor no tiene alumnos con anteproyecto aprobado en curso actualmente.";
             }
             else if (totalSessions == 0)
             {
@@ -423,11 +426,22 @@ public class EvaluationRepository : IEvaluationRepository
                 healthLabel = "Seguimiento Irregular";
                 alertMessage = "Se detectó captura atípica de múltiples sesiones en una misma fecha.";
             }
+            else if (daysWithoutActivity < 0)
+            {
+                healthStatus = "healthy";
+                healthLabel = "Al Día (Programada)";
+                alertMessage = $"Tiene asesoría programada para el {lastSessionDate!.Value:dd/MM/yyyy}.";
+            }
             else
             {
                 healthStatus = "healthy";
                 healthLabel = "Al Día (< 15 días)";
-                alertMessage = "Seguimiento constante y al día con sus alumnos asignados.";
+                alertMessage = daysWithoutActivity switch
+                {
+                    0 => "Sesión registrada el día de hoy.",
+                    1 => "Última sesión registrada el día de ayer.",
+                    _ => $"Seguimiento constante (hace {daysWithoutActivity} días)."
+                };
             }
 
             var deptName = adv.DepartmentId > 0 && careers.TryGetValue(adv.DepartmentId, out var dn) ? dn : "División Académica";
@@ -449,7 +463,7 @@ public class EvaluationRepository : IEvaluationRepository
 
                 if (stLastSession != null)
                 {
-                    stDays = (int)Math.Max(0, (now - stLastSession.SessionDate).TotalDays);
+                    stDays = (int)(now.Date - stLastSession.SessionDate.Date).TotalDays;
                     if (stDays > 21)
                     {
                         stHealth = "critical";
@@ -460,6 +474,21 @@ public class EvaluationRepository : IEvaluationRepository
                         stHealth = "warning";
                         stAlert = $"{stDays} días sin asesoría (alerta preventiva)";
                     }
+                    else if (stDays < 0)
+                    {
+                        stHealth = "healthy";
+                        stAlert = $"Sesión programada para dentro de {Math.Abs(stDays)} día(s) ({stLastSession.SessionDate:dd/MM/yyyy})";
+                    }
+                    else if (stDays == 0)
+                    {
+                        stHealth = "healthy";
+                        stAlert = "Sesión realizada el día de hoy";
+                    }
+                    else if (stDays == 1)
+                    {
+                        stHealth = "healthy";
+                        stAlert = "Última sesión realizada el día de ayer";
+                    }
                     else
                     {
                         stHealth = "healthy";
@@ -469,7 +498,7 @@ public class EvaluationRepository : IEvaluationRepository
                 else
                 {
                     var assignDate = st.AdvisorAssignedAt ?? adv.CreatedAt;
-                    stDays = (int)Math.Max(15, (now - assignDate).TotalDays);
+                    stDays = Math.Max(15, (int)(now.Date - assignDate.Date).TotalDays);
                     stHealth = "critical";
                     stAlert = $"Sin asesorías registradas ({stDays} días desde asignación)";
                 }

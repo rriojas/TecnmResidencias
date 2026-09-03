@@ -30,6 +30,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+button, input, select, textarea {
+  font-family: inherit;
+}
+
 /* ============================================================
    2. TIPOGRAFÍA (Spec 08 §3)
    ============================================================ */
@@ -3705,6 +3709,7 @@ textarea.tecnm-form-control {
   background: transparent;
   padding: 0.35rem 0.85rem;
   border-radius: 9999px;
+  font-family: var(--tecnm-font-family);
   font-size: var(--tecnm-font-size-xs, 0.75rem);
   font-weight: 600;
   color: var(--tecnm-text-secondary, #64748B);
@@ -3713,6 +3718,10 @@ textarea.tecnm-form-control {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+.tecnm-filter-pill svg {
+  flex-shrink: 0;
 }
 
 .tecnm-filter-pill:hover {

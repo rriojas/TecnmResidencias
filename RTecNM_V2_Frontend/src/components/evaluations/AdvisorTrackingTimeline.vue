@@ -76,6 +76,23 @@ function calculateDaysBetween(date1, date2) {
   return Math.round(diffTime / (1000 * 60 * 60 * 24))
 }
 
+function formatGapLabel(days) {
+  if (days === null || days === undefined) return '—'
+  if (days < 0) return `En ${Math.abs(days)} d`
+  if (days === 0) return 'Hoy'
+  if (days === 1) return '1 d'
+  return `${days} d`
+}
+
+function formatCurrentStatusPill(days, totalSessions) {
+  if (totalSessions === 0) return 'Sin asesorías registradas'
+  if (days === null || days === undefined) return 'Sin registro'
+  if (days < 0) return `Programada (en ${Math.abs(days)} d)`
+  if (days === 0) return 'Sesión realizada hoy'
+  if (days === 1) return 'Última sesión: ayer'
+  return `Última sesión: hace ${days} d`
+}
+
 function showAlert(msg, type = 'success') {
   alertMessage.value = msg
   alertType.value = type
@@ -131,19 +148,17 @@ const autocompleteItems = computed(() => {
   const metrics = summary.value.advisorHealthMetrics || []
 
   for (const adv of metrics) {
-    const statusEmoji = adv.healthStatus === 'healthy' ? '🟢' : (adv.healthStatus === 'warning' ? '🟡' : '🔴')
     items.push({
       id: `adv-${adv.advisorId}`,
       type: 'advisor',
       advisorId: adv.advisorId,
       advisorName: adv.advisorName,
-      title: `${statusEmoji} ${adv.advisorTitle ? adv.advisorTitle + ' ' : ''}${adv.advisorName}`,
+      title: `${adv.advisorTitle ? adv.advisorTitle + ' ' : ''}${adv.advisorName}`,
       subtitle: `Docente Asesor • ${adv.totalAssignedResidents} alumno(s) • ${adv.totalSessions} asesoría(s) • ${adv.departmentName || ''}`,
       raw: adv
     })
 
     for (const st of (adv.students || [])) {
-      const stEmoji = st.healthStatus === 'healthy' ? '🟢' : (st.healthStatus === 'warning' ? '🟡' : '🔴')
       items.push({
         id: `st-${st.studentId}`,
         type: 'student',
@@ -151,8 +166,8 @@ const autocompleteItems = computed(() => {
         studentId: st.studentId,
         studentName: st.studentName,
         studentControlNumber: st.studentControlNumber,
-        title: `🎓 ${st.studentName}`,
-        subtitle: `${stEmoji} No. Control: ${st.studentControlNumber} • Asesor: ${adv.advisorName} • Proyecto: ${st.projectTitle || '—'}`,
+        title: st.studentName,
+        subtitle: `No. Control: ${st.studentControlNumber} • Asesor: ${adv.advisorName} • Proyecto: ${st.projectTitle || '—'}`,
         raw: st,
         advisor: adv
       })
@@ -338,12 +353,34 @@ async function handleSubmitNote({ sessionId, notes }) {
   }
 }
 
-function handleExportPdf() {
-  const params = new URLSearchParams()
-  if (authStore.isCareerHead && authStore.userCareerId) {
-    params.append('careerId', authStore.userCareerId)
+const isExportingPdf = ref(false)
+
+async function handleExportPdf() {
+  isExportingPdf.value = true
+  try {
+    const params = {}
+    if (authStore.isCareerHead && authStore.userCareerId) {
+      params.careerId = authStore.userCareerId
+    }
+    const res = await apiClient.get('/v1/evaluations/timeline/export', {
+      params,
+      responseType: 'blob'
+    })
+    const blob = new Blob([res.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `reporte_supervision_asesorias_${new Date().toISOString().slice(0, 10)}.pdf`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    showAlert('Reporte PDF descargado exitosamente.', 'success')
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al exportar el reporte en PDF.', 'danger')
+  } finally {
+    isExportingPdf.value = false
   }
-  window.open(`/api/v1/evaluations/timeline/export?${params.toString()}`, '_blank')
 }
 
 onMounted(() => {
@@ -463,7 +500,7 @@ onMounted(() => {
             <TecnmAutocomplete
               v-model="selectedAutocompleteId"
               :items="autocompleteItems"
-              placeholder="🔍 Buscar asesor, estudiante o no. control..."
+              placeholder="Buscar asesor, estudiante o no. control..."
               :min-chars="1"
               :title-extractor="(item) => item.title"
               :subtitle-extractor="(item) => item.subtitle"
@@ -481,7 +518,10 @@ onMounted(() => {
               :class="{ active: activeQuickFilter === 'all' && !selectedAutocompleteItem }"
               @click="setQuickFilter('all')"
             >
-              Todos ({{ summary.totalAdvisors }})
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+              </svg>
+              <span>Todos ({{ summary.totalAdvisors }})</span>
             </button>
             <button
               type="button"
@@ -489,7 +529,10 @@ onMounted(() => {
               :class="{ active: activeQuickFilter === 'attention' }"
               @click="setQuickFilter('attention')"
             >
-              ⚠️ Requieren Atención ({{ attentionCount }})
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+              <span>Requieren Atención ({{ attentionCount }})</span>
             </button>
             <button
               type="button"
@@ -497,7 +540,10 @@ onMounted(() => {
               :class="{ active: activeQuickFilter === 'healthy' }"
               @click="setQuickFilter('healthy')"
             >
-              🟢 Al Corriente ({{ summary.healthyCount }})
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+              </svg>
+              <span>Al Corriente ({{ summary.healthyCount }})</span>
             </button>
           </div>
 
@@ -522,13 +568,18 @@ onMounted(() => {
             <button
               type="button"
               class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+              :disabled="isExportingPdf"
               title="Descargar reporte oficial en PDF"
               @click="handleExportPdf"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <svg v-if="!isExportingPdf" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
               </svg>
-              <span>Reporte PDF</span>
+              <svg v-else class="tecnm-animate-spin" style="animation: spin 1s linear infinite;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>{{ isExportingPdf ? 'Generando...' : 'Reporte PDF' }}</span>
             </button>
             <button
               type="button"
@@ -614,26 +665,38 @@ onMounted(() => {
               v-if="adv.healthStatus === 'healthy'"
               class="tecnm-track-status-pill healthy"
             >
-              🟢 Al Día (&le; 14 d)
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+              </svg>
+              <span>Al Día (&le; 14 d)</span>
             </span>
             <span
               v-else-if="adv.healthStatus === 'warning'"
               class="tecnm-track-status-pill warning"
             >
-              🟡 En Alerta ({{ adv.daysWithoutActivity }} días sin sesión)
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+              <span>En Alerta ({{ adv.daysWithoutActivity }} días sin sesión)</span>
             </span>
             <span
               v-else-if="adv.healthStatus === 'critical'"
               class="tecnm-track-status-pill critical"
             >
-              🔴 Inactividad Crítica ({{ adv.daysWithoutActivity }} días)
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+              <span>Inactividad Crítica ({{ adv.daysWithoutActivity }} días)</span>
             </span>
             <span
               v-else-if="adv.healthStatus === 'irregular'"
               class="tecnm-track-status-pill"
               style="background-color: #EDE9FE; color: #5B21B6; border: 1px solid #DDD6FE;"
             >
-              🟣 Seguimiento Atípico
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.678 48.678 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3-3 3" />
+              </svg>
+              <span>Seguimiento Atípico</span>
             </span>
 
             <!-- Chevron -->
@@ -659,7 +722,7 @@ onMounted(() => {
         <!-- Cuerpo del Asesor: Lista de Alumnos con su Línea de Tiempo -->
         <div v-show="expandedAdvisors.has(adv.advisorId)" class="tecnm-advisor-body">
           <div v-if="adv.students.length === 0" style="padding: 1rem; text-align: center; color: #94A3B8; font-size: 0.85rem;">
-            No tiene residentes asignados actualmente en este periodo.
+            No tiene residentes con anteproyecto aprobado en curso actualmente.
           </div>
 
           <div
@@ -670,8 +733,11 @@ onMounted(() => {
             <!-- Meta del Alumno y Acciones -->
             <div class="tecnm-student-meta">
               <div>
-                <div class="tecnm-student-name">
-                  🎓 {{ st.studentName }}
+                <div class="tecnm-student-name" style="display: flex; align-items: center; gap: 0.4rem;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" style="color: var(--tecnm-blue-primary, #1B396A); flex-shrink: 0;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-5.25 6.557c1.398-1.42 3.435-2.25 5.25-2.25" />
+                  </svg>
+                  <span>{{ st.studentName }}</span>
                   <span style="font-weight: 400; font-size: 0.8rem; color: #64748B;">
                     (Ctrl: {{ st.studentControlNumber }})
                   </span>
@@ -687,29 +753,41 @@ onMounted(() => {
                   v-if="st.healthStatus === 'healthy'"
                   class="tecnm-track-status-pill healthy"
                 >
-                  🟢 {{ st.alertMessage }}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                  <span>{{ st.alertMessage }}</span>
                 </span>
                 <span
                   v-else-if="st.healthStatus === 'warning'"
                   class="tecnm-track-status-pill warning"
                 >
-                  🟡 {{ st.alertMessage }}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                  </svg>
+                  <span>{{ st.alertMessage }}</span>
                 </span>
                 <span
                   v-else
                   class="tecnm-track-status-pill critical"
                 >
-                  🔴 {{ st.alertMessage }}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                  </svg>
+                  <span>{{ st.alertMessage }}</span>
                 </span>
 
                 <button
                   type="button"
                   class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
-                  style="font-size: 0.75rem; padding: 0.25rem 0.5rem;"
+                  style="font-size: 0.75rem; padding: 0.25rem 0.6rem; gap: 0.35rem;"
                   title="Ver bitácora completa de este alumno"
                   @click="openStudentHistory(st, adv)"
                 >
-                  📄 Ver Historial
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                  </svg>
+                  <span>Ver Historial</span>
                 </button>
               </div>
             </div>
@@ -772,7 +850,7 @@ onMounted(() => {
                   style="min-width: 60px;"
                 >
                   <span class="tecnm-track-connector-label">
-                    {{ st.daysWithoutActivity }} d
+                    {{ formatGapLabel(st.daysWithoutActivity) }}
                   </span>
                 </div>
 
@@ -781,7 +859,7 @@ onMounted(() => {
                   class="tecnm-track-status-pill"
                   :class="st.healthStatus"
                 >
-                  Hoy: {{ st.daysWithoutActivity === 0 ? 'Sesión hoy' : `Hace ${st.daysWithoutActivity} d` }}
+                  {{ formatCurrentStatusPill(st.daysWithoutActivity, st.totalSessions) }}
                 </span>
               </div>
             </div>
