@@ -371,7 +371,7 @@ onMounted(() => {
         <h3 class="tecnm-card-title">Estudiantes y Asesores Asignados</h3>
       </div>
       <div class="tecnm-card-toolbar">
-        <div class="tecnm-form-group tecnm-mb-0 tecnm-search-box" style="margin-bottom: 0; min-width: 300px;">
+        <div class="tecnm-form-group tecnm-mb-0 tecnm-search-box" style="margin-bottom: 0; flex: 1; max-width: 480px;">
           <input
             id="assignmentSearchInput"
             v-model="searchTerm"
@@ -382,7 +382,7 @@ onMounted(() => {
         </div>
 
         <div class="tecnm-toolbar-actions">
-          <label class="tecnm-switch-label">
+          <label v-if="!authStore.isCareerHead" class="tecnm-switch-label">
             <span class="tecnm-switch">
               <input
                 id="assignmentIncludeInactiveToggle"
@@ -465,9 +465,7 @@ onMounted(() => {
             </tbody>
           </table>
         </div>
-      </div>
 
-      <div class="tecnm-card-footer">
         <TecnmPagination
           v-if="totalCount > 0"
           v-model:currentPage="pageNumber"
@@ -589,8 +587,9 @@ onMounted(() => {
 
 <style scoped>
 .tecnm-table-responsive {
-  min-height: 320px;
-  padding-bottom: 3.5rem;
+  min-height: auto;
+  padding-bottom: 0;
+  overflow: visible;
 }
 :deep(.tecnm-table) {
   overflow: visible;
@@ -601,5 +600,14 @@ onMounted(() => {
 }
 :deep(.tecnm-autocomplete-dropdown) {
   z-index: 1060 !important;
+}
+:deep(.tecnm-pagination) {
+  border-top: none;
+  padding-top: 1rem;
+}
+@media (max-width: 992px) {
+  .tecnm-table-responsive {
+    overflow-x: auto;
+  }
 }
 </style>

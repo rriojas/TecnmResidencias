@@ -3139,7 +3139,7 @@ textarea.tecnm-form-control {
 }
 
 .tecnm-semaphore-card.active {
-  ring: 2px solid var(--tecnm-blue-primary, #1B396A);
+  box-shadow: 0 0 0 2px var(--tecnm-blue-primary, #1B396A);
   border-color: var(--tecnm-blue-primary, #1B396A);
   background-color: #F8FAFC;
 }

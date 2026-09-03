@@ -576,7 +576,7 @@ onMounted(() => {
         </div>
 
         <div class="tecnm-toolbar-actions">
-          <label id="sessionsInactiveLabel" class="tecnm-switch-label">
+          <label v-if="!authStore.isCareerHead" id="sessionsInactiveLabel" class="tecnm-switch-label">
             <span class="tecnm-switch">
               <input
                 id="sessionsIncludeInactiveToggle"
