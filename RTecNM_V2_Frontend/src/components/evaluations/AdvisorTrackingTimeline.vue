@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import apiClient from '@/services/api'
 import SupervisionNoteModal from '@/components/evaluations/SupervisionNoteModal.vue'
+import TecnmAutocomplete from '@/components/common/TecnmAutocomplete.vue'
 
 const authStore = useAuthStore()
 
@@ -23,6 +24,8 @@ const summary = ref({
 })
 
 const searchQuery = ref('')
+const selectedAutocompleteId = ref(null)
+const selectedAutocompleteItem = ref(null)
 // quickFilter: 'all' | 'attention' | 'healthy' | 'warning' | 'critical' | 'irregular'
 const activeQuickFilter = ref('all')
 const expandedAdvisors = ref(new Set())
@@ -122,9 +125,94 @@ async function loadData() {
   }
 }
 
+// Items estructurados para el Autocomplete inteligente
+const autocompleteItems = computed(() => {
+  const items = []
+  const metrics = summary.value.advisorHealthMetrics || []
+
+  for (const adv of metrics) {
+    const statusEmoji = adv.healthStatus === 'healthy' ? '🟢' : (adv.healthStatus === 'warning' ? '🟡' : '🔴')
+    items.push({
+      id: `adv-${adv.advisorId}`,
+      type: 'advisor',
+      advisorId: adv.advisorId,
+      advisorName: adv.advisorName,
+      title: `${statusEmoji} ${adv.advisorTitle ? adv.advisorTitle + ' ' : ''}${adv.advisorName}`,
+      subtitle: `Docente Asesor • ${adv.totalAssignedResidents} alumno(s) • ${adv.totalSessions} asesoría(s) • ${adv.departmentName || ''}`,
+      raw: adv
+    })
+
+    for (const st of (adv.students || [])) {
+      const stEmoji = st.healthStatus === 'healthy' ? '🟢' : (st.healthStatus === 'warning' ? '🟡' : '🔴')
+      items.push({
+        id: `st-${st.studentId}`,
+        type: 'student',
+        advisorId: adv.advisorId,
+        studentId: st.studentId,
+        studentName: st.studentName,
+        studentControlNumber: st.studentControlNumber,
+        title: `🎓 ${st.studentName}`,
+        subtitle: `${stEmoji} No. Control: ${st.studentControlNumber} • Asesor: ${adv.advisorName} • Proyecto: ${st.projectTitle || '—'}`,
+        raw: st,
+        advisor: adv
+      })
+    }
+  }
+
+  return items
+})
+
+function handleAutocompleteSelect(item) {
+  selectedAutocompleteItem.value = item
+  selectedAutocompleteId.value = item.id
+  if (item.type === 'advisor') {
+    searchQuery.value = item.advisorName
+    expandedAdvisors.value.add(item.advisorId)
+  } else if (item.type === 'student') {
+    searchQuery.value = item.studentName
+    expandedAdvisors.value.add(item.advisorId)
+  }
+}
+
+function handleAutocompleteClear() {
+  selectedAutocompleteItem.value = null
+  selectedAutocompleteId.value = null
+  searchQuery.value = ''
+}
+
+function handleAutocompleteQueryChange(q) {
+  if (!selectedAutocompleteItem.value) {
+    searchQuery.value = q
+  }
+}
+
+function setQuickFilter(filter) {
+  activeQuickFilter.value = activeQuickFilter.value === filter ? 'all' : filter
+  if (selectedAutocompleteItem.value) {
+    handleAutocompleteClear()
+  }
+}
+
 // Filtro y ordenamiento prioritario
 const filteredAdvisors = computed(() => {
   let list = [...(summary.value.advisorHealthMetrics || [])]
+
+  // Si se seleccionó un item puntual del autocomplete:
+  if (selectedAutocompleteItem.value) {
+    if (selectedAutocompleteItem.value.type === 'advisor') {
+      list = list.filter((adv) => adv.advisorId === selectedAutocompleteItem.value.advisorId)
+    } else if (selectedAutocompleteItem.value.type === 'student') {
+      list = list
+        .filter((adv) => adv.advisorId === selectedAutocompleteItem.value.advisorId)
+        .map((adv) => ({
+          ...adv,
+          students: adv.students.filter(
+            (st) => st.studentId === selectedAutocompleteItem.value.studentId
+          )
+        }))
+    }
+    return list
+  }
 
   // Filtro Rápido
   if (activeQuickFilter.value === 'attention') {
@@ -139,7 +227,7 @@ const filteredAdvisors = computed(() => {
     list = list.filter((adv) => adv.healthStatus === 'irregular')
   }
 
-  // Búsqueda en vivo
+  // Búsqueda en vivo al escribir en el autocomplete (mientras no se haya fijado un item)
   const q = searchQuery.value.trim().toLowerCase()
   if (q) {
     list = list.filter((adv) => {
@@ -291,7 +379,7 @@ onMounted(() => {
         :class="{ active: activeQuickFilter === 'healthy' }"
         role="button"
         tabindex="0"
-        @click="activeQuickFilter = activeQuickFilter === 'healthy' ? 'all' : 'healthy'"
+        @click="setQuickFilter('healthy')"
       >
         <div class="tecnm-semaphore-header">
           <span class="tecnm-semaphore-title">Al Día (&le; 14 días)</span>
@@ -311,7 +399,7 @@ onMounted(() => {
         :class="{ active: activeQuickFilter === 'warning' }"
         role="button"
         tabindex="0"
-        @click="activeQuickFilter = activeQuickFilter === 'warning' ? 'all' : 'warning'"
+        @click="setQuickFilter('warning')"
       >
         <div class="tecnm-semaphore-header">
           <span class="tecnm-semaphore-title">En Alerta (15-21 días)</span>
@@ -331,7 +419,7 @@ onMounted(() => {
         :class="{ active: activeQuickFilter === 'critical' }"
         role="button"
         tabindex="0"
-        @click="activeQuickFilter = activeQuickFilter === 'critical' ? 'all' : 'critical'"
+        @click="setQuickFilter('critical')"
       >
         <div class="tecnm-semaphore-header">
           <span class="tecnm-semaphore-title">Inactividad Crítica (&gt; 21 días)</span>
@@ -351,7 +439,7 @@ onMounted(() => {
         :class="{ active: activeQuickFilter === 'irregular' }"
         role="button"
         tabindex="0"
-        @click="activeQuickFilter = activeQuickFilter === 'irregular' ? 'all' : 'irregular'"
+        @click="setQuickFilter('irregular')"
       >
         <div class="tecnm-semaphore-header">
           <span class="tecnm-semaphore-title">Seguimiento Atípico</span>
@@ -370,13 +458,18 @@ onMounted(() => {
     <div class="tecnm-card tecnm-mb-4" style="margin-bottom: 1.25rem;">
       <div class="tecnm-card-body" style="padding: 1rem 1.25rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-          <!-- Búsqueda Instantánea -->
-          <div style="flex: 1; min-width: 250px; max-width: 380px;">
-            <input
-              v-model="searchQuery"
-              type="text"
-              class="tecnm-form-control"
-              placeholder="🔍 Buscar asesor, estudiante o control..."
+          <!-- Búsqueda con Autocomplete -->
+          <div style="flex: 1; min-width: 280px; max-width: 440px;">
+            <TecnmAutocomplete
+              v-model="selectedAutocompleteId"
+              :items="autocompleteItems"
+              placeholder="🔍 Buscar asesor, estudiante o no. control..."
+              :min-chars="1"
+              :title-extractor="(item) => item.title"
+              :subtitle-extractor="(item) => item.subtitle"
+              @select="handleAutocompleteSelect"
+              @clear="handleAutocompleteClear"
+              @query-change="handleAutocompleteQueryChange"
             />
           </div>
 
@@ -385,8 +478,8 @@ onMounted(() => {
             <button
               type="button"
               class="tecnm-filter-pill"
-              :class="{ active: activeQuickFilter === 'all' }"
-              @click="activeQuickFilter = 'all'"
+              :class="{ active: activeQuickFilter === 'all' && !selectedAutocompleteItem }"
+              @click="setQuickFilter('all')"
             >
               Todos ({{ summary.totalAdvisors }})
             </button>
@@ -394,7 +487,7 @@ onMounted(() => {
               type="button"
               class="tecnm-filter-pill alert-filter"
               :class="{ active: activeQuickFilter === 'attention' }"
-              @click="activeQuickFilter = 'attention'"
+              @click="setQuickFilter('attention')"
             >
               ⚠️ Requieren Atención ({{ attentionCount }})
             </button>
@@ -402,7 +495,7 @@ onMounted(() => {
               type="button"
               class="tecnm-filter-pill healthy"
               :class="{ active: activeQuickFilter === 'healthy' }"
-              @click="activeQuickFilter = 'healthy'"
+              @click="setQuickFilter('healthy')"
             >
               🟢 Al Corriente ({{ summary.healthyCount }})
             </button>

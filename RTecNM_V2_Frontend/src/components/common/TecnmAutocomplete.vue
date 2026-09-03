@@ -79,9 +79,17 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  items: {
+    type: Array,
+    default: null,
+  },
+  filterFn: {
+    type: Function,
+    default: null,
+  },
 })
 
-const emit = defineEmits(['update:modelValue', 'select', 'clear'])
+const emit = defineEmits(['update:modelValue', 'select', 'clear', 'query-change'])
 
 const { open: openGlobalSearch } = useGlobalSearch()
 
@@ -134,6 +142,30 @@ async function search(val) {
     return
   }
 
+  // Búsqueda en memoria local si se proporcionó la lista de items
+  if (Array.isArray(props.items)) {
+    isLoading.value = false
+    isDropdownOpen.value = true
+    const q = val.toLowerCase()
+    if (props.filterFn) {
+      results.value = props.items.filter((item) => props.filterFn(item, q))
+    } else {
+      results.value = props.items.filter((item) => {
+        const title = (props.titleExtractor(item) || '').toLowerCase()
+        const subtitle = (props.subtitleExtractor(item) || '').toLowerCase()
+        return title.includes(q) || subtitle.includes(q)
+      })
+    }
+    return
+  }
+
+  // Búsqueda remota vía endpoint API
+  if (!props.endpoint) {
+    results.value = []
+    isDropdownOpen.value = false
+    return
+  }
+
   if (abortController) {
     abortController.abort()
   }
@@ -163,10 +195,11 @@ async function search(val) {
 }
 
 function handleInput() {
+  emit('query-change', query.value)
   clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => {
     search(query.value.trim())
-  }, 250)
+  }, Array.isArray(props.items) ? 80 : 250)
 }
 
 function selectItem(item) {
@@ -186,6 +219,7 @@ function clearSelection() {
   isDropdownOpen.value = false
   emit('update:modelValue', null)
   emit('clear')
+  emit('query-change', '')
 }
 
 function openPicker() {
