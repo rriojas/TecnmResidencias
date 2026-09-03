@@ -363,6 +363,58 @@ public static class DbSeeder
             }
         }
 
+        // Sembrado de Jefes de Carrera institucionales y Vinculación
+        var institutionalStaff = new[]
+        {
+            new { Email = "hector.gm@monclova.tecnm.mx", Role = UserRole.CareerHead, CareerId = (long?)1, FullName = "Héctor Aguilera Mancilla", Title = "Ing.", Phone = "0" },
+            new { Email = "maria.gp@monclova.tecnm.mx", Role = UserRole.CareerHead, CareerId = (long?)4, FullName = "María Antonieta García Plata", Title = "Ing.", Phone = "0" },
+            new { Email = "edith.ml@monclova.tecnm.mx", Role = UserRole.CareerHead, CareerId = (long?)2, FullName = "Edith Margoth Meléndez López", Title = "Ing.", Phone = "0" },
+            new { Email = "guillermo.rr@monclova.tecnm.mx", Role = UserRole.CareerHead, CareerId = (long?)5, FullName = "Guillermo Riojas Rodríguez", Title = "Ing.", Phone = "0" },
+            new { Email = "ruth.mg@monclova.tecnm.mx", Role = UserRole.CareerHead, CareerId = (long?)7, FullName = "Ruth Margarita Martínez García", Title = "Ing.", Phone = "0" },
+            new { Email = "veronica.mv@monclova.tecnm.mx", Role = UserRole.CareerHead, CareerId = (long?)6, FullName = "Verónica Martínez Vela", Title = "Ing.", Phone = "0" },
+            new { Email = "rocio.mendoza@monclova.tecnm.mx", Role = UserRole.Vinculacion, CareerId = (long?)null, FullName = "Rocío del Carmen Mendoza Riojas", Title = "Lic.", Phone = "0" }
+        };
+
+        foreach (var staff in institutionalStaff)
+        {
+            var u = await db.Users.FirstOrDefaultAsync(x => x.Email == staff.Email);
+            if (u is null)
+            {
+                u = new User
+                {
+                    Email = staff.Email,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Tecnm2026!"),
+                    Role = staff.Role,
+                    IsAdmin = false,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                db.Users.Add(u);
+                await db.SaveChangesAsync();
+            }
+
+            if (staff.CareerId.HasValue)
+            {
+                var chProfile = await db.CareerHeads.FirstOrDefaultAsync(ch => ch.UserId == u.Id);
+                if (chProfile is null)
+                {
+                    db.CareerHeads.Add(new CareerHead
+                    {
+                        UserId = u.Id,
+                        CareerId = staff.CareerId.Value,
+                        FullName = staff.FullName,
+                        Title = staff.Title,
+                        Phone = staff.Phone,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    });
+                    await db.SaveChangesAsync();
+                }
+            }
+        }
+
         // 6. Reconciliación idempotente de asignaciones rol-usuario
         var allUsers = await db.Users.Where(u => u.IsActive).ToListAsync();
 
