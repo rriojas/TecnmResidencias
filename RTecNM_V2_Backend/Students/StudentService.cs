@@ -508,11 +508,41 @@ public class StudentService : IStudentService
                 continue;
             }
 
-            var existingStudent = await _studentRepository.GetByControlNumberAsync(cleanControlNum);
+            // Map Gender & Academic Semester
+            var s = sexoStr.Trim().ToUpperInvariant();
+            string gender = s.StartsWith("M") ? "Masculino" : s.StartsWith("F") ? "Femenino" : sexoStr.Trim();
+            int? periodId = parsedSem;
+
+            var existingStudent = await _context.Students
+                .Include(st => st.User)
+                .FirstOrDefaultAsync(st => st.ControlNumber.ToUpper() == cleanControlNum);
+
             if (existingStudent != null)
             {
-                result.SkippedCount++;
-                result.Skipped.Add($"Fila {rowNum}: Omitida. Ya existe un estudiante con N° Control '{cleanControlNum}'.");
+                // Actualizar datos del estudiante existente con la información corregida del archivo
+                existingStudent.FirstName = firstName.Trim();
+                existingStudent.LastName = lastName1.Trim();
+                existingStudent.LastName2 = lastName2?.Trim();
+                existingStudent.Gender = gender;
+                existingStudent.CareerId = careerId;
+                existingStudent.AcademicPeriodId = periodId;
+                existingStudent.IsActive = true;
+                existingStudent.UpdatedAt = DateTime.UtcNow;
+                existingStudent.UpdatedBy = _currentUser.UserId;
+
+                if (existingStudent.User != null && !string.Equals(existingStudent.User.Email, cleanEmail, StringComparison.OrdinalIgnoreCase))
+                {
+                    var emailOwner = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == cleanEmail && u.Id != existingStudent.UserId);
+                    if (emailOwner == null)
+                    {
+                        existingStudent.User.Email = cleanEmail;
+                        existingStudent.User.UpdatedAt = DateTime.UtcNow;
+                        existingStudent.User.UpdatedBy = _currentUser.UserId;
+                    }
+                }
+
+                await _studentRepository.UpdateAsync(existingStudent);
+                result.SuccessCount++;
                 continue;
             }
 
@@ -523,13 +553,6 @@ public class StudentService : IStudentService
                 result.Skipped.Add($"Fila {rowNum}: Omitida. Ya existe una cuenta asociada al correo '{cleanEmail}'.");
                 continue;
             }
-
-            // Map Gender
-            var s = sexoStr.Trim().ToUpperInvariant();
-            string gender = s.StartsWith("M") ? "Masculino" : s.StartsWith("F") ? "Femenino" : sexoStr.Trim();
-
-            // Map Academic Semester
-            int? periodId = parsedSem;
 
             var defaultPasswordHash = BCrypt.Net.BCrypt.HashPassword(cleanControlNum);
             var newUser = new User
