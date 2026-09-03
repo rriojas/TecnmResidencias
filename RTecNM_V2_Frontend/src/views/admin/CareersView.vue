@@ -374,7 +374,7 @@ onMounted(() => {
                 v-model="form.code"
                 type="text"
                 class="tecnm-form-control"
-                placeholder="Ej. ISC, INF, IND..."
+                placeholder="Ej. IER, INF, IND, MEC..."
                 required
                 maxlength="50"
               />
@@ -387,7 +387,7 @@ onMounted(() => {
                 v-model="form.name"
                 type="text"
                 class="tecnm-form-control"
-                placeholder="Ej. Ingeniería en Sistemas Computacionales"
+                placeholder="Ej. Ingeniería en Energías Renovables"
                 required
                 maxlength="200"
               />
@@ -400,7 +400,7 @@ onMounted(() => {
                 v-model="form.acronym"
                 type="text"
                 class="tecnm-form-control"
-                placeholder="Ej. ISC"
+                placeholder="Ej. IER"
                 maxlength="20"
               />
             </div>

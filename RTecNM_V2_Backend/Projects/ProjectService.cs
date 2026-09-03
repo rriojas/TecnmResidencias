@@ -690,7 +690,10 @@ public class ProjectService : IProjectService
             1 => "Ing. Informática",
             2 => "Ing. Industrial",
             3 => "Ing. Mecatrónica",
-            4 => "Ing. en Sistemas Computacionales",
+            4 => "Ing. en Energías Renovables",
+            5 => "Ing. Electrónica",
+            6 => "Ing. en Gestión Empresarial",
+            7 => "Ing. Mecánica",
             _ => null
         };
 

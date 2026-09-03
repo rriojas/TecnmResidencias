@@ -442,7 +442,7 @@ onMounted(() => {
               <tr v-for="s in sortedStudents" v-else :key="s.id">
                 <td><strong>{{ s.controlNumber }}</strong></td>
                 <td>{{ s.fullName || `${s.firstName} ${s.lastName}` }}</td>
-                <td>{{ s.career || 'ISC' }}</td>
+                <td>{{ s.career || 'N/A' }}</td>
                 <td style="min-width: 290px; max-width: 360px;">
                   <TecnmAutocomplete
                     :key="`${s.id}-${s.advisorId || 'none'}`"

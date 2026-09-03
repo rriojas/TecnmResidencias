@@ -909,14 +909,15 @@ onMounted(() => {
                 </tr>
                 <tr>
                   <td style="padding: 0.35rem 0.6rem;"><code>Departamento</code></td>
-                  <td style="padding: 0.35rem 0.6rem;">ID numérico de la carrera/departamento (1 a 6)</td>
+                  <td style="padding: 0.35rem 0.6rem;">ID numérico de la carrera/departamento (1 a 7)</td>
                   <td style="padding: 0.35rem 0.6rem;">
                     <code>1</code>: Ing. Informática (INF)<br />
                     <code>2</code>: Ing. Industrial (IND)<br />
                     <code>3</code>: Ing. Mecatrónica (MEC)<br />
-                    <code>4</code>: Ing. en Sistemas Computacionales (ISC)<br />
+                    <code>4</code>: Ing. en Energías Renovables (IER)<br />
                     <code>5</code>: Ing. Electrónica (ELE)<br />
                     <code>6</code>: Ing. en Gestión Empresarial (IGE)<br />
+                    <code>7</code>: Ing. Mecánica (IME)<br />
                     <small v-if="authStore.isCareerHead" style="color: #0369a1; font-weight: 600;">
                       * Nota: Como Jefe de Carrera, se asignará automáticamente a su carrera.
                     </small>

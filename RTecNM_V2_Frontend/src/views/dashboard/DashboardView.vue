@@ -15,9 +15,10 @@ const CAREERS = ref({
   1: 'Ing. Informática',
   2: 'Ing. Industrial',
   3: 'Ing. Mecatrónica',
-  4: 'Ing. en Sistemas Computacionales',
+  4: 'Ing. en Energías Renovables',
   5: 'Ing. Electrónica',
   6: 'Ing. en Gestión Empresarial',
+  7: 'Ing. Mecánica',
 })
 const careersList = ref([])
 
@@ -522,7 +523,7 @@ onMounted(() => {
           >
             <option value="all">Todas las Carreras</option>
             <option
-              v-for="c in (careersList.length > 0 ? careersList : [{id:4,name:'Ing. en Sistemas Computacionales'},{id:1,name:'Ing. Informática'},{id:3,name:'Ing. Mecatrónica'},{id:2,name:'Ing. Industrial'},{id:5,name:'Ing. Electrónica'},{id:6,name:'Ing. en Gestión Empresarial'}])"
+              v-for="c in (careersList.length > 0 ? careersList : [{id:4,name:'Ing. en Energías Renovables'},{id:1,name:'Ing. Informática'},{id:3,name:'Ing. Mecatrónica'},{id:2,name:'Ing. Industrial'},{id:5,name:'Ing. Electrónica'},{id:6,name:'Ing. en Gestión Empresarial'},{id:7,name:'Ing. Mecánica'}])"
               :key="c.id"
               :value="String(c.id)"
             >
@@ -1498,7 +1499,7 @@ onMounted(() => {
                   </thead>
                   <tbody>
                     <tr>
-                      <td><strong>Ing. en Sistemas Computacionales</strong></td>
+                      <td><strong>Ing. en Energías Renovables</strong></td>
                       <td>{{ Math.round((adminMetrics.totalStudents || 0) * 0.35) }}</td>
                       <td>{{ Math.round((adminMetrics.completedResidencies || 0) * 0.4) }}</td>
                       <td><span class="tecnm-badge tecnm-badge-success">Operando</span></td>

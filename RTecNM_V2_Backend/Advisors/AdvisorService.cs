@@ -322,9 +322,10 @@ public class AdvisorService : IAdvisorService
             1 => "Ingeniería Informática",
             2 => "Ingeniería Industrial",
             3 => "Ingeniería Mecatrónica",
-            4 => "Ingeniería en Sistemas Computacionales",
+            4 => "Ingeniería en Energías Renovables",
             5 => "Ingeniería Electrónica",
             6 => "Ingeniería en Gestión Empresarial",
+            7 => "Ingeniería Mecánica",
             _ => "Departamento Académico"
         };
 
@@ -368,9 +369,10 @@ public class AdvisorService : IAdvisorService
                 1 => "Ing. Informática",
                 2 => "Ing. Industrial",
                 3 => "Ing. Mecatrónica",
-                4 => "Ing. en Sistemas Computacionales",
+                4 => "Ing. en Energías Renovables",
                 5 => "Ing. Electrónica",
                 6 => "Ing. en Gestión Empresarial",
+                7 => "Ing. Mecánica",
                 _ => "Ingeniería"
             };
 
@@ -509,10 +511,10 @@ public class AdvisorService : IAdvisorService
             }
             else
             {
-                if (string.IsNullOrWhiteSpace(deptStr) || !long.TryParse(deptStr.Trim(), out var parsedDept) || parsedDept < 1 || parsedDept > 6)
+                if (string.IsNullOrWhiteSpace(deptStr) || !long.TryParse(deptStr.Trim(), out var parsedDept) || parsedDept < 1 || parsedDept > 7)
                 {
                     result.ErrorCount++;
-                    result.Errors.Add($"Fila {rowNum}: El ID de departamento es obligatorio y debe ser un número del 1 al 6 (1=INF, 2=IND, 3=MEC, 4=ISC, 5=ELE, 6=IGE).");
+                    result.Errors.Add($"Fila {rowNum}: El ID de departamento es obligatorio y debe ser un número del 1 al 7 (1=INF, 2=IND, 3=MEC, 4=IER, 5=ELE, 6=IGE, 7=IME).");
                     continue;
                 }
                 departmentId = parsedDept;

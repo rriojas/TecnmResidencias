@@ -322,9 +322,9 @@ public static class DbSeeder
             db.CareerHeads.Add(new CareerHead
             {
                 UserId = jefeUser.Id,
-                CareerId = 4, // Ing. en Sistemas Computacionales
+                CareerId = 4, // Ing. en Energías Renovables
                 FullName = "M.C. Roberto Carlos Riojas",
-                Title = "Jefe de Carrera ISC",
+                Title = "Jefe de Carrera IER",
                 Phone = "8661234567",
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
@@ -353,7 +353,7 @@ public static class DbSeeder
                     UserId = jefeUser.Id,
                     CareerId = 4,
                     FullName = "M.C. Roberto Carlos Riojas",
-                    Title = "Jefe de Carrera ISC",
+                    Title = "Jefe de Carrera IER",
                     Phone = "8661234567",
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
@@ -443,9 +443,10 @@ public static class DbSeeder
                         (1, 'INF', 'Ingeniería Informática', 'INF', 1, true),
                         (2, 'IND', 'Ingeniería Industrial', 'IND', 2, true),
                         (3, 'MEC', 'Ingeniería Mecatrónica', 'MEC', 3, true),
-                        (4, 'ISC', 'Ingeniería en Sistemas Computacionales', 'ISC', 4, true),
+                        (4, 'IER', 'Ingeniería en Energías Renovables', 'IER', 4, true),
                         (5, 'ELE', 'Ingeniería Electrónica', 'ELE', 5, true),
-                        (6, 'IGE', 'Ingeniería en Gestión Empresarial', 'IGE', 6, true);
+                        (6, 'IGE', 'Ingeniería en Gestión Empresarial', 'IGE', 6, true),
+                        (7, 'IME', 'Ingeniería Mecánica', 'IME', 7, true);
                     END IF;
                 END IF;
 
@@ -837,9 +838,9 @@ public static class DbSeeder
             {
                 UserId = jefeUser.Id,
                 Title = "Ing.",
-                FullName = "Coordinador de Sistemas Computacionales",
+                FullName = "Coordinador de Energías Renovables",
                 Phone = "8661234568",
-                CareerId = 4, // ISC
+                CareerId = 4, // IER
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow

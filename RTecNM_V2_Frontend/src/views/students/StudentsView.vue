@@ -149,9 +149,10 @@ const CAREERS = {
   1: 'Ing. Informática',
   2: 'Ing. Industrial',
   3: 'Ing. Mecatrónica',
-  4: 'Ing. en Sistemas Computacionales',
+  4: 'Ing. en Energías Renovables',
   5: 'Ing. Electrónica',
   6: 'Ing. en Gestión Empresarial',
+  7: 'Ing. Mecánica',
 }
 
 const selectedCareerFilter = ref(
@@ -1092,9 +1093,10 @@ onMounted(() => {
                       <code>1</code>: Ing. Informática (INF)<br />
                       <code>2</code>: Ing. Industrial (IND)<br />
                       <code>3</code>: Ing. Mecatrónica (MEC)<br />
-                      <code>4</code>: Ing. en Sistemas Computacionales (ISC)<br />
+                      <code>4</code>: Ing. en Energías Renovables (IER)<br />
                       <code>5</code>: Ing. Electrónica (ELE)<br />
-                      <code>6</code>: Ing. en Gestión Empresarial (IGE)
+                      <code>6</code>: Ing. en Gestión Empresarial (IGE)<br />
+                      <code>7</code>: Ing. Mecánica (IME)
                     </td>
                   </tr>
                   <tr>

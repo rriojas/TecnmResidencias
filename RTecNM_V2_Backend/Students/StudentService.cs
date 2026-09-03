@@ -457,10 +457,10 @@ public class StudentService : IStudentService
                 continue;
             }
 
-            if (string.IsNullOrWhiteSpace(carreraStr) || !long.TryParse(carreraStr.Trim(), out var careerId) || careerId < 1 || careerId > 6)
+            if (string.IsNullOrWhiteSpace(carreraStr) || !long.TryParse(carreraStr.Trim(), out var careerId) || careerId < 1 || careerId > 7)
             {
                 result.ErrorCount++;
-                result.Errors.Add($"Fila {rowNum}: La columna Carrera debe contener únicamente un ID de carrera válido del 1 al 6 (1=INF, 2=IND, 3=MEC, 4=ISC, 5=ELE, 6=IGE).");
+                result.Errors.Add($"Fila {rowNum}: La columna Carrera debe contener únicamente un ID de carrera válido del 1 al 7 (1=INF, 2=IND, 3=MEC, 4=IER, 5=ELE, 6=IGE, 7=IME).");
                 continue;
             }
 
@@ -582,9 +582,10 @@ public class StudentService : IStudentService
         if (string.IsNullOrWhiteSpace(name)) return 1;
         var clean = name.Trim().ToUpperInvariant();
         if (long.TryParse(clean, out var id) && id >= 1 && id <= 20) return id;
-        if (clean.Contains("SISTEMA") || clean == "ISC" || clean.StartsWith("ISC ")) return 4;
+        if (clean.Contains("ENERGIA") || clean.Contains("ENERGÍA") || clean.Contains("RENOVABLE") || clean == "IER" || clean.StartsWith("IER ") || clean.Contains("SISTEMA") || clean == "ISC" || clean.StartsWith("ISC ")) return 4;
         if (clean.Contains("INDUSTRIAL") || clean == "IND" || clean.StartsWith("IND ")) return 2;
         if (clean.Contains("MECATRONICA") || clean.Contains("MECATRÓNICA") || clean == "MEC" || clean.StartsWith("MEC ")) return 3;
+        if (clean.Contains("MECANICA") || clean.Contains("MECÁNICA") || clean == "IME" || clean.StartsWith("IME ")) return 7;
         if (clean.Contains("INFORMATICA") || clean.Contains("INFORMÁTICA") || clean == "INF" || clean.StartsWith("INF ")) return 1;
         if (clean.Contains("ELECTRONICA") || clean.Contains("ELECTRÓNICA") || clean == "ELE" || clean.StartsWith("ELE ")) return 5;
         if (clean.Contains("GESTION") || clean.Contains("GESTIÓN") || clean.Contains("EMPRESARIAL") || clean == "IGE" || clean.StartsWith("IGE ")) return 6;
@@ -747,9 +748,10 @@ public class StudentService : IStudentService
             1 => "Ingeniería Informática",
             2 => "Ingeniería Industrial",
             3 => "Ingeniería Mecatrónica",
-            4 => "Ingeniería en Sistemas Computacionales",
+            4 => "Ingeniería en Energías Renovables",
             5 => "Ingeniería Electrónica",
             6 => "Ingeniería en Gestión Empresarial",
+            7 => "Ingeniería Mecánica",
             _ => "Ingeniería"
         };
     }
