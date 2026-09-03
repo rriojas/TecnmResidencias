@@ -464,10 +464,10 @@ public class StudentService : IStudentService
                 continue;
             }
 
-            if (string.IsNullOrWhiteSpace(semestreStr) || !int.TryParse(semestreStr.Trim(), out var parsedSem) || parsedSem < 1 || parsedSem > 12)
+            if (string.IsNullOrWhiteSpace(semestreStr) || !int.TryParse(semestreStr.Trim(), out var parsedSem) || parsedSem < 1)
             {
                 result.ErrorCount++;
-                result.Errors.Add($"Fila {rowNum}: El semestre es obligatorio y debe ser un número entero entre 1 y 12.");
+                result.Errors.Add($"Fila {rowNum}: El semestre es obligatorio y debe ser un número entero mayor o igual a 1.");
                 continue;
             }
 

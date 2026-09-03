@@ -1101,8 +1101,8 @@ onMounted(() => {
                   </tr>
                   <tr>
                     <td style="padding: 0.35rem 0.6rem;"><code>Semestre</code></td>
-                    <td style="padding: 0.35rem 0.6rem;">Número entero de semestre (1 a 12)</td>
-                    <td style="padding: 0.35rem 0.6rem;"><code>9</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">Número entero de semestre (≥ 1, sin límite superior)</td>
+                    <td style="padding: 0.35rem 0.6rem;"><code>9</code>, <code>13</code>, etc.</td>
                   </tr>
                   <tr>
                     <td style="padding: 0.35rem 0.6rem;"><code>Email</code></td>
