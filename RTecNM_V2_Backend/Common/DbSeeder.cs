@@ -447,6 +447,13 @@ public static class DbSeeder
                         (5, 'ELE', 'Ingeniería Electrónica', 'ELE', 5, true),
                         (6, 'IGE', 'Ingeniería en Gestión Empresarial', 'IGE', 6, true),
                         (7, 'IME', 'Ingeniería Mecánica', 'IME', 7, true);
+                    ELSE
+                        UPDATE careers SET code = 'IER', name = 'Ingeniería en Energías Renovables', acronym = 'IER' WHERE id = 4 AND (code = 'ISC' OR name LIKE '%Sistemas%');
+                        IF NOT EXISTS (SELECT 1 FROM careers WHERE id = 7 OR code = 'IME') THEN
+                            INSERT INTO careers (id, code, name, acronym, department_id, is_active, is_visible, display_order)
+                            VALUES (7, 'IME', 'Ingeniería Mecánica', 'IME', 7, true, true, 7);
+                            PERFORM setval('careers_id_seq', (SELECT MAX(id) FROM careers));
+                        END IF;
                     END IF;
                 END IF;
 
