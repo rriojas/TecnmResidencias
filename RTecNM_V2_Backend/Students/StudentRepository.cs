@@ -16,7 +16,7 @@ public class StudentRepository : IStudentRepository
         _currentUser = currentUser;
     }
 
-    public async Task<PaginatedResult<Student>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, bool onlyApprovedProject = false)
+    public async Task<PaginatedResult<Student>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, bool onlyApprovedProject = false, long? careerId = null)
     {
         IQueryable<Student> q = _context.Students.Include(s => s.User).Include(s => s.Advisor)
             .Where(s => s.User == null || s.User.Role == UserRole.Student);
@@ -24,6 +24,10 @@ public class StudentRepository : IStudentRepository
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
             q = q.Where(s => s.CareerId == _currentUser.CareerId.Value);
+        }
+        else if (careerId.HasValue && careerId.Value > 0)
+        {
+            q = q.Where(s => s.CareerId == careerId.Value);
         }
 
         if (onlyApprovedProject)
@@ -58,7 +62,7 @@ public class StudentRepository : IStudentRepository
         return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
     }
 
-    public async Task<List<Student>> GetAllForExportAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false, bool onlyApprovedProject = false)
+    public async Task<List<Student>> GetAllForExportAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false, bool onlyApprovedProject = false, long? careerId = null)
     {
         IQueryable<Student> q = _context.Students.Include(s => s.User).AsNoTracking()
             .Where(s => s.User == null || s.User.Role == UserRole.Student);
@@ -66,6 +70,10 @@ public class StudentRepository : IStudentRepository
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
             q = q.Where(s => s.CareerId == _currentUser.CareerId.Value);
+        }
+        else if (careerId.HasValue && careerId.Value > 0)
+        {
+            q = q.Where(s => s.CareerId == careerId.Value);
         }
 
         if (onlyApprovedProject)

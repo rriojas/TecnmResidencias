@@ -28,9 +28,9 @@ public class StudentsController : ControllerBase
 
     [HttpGet]
     [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead")]
-    public async Task<IActionResult> GetAll([FromQuery] PaginationQuery query, [FromQuery] string? status, [FromQuery] bool includeInactive = false, [FromQuery] bool onlyApprovedProject = false)
+    public async Task<IActionResult> GetAll([FromQuery] PaginationQuery query, [FromQuery] string? status, [FromQuery] bool includeInactive = false, [FromQuery] bool onlyApprovedProject = false, [FromQuery] long? careerId = null)
     {
-        var result = await _studentService.GetPagedAsync(query, status, includeInactive, onlyApprovedProject);
+        var result = await _studentService.GetPagedAsync(query, status, includeInactive, onlyApprovedProject, careerId);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 
@@ -39,9 +39,9 @@ public class StudentsController : ControllerBase
 
     [HttpGet("export")]
     [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead")]
-    public async Task<IActionResult> ExportPdf([FromQuery] string? search, [FromQuery] string? sortBy, [FromQuery] string? sortDir, [FromQuery] bool includeInactive = false, [FromQuery] bool onlyApprovedProject = false)
+    public async Task<IActionResult> ExportPdf([FromQuery] string? search, [FromQuery] string? sortBy, [FromQuery] string? sortDir, [FromQuery] bool includeInactive = false, [FromQuery] bool onlyApprovedProject = false, [FromQuery] long? careerId = null)
     {
-        var result = await _studentService.ExportPdfAsync(search, sortBy, sortDir, includeInactive, onlyApprovedProject);
+        var result = await _studentService.ExportPdfAsync(search, sortBy, sortDir, includeInactive, onlyApprovedProject, careerId);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 

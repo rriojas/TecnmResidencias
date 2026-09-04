@@ -46,18 +46,18 @@ public class StudentService : IStudentService
         _context = context;
     }
 
-    public async Task<Result<PaginatedResult<StudentResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, bool onlyApprovedProject = false)
+    public async Task<Result<PaginatedResult<StudentResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, bool onlyApprovedProject = false, long? careerId = null)
     {
-        var paged = await _studentRepository.GetPagedAsync(query, status, includeInactive, onlyApprovedProject);
+        var paged = await _studentRepository.GetPagedAsync(query, status, includeInactive, onlyApprovedProject, careerId);
         var dtos = paged.Items.Select(MapToResponseDto);
         var result = PaginatedResult<StudentResponseDto>.Create(
             dtos, paged.TotalCount, paged.PageNumber, paged.PageSize);
         return Result<PaginatedResult<StudentResponseDto>>.Success(result);
     }
 
-    public async Task<Result<byte[]>> ExportPdfAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false, bool onlyApprovedProject = false)
+    public async Task<Result<byte[]>> ExportPdfAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false, bool onlyApprovedProject = false, long? careerId = null)
     {
-        var students = await _studentRepository.GetAllForExportAsync(search, sortBy, sortDir, includeInactive, onlyApprovedProject);
+        var students = await _studentRepository.GetAllForExportAsync(search, sortBy, sortDir, includeInactive, onlyApprovedProject, careerId);
         var definition = new PdfTableDefinition
         {
             Title = "Directorio de Estudiantes Residentes - TecNM Campus Monclova",

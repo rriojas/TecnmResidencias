@@ -164,11 +164,6 @@ const selectedCareerFilter = ref(
 const sortedStudents = computed(() => {
   let list = [...students.value]
 
-  if (selectedCareerFilter.value !== 'all') {
-    const cid = Number(selectedCareerFilter.value)
-    list = list.filter((s) => Number(s.careerId) === cid)
-  }
-
   const field = sortBy.value
   const dir = sortDir.value === 'asc' ? 1 : -1
 
@@ -218,6 +213,7 @@ async function loadStudents({ silent = false } = {}) {
       sortDir: sortDir.value,
       search: searchTerm.value.trim() || undefined,
       includeInactive: includeInactive.value,
+      careerId: selectedCareerFilter.value !== 'all' ? Number(selectedCareerFilter.value) : undefined,
     }
     const res = await apiClient.get('/v1/students', { params })
     const data = res.data
@@ -232,6 +228,11 @@ async function loadStudents({ silent = false } = {}) {
   } finally {
     if (!silent) isLoading.value = false
   }
+}
+
+function onCareerFilterChange() {
+  pageNumber.value = 1
+  loadStudents()
 }
 
 function handleSort(col) {
@@ -406,6 +407,7 @@ async function handleExportPdf() {
       sortBy: sortBy.value,
       sortDir: sortDir.value,
       includeInactive: includeInactive.value,
+      careerId: selectedCareerFilter.value !== 'all' ? Number(selectedCareerFilter.value) : undefined,
     }
     const res = await apiClient.get('/v1/students/export', {
       params,
@@ -606,6 +608,7 @@ onMounted(() => {
             v-model="selectedCareerFilter"
             class="tecnm-form-control"
             style="min-width: 230px; font-size: 0.85rem;"
+            @change="onCareerFilterChange"
           >
             <option value="all">Todas las Carreras</option>
             <option v-for="(name, id) in CAREERS" :key="id" :value="id">
