@@ -12,6 +12,34 @@ public class CompanyRepository : ICompanyRepository
         _context = context;
     }
 
+    public async Task<PaginatedResult<Company>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
+    {
+        IQueryable<Company> q = _context.Companies.AsNoTracking();
+
+        if (status == "active")
+            q = q.Where(c => c.IsActive);
+        else if (status == "inactive")
+            q = q.Where(c => !c.IsActive);
+        else if (!includeInactive && status != "all")
+            q = q.Where(c => c.IsActive);
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var term = query.Search.Trim().ToLowerInvariant();
+            q = q.Where(c => c.Name.ToLower().Contains(term)
+                             || (c.Rfc != null && c.Rfc.ToLower().Contains(term))
+                             || (c.Sector != null && c.Sector.ToLower().Contains(term))
+                             || (c.ContactName != null && c.ContactName.ToLower().Contains(term))
+                             || (c.ContactEmail != null && c.ContactEmail.ToLower().Contains(term)));
+        }
+
+        q = q.ApplySort(query.SortBy, query.SortDir,
+            new[] { "Name", "Rfc", "Sector", "ContactName", "CreatedAt", "IsActive" },
+            "Name", defaultDescending: false);
+
+        return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+    }
+
     public async Task<IEnumerable<Company>> GetAllAsync(bool includeInactive = false)
     {
         var query = _context.Companies.AsQueryable();
@@ -33,9 +61,10 @@ public class CompanyRepository : ICompanyRepository
 
     public async Task<Company?> GetByRfcAsync(string rfc)
     {
-        var cleanRfc = (rfc ?? "").Trim().ToUpperInvariant();
+        if (string.IsNullOrWhiteSpace(rfc)) return null;
+        var cleanRfc = rfc.Trim().ToUpperInvariant();
         return await _context.Companies
-            .FirstOrDefaultAsync(c => c.Rfc.ToUpper() == cleanRfc);
+            .FirstOrDefaultAsync(c => c.Rfc != null && c.Rfc.ToUpper() == cleanRfc);
     }
 
     public async Task<Company> AddAsync(Company company)

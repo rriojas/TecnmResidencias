@@ -326,7 +326,7 @@ public class SearchService : ISearchService
                 SELECT 
                     c.id AS id,
                     c.name AS name,
-                    c.rfc AS rfc,
+                    COALESCE(c.rfc, '') AS rfc,
                     COALESCE(c.sector, '') AS sector,
                     COALESCE(c.contact_name, '') AS contact_name,
                     COALESCE(c.contact_email, '') AS contact_email,

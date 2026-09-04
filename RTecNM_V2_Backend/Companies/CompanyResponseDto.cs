@@ -3,7 +3,7 @@ namespace TecNM.Residency.Companies;
 public record CompanyResponseDto(
     long Id,
     string Name,
-    string Rfc,
+    string? Rfc,
     string? Sector,
     string? Address,
     string ContactName,

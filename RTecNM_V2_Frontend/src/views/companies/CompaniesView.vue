@@ -1,21 +1,33 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useConfirm } from '@/composables/useConfirm'
 import { useAudit } from '@/composables/useAudit'
 import { useGlobalSearch } from '@/composables/useGlobalSearch'
 import apiClient from '@/services/api'
 import TecnmBadge from '@/components/common/TecnmBadge.vue'
+import TecnmPagination from '@/components/common/TecnmPagination.vue'
 
+const route = useRoute()
 const authStore = useAuthStore()
 const { confirm } = useConfirm()
 const { showAudit } = useAudit()
-const { openSearch } = useGlobalSearch()
+const { open: openSearch } = useGlobalSearch()
 
 // Estado
 const companies = ref([])
-const includeInactive = ref(false)
 const isLoading = ref(false)
+
+// Paginación y Filtros
+const pageNumber = ref(1)
+const pageSize = ref(10)
+const totalCount = ref(0)
+const totalPages = ref(0)
+const searchTerm = ref('')
+const includeInactive = ref(false)
+const sortBy = ref('Name')
+const sortDir = ref('asc')
 
 // Notificaciones
 const alertMessage = ref('')
@@ -105,6 +117,7 @@ async function handleImportSubmit() {
     })
     importResult.value = res.data
     showAlert(`Importación finalizada. ${res.data.successCount} empresas creadas.`, 'success')
+    pageNumber.value = 1
     loadCompanies()
   } catch (err) {
     importError.value =
@@ -115,57 +128,74 @@ async function handleImportSubmit() {
   }
 }
 
-const sortBy = ref('name')
-const sortDir = ref('asc')
-
 function handleSort(field) {
-  if (sortBy.value === field) {
+  if (sortBy.value.toLowerCase() === field.toLowerCase()) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
   } else {
     sortBy.value = field
     sortDir.value = 'asc'
   }
+  pageNumber.value = 1
+  loadCompanies({ silent: true })
+}
+
+function handleOpenSearch() {
+  openSearch({
+    initialSource: 'COMPANIES',
+    onSelect: (item) => {
+      if (!item) return
+      searchTerm.value = item.name || item.rfc || String(item.id || '')
+      pageNumber.value = 1
+      loadCompanies()
+    },
+  })
+}
+
+function handleReload() {
+  searchTerm.value = ''
+  pageNumber.value = 1
+  loadCompanies()
+}
+
+function clearSearch() {
+  searchTerm.value = ''
+  pageNumber.value = 1
+  loadCompanies()
+}
+
+function handlePageChange(newPage) {
+  pageNumber.value = newPage
+  loadCompanies()
 }
 
 function handleIncludeInactiveChange() {
-  loadCompanies().then(() => {
-    if (includeInactive.value) {
-      const hasInactive = companies.value.some(c => !c.isActive)
-      if (!hasInactive) {
-        showAlert('No se encontraron empresas inactivas deshabilitadas en el catálogo.', 'info')
-      }
-    }
-  })
+  pageNumber.value = 1
+  loadCompanies()
 }
 
-const sortedCompanies = computed(() => {
-  let list = [...companies.value]
-  const field = sortBy.value
-  const dir = sortDir.value === 'asc' ? 1 : -1
-  return list.sort((a, b) => {
-    let valA = a[field] ?? ''
-    let valB = b[field] ?? ''
-    if (typeof valA === 'string') valA = valA.toLowerCase()
-    if (typeof valB === 'string') valB = valB.toLowerCase()
-    if (valA < valB) return -1 * dir
-    if (valA > valB) return 1 * dir
-    return 0
-  })
-})
-
-async function loadCompanies() {
-  isLoading.value = true
+async function loadCompanies({ silent = false } = {}) {
+  if (!silent) isLoading.value = true
   try {
     const params = {
+      pageNumber: pageNumber.value,
+      pageSize: pageSize.value,
+      search: searchTerm.value.trim() || undefined,
       includeInactive: includeInactive.value,
+      sortBy: sortBy.value,
+      sortDir: sortDir.value,
     }
     const res = await apiClient.get('/v1/companies', { params })
-    companies.value = Array.isArray(res.data) ? res.data : (res.data.items || [])
+    const data = res.data
+    companies.value = Array.isArray(data) ? data : (data.items || [])
+    totalCount.value = data.totalCount ?? companies.value.length
+    totalPages.value = data.totalPages ?? Math.ceil(totalCount.value / pageSize.value) ?? 1
   } catch (err) {
-    showAlert(err.response?.data?.message || 'Error al cargar directorio de empresas.', 'danger')
-    companies.value = []
+    if (!silent) {
+      showAlert(err.response?.data?.message || 'Error al cargar directorio de empresas.', 'danger')
+      companies.value = []
+    }
   } finally {
-    isLoading.value = false
+    if (!silent) isLoading.value = false
   }
 }
 
@@ -214,10 +244,6 @@ async function handleSubmit() {
     formError.value = 'Ingrese el nombre o razón social de la empresa.'
     return
   }
-  if (!form.value.rfc.trim()) {
-    formError.value = 'Ingrese el RFC de la empresa.'
-    return
-  }
   if (!form.value.contactName.trim()) {
     formError.value = 'Ingrese el nombre del contacto principal.'
     return
@@ -231,7 +257,7 @@ async function handleSubmit() {
 
   const payload = {
     name: form.value.name.trim(),
-    rfc: form.value.rfc.trim().toUpperCase(),
+    rfc: form.value.rfc.trim() ? form.value.rfc.trim().toUpperCase() : null,
     sector: form.value.sector.trim() || undefined,
     address: form.value.address.trim() || undefined,
     contactName: form.value.contactName.trim(),
@@ -310,8 +336,36 @@ async function handleDownloadCompanyTemplate() {
   }
 }
 
+watch(
+  () => route.query.id,
+  async (newId) => {
+    if (newId) {
+      try {
+        const res = await apiClient.get(`/v1/companies/${newId}`)
+        if (res.data) {
+          searchTerm.value = res.data.name || res.data.rfc || ''
+          pageNumber.value = 1
+          loadCompanies()
+        }
+      } catch {}
+    }
+  }
+)
+
 onMounted(() => {
-  loadCompanies()
+  if (route.query.search) {
+    searchTerm.value = String(route.query.search)
+  }
+  if (route.query.id) {
+    apiClient.get(`/v1/companies/${route.query.id}`).then((res) => {
+      if (res.data) {
+        searchTerm.value = res.data.name || res.data.rfc || ''
+      }
+      loadCompanies()
+    }).catch(() => loadCompanies())
+  } else {
+    loadCompanies()
+  }
 })
 </script>
 
@@ -338,7 +392,7 @@ onMounted(() => {
         <button
           type="button"
           class="tecnm-btn tecnm-btn-secondary"
-          @click="openSearch({ initialSource: 'COMPANIES' })"
+          @click="handleOpenSearch"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
@@ -392,7 +446,7 @@ onMounted(() => {
             id="refreshCompaniesBtn"
             type="button"
             class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
-            @click="loadCompanies"
+            @click="handleReload"
           >
             Recargar Lista
           </button>
@@ -400,44 +454,58 @@ onMounted(() => {
       </div>
 
       <div class="tecnm-card-body">
+        <div
+          v-if="searchTerm"
+          class="tecnm-alert tecnm-alert-info"
+          style="margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between;"
+        >
+          <span>Filtro de búsqueda global aplicado: <strong>{{ searchTerm }}</strong></span>
+          <button
+            type="button"
+            class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+            @click="clearSearch"
+          >
+            Mostrar todas
+          </button>
+        </div>
         <div class="tecnm-table-responsive">
           <table class="tecnm-table tecnm-table-striped">
             <thead>
               <tr>
-                <th class="tecnm-th-sortable" @click="handleSort('name')">
+                <th class="tecnm-th-sortable" @click="handleSort('Name')">
                   Razón Social / Nombre
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'name' }">
-                    {{ sortBy === 'name' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'name' }">
+                    {{ sortBy.toLowerCase() === 'name' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
-                <th class="tecnm-th-sortable" @click="handleSort('rfc')">
+                <th class="tecnm-th-sortable" @click="handleSort('Rfc')">
                   RFC
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'rfc' }">
-                    {{ sortBy === 'rfc' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'rfc' }">
+                    {{ sortBy.toLowerCase() === 'rfc' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
-                <th class="tecnm-th-sortable" @click="handleSort('sector')">
+                <th class="tecnm-th-sortable" @click="handleSort('Sector')">
                   Sector
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'sector' }">
-                    {{ sortBy === 'sector' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'sector' }">
+                    {{ sortBy.toLowerCase() === 'sector' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
-                <th class="tecnm-th-sortable" @click="handleSort('contactName')">
+                <th class="tecnm-th-sortable" @click="handleSort('ContactName')">
                   Contacto Principal
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'contactName' }">
-                    {{ sortBy === 'contactName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'contactname' }">
+                    {{ sortBy.toLowerCase() === 'contactname' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
-                <th class="tecnm-th-sortable" @click="handleSort('contactEmail')">
+                <th class="tecnm-th-sortable" @click="handleSort('ContactEmail')">
                   Correo / Teléfono
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'contactEmail' }">
-                    {{ sortBy === 'contactEmail' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'contactemail' }">
+                    {{ sortBy.toLowerCase() === 'contactemail' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
-                <th class="tecnm-th-sortable" @click="handleSort('isActive')">
+                <th class="tecnm-th-sortable" @click="handleSort('IsActive')">
                   Estado
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'isActive' }">
-                    {{ sortBy === 'isActive' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'isactive' }">
+                    {{ sortBy.toLowerCase() === 'isactive' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th v-if="!authStore.isStudent" class="tecnm-th-actions">Acciones</th>
@@ -449,14 +517,15 @@ onMounted(() => {
                   Cargando catálogo de empresas...
                 </td>
               </tr>
-              <tr v-else-if="sortedCompanies.length === 0">
+              <tr v-else-if="companies.length === 0">
                 <td :colspan="!authStore.isStudent ? 7 : 6" class="tecnm-table-empty">
-                  <span v-if="includeInactive">No hay empresas inactivas (deshabilitadas) registradas.</span>
+                  <span v-if="searchTerm">No se encontraron empresas con el término "{{ searchTerm }}".</span>
+                  <span v-else-if="includeInactive">No hay empresas registradas en el catálogo.</span>
                   <span v-else>No hay empresas receptoras registradas.</span>
                 </td>
               </tr>
               <tr
-                v-for="c in sortedCompanies"
+                v-for="c in companies"
                 v-else
                 :key="c.id"
               >
@@ -513,6 +582,19 @@ onMounted(() => {
             </tbody>
           </table>
         </div>
+
+        <!-- Paginación -->
+        <div style="margin-top: 1rem;">
+          <TecnmPagination
+            v-if="totalCount > 0"
+            :current-page="pageNumber"
+            :page-size="pageSize"
+            :total-count="totalCount"
+            :total-pages="totalPages"
+            @update:current-page="pageNumber = $event"
+            @page-change="handlePageChange"
+          />
+        </div>
       </div>
     </div>
 
@@ -566,17 +648,16 @@ onMounted(() => {
           </div>
 
           <div class="tecnm-form-group">
-            <label for="companyRfcInput" class="tecnm-label">RFC *</label>
+            <label for="companyRfcInput" class="tecnm-label">RFC (Opcional)</label>
             <input
               id="companyRfcInput"
               v-model="form.rfc"
               type="text"
               class="tecnm-form-control"
-              placeholder="Ej. TINO900101ABC"
+              placeholder="Ej. TINO900101ABC (Opcional)"
               maxlength="13"
               style="text-transform: uppercase;"
               :disabled="isSubmitting"
-              required
             />
           </div>
 

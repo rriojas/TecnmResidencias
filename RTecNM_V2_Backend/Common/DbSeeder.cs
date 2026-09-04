@@ -587,6 +587,9 @@ public static class DbSeeder
                             ALTER TABLE companies ADD COLUMN contact_phone character varying(30) NULL;
                         END IF;
                     END IF;
+                    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='companies' AND column_name='rfc' AND is_nullable='NO') THEN
+                        ALTER TABLE companies ALTER COLUMN rfc DROP NOT NULL;
+                    END IF;
                 END IF;
 
                 IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='projects') THEN

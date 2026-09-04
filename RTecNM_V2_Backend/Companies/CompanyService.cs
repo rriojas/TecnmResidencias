@@ -11,6 +11,21 @@ public class CompanyService : ICompanyService
         _repository = repository;
     }
 
+    public async Task<Result<PaginatedResult<CompanyResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
+    {
+        var paged = await _repository.GetPagedAsync(query, status, includeInactive);
+        var dtos = paged.Items.Select(MapToResponseDto).ToList();
+
+        var result = PaginatedResult<CompanyResponseDto>.Create(
+            dtos,
+            paged.TotalCount,
+            paged.PageNumber,
+            paged.PageSize
+        );
+
+        return Result<PaginatedResult<CompanyResponseDto>>.Success(result);
+    }
+
     public async Task<Result<IEnumerable<CompanyResponseDto>>> GetAllAsync(bool includeInactive = false)
     {
         var companies = await _repository.GetAllAsync(includeInactive);
@@ -36,21 +51,20 @@ public class CompanyService : ICompanyService
             return Result<CompanyResponseDto>.Failure("El nombre de la empresa es obligatorio");
         }
 
-        if (string.IsNullOrWhiteSpace(dto.Rfc))
+        string? cleanRfc = !string.IsNullOrWhiteSpace(dto.Rfc) ? dto.Rfc.Trim().ToUpperInvariant() : null;
+        if (cleanRfc != null)
         {
-            return Result<CompanyResponseDto>.Failure("El RFC de la empresa es obligatorio");
-        }
-
-        var existingRfc = await _repository.GetByRfcAsync(dto.Rfc);
-        if (existingRfc != null)
-        {
-            return Result<CompanyResponseDto>.Failure("Ya existe una empresa registrada con ese RFC");
+            var existingRfc = await _repository.GetByRfcAsync(cleanRfc);
+            if (existingRfc != null)
+            {
+                return Result<CompanyResponseDto>.Failure("Ya existe una empresa registrada con ese RFC");
+            }
         }
 
         var company = new Company
         {
             Name = dto.Name.Trim(),
-            Rfc = dto.Rfc.Trim().ToUpperInvariant(),
+            Rfc = cleanRfc,
             Sector = dto.Sector?.Trim(),
             Address = dto.Address?.Trim(),
             ContactName = dto.ContactName.Trim(),
@@ -80,19 +94,18 @@ public class CompanyService : ICompanyService
             return Result<CompanyResponseDto>.Failure("El nombre de la empresa es obligatorio");
         }
 
-        if (string.IsNullOrWhiteSpace(dto.Rfc))
+        string? cleanRfc = !string.IsNullOrWhiteSpace(dto.Rfc) ? dto.Rfc.Trim().ToUpperInvariant() : null;
+        if (cleanRfc != null)
         {
-            return Result<CompanyResponseDto>.Failure("El RFC de la empresa es obligatorio");
-        }
-
-        var existingRfc = await _repository.GetByRfcAsync(dto.Rfc);
-        if (existingRfc != null && existingRfc.Id != id)
-        {
-            return Result<CompanyResponseDto>.Failure("Ya existe otra empresa con ese RFC");
+            var existingRfc = await _repository.GetByRfcAsync(cleanRfc);
+            if (existingRfc != null && existingRfc.Id != id)
+            {
+                return Result<CompanyResponseDto>.Failure("Ya existe otra empresa con ese RFC");
+            }
         }
 
         company.Name = dto.Name.Trim();
-        company.Rfc = dto.Rfc.Trim().ToUpperInvariant();
+        company.Rfc = cleanRfc;
         company.Sector = dto.Sector?.Trim();
         company.Address = dto.Address?.Trim();
         company.ContactName = dto.ContactName.Trim();
@@ -188,11 +201,23 @@ public class CompanyService : ICompanyService
                 continue;
             }
 
-            if (string.IsNullOrWhiteSpace(rfc))
+            string? cleanRfc = !string.IsNullOrWhiteSpace(rfc) ? rfc.Trim().ToUpperInvariant() : null;
+            if (cleanRfc != null)
             {
-                result.ErrorCount++;
-                result.Errors.Add($"Fila {rowNum}: El RFC de la empresa es obligatorio.");
-                continue;
+                if (cleanRfc.Length < 12 || cleanRfc.Length > 13)
+                {
+                    result.ErrorCount++;
+                    result.Errors.Add($"Fila {rowNum}: El RFC '{cleanRfc}' debe contener 12 o 13 caracteres.");
+                    continue;
+                }
+
+                var existing = await _repository.GetByRfcAsync(cleanRfc);
+                if (existing != null)
+                {
+                    result.SkippedCount++;
+                    result.Skipped.Add($"Fila {rowNum}: Omitida. Ya existe la empresa '{name}' con RFC '{cleanRfc}'.");
+                    continue;
+                }
             }
 
             if (string.IsNullOrWhiteSpace(sector))
@@ -230,27 +255,11 @@ public class CompanyService : ICompanyService
                 continue;
             }
 
-            var cleanRfc = rfc.Trim().ToUpperInvariant();
-            if (cleanRfc.Length < 12 || cleanRfc.Length > 13)
-            {
-                result.ErrorCount++;
-                result.Errors.Add($"Fila {rowNum}: El RFC '{cleanRfc}' debe contener 12 o 13 caracteres.");
-                continue;
-            }
-
             var cleanEmail = contactEmail.Trim().ToLowerInvariant();
             if (!cleanEmail.Contains('@') || !cleanEmail.Contains('.'))
             {
                 result.ErrorCount++;
                 result.Errors.Add($"Fila {rowNum}: El correo de contacto '{cleanEmail}' no es una dirección de correo válida.");
-                continue;
-            }
-
-            var existing = await _repository.GetByRfcAsync(cleanRfc);
-            if (existing != null)
-            {
-                result.SkippedCount++;
-                result.Skipped.Add($"Fila {rowNum}: Omitida. Ya existe la empresa '{name}' con RFC '{cleanRfc}'.");
                 continue;
             }
 

@@ -28,10 +28,10 @@ public class CompaniesController : ControllerBase
 
     [HttpGet]
     [Authorize(Roles = "admin,vinculacion,departmenthead,academic,director,student")]
-    public async Task<IActionResult> GetAll([FromQuery] bool includeInactive = false)
+    public async Task<IActionResult> GetAll([FromQuery] PaginationQuery query, [FromQuery] string? status, [FromQuery] bool includeInactive = false)
     {
-        var result = await _companyService.GetAllAsync(includeInactive);
-        return Ok(result.Data);
+        var result = await _companyService.GetPagedAsync(query, status, includeInactive);
+        return result.IsSuccess ? Ok(result.Data) : BadRequest(new { message = result.ErrorMessage });
     }
 
     [HttpGet("options")]

@@ -23,7 +23,7 @@ public class CompanyConfiguration : IEntityTypeConfiguration<Company>
         builder.Property(c => c.Rfc)
             .HasColumnName("rfc")
             .HasMaxLength(13)
-            .IsRequired();
+            .IsRequired(false);
 
         builder.HasIndex(c => c.Rfc)
             .HasDatabaseName("ix_companies_rfc");
