@@ -1824,7 +1824,7 @@ onMounted(() => {
       aria-modal="true"
       @click.self="isImportModalOpen = false"
     >
-      <div class="modal-card">
+      <div class="modal-card modal-card-wide" style="max-width: 880px;">
         <div class="tecnm-modal-header">
           <h3 class="tecnm-modal-title">Importar Empresas desde Archivo Excel</h3>
           <button
@@ -1860,18 +1860,179 @@ onMounted(() => {
             </ul>
           </div>
 
-          <p class="tecnm-text-muted" style="margin-bottom: 1rem; font-size: 0.9rem;">
-            Descargue la plantilla oficial con columnas desglosadas (Calle, Número, Colonia, etc.). Si sube empresas ya existentes, se completarán únicamente los campos vacíos sin sobreescribir datos existentes. Si alguna fila tiene campos requeridos vacíos, se detendrá el proceso para evitar datos incompletos.
-          </p>
-
-          <div style="margin-bottom: 1.25rem;">
+          <!-- Cabecera de Descarga -->
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; padding: 0.75rem 1rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <div>
+              <strong style="color: #0f172a; font-size: 0.95rem; display: block;">Plantilla Oficial de Importación (.xlsx)</strong>
+              <span class="tecnm-text-muted" style="font-size: 0.82rem;">
+                Descargue el formato oficial con los 20 encabezados exactos para empresas y convenios vinculados.
+              </span>
+            </div>
             <button
               type="button"
-              class="tecnm-btn tecnm-btn-secondary"
+              class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
               @click="handleDownloadCompanyTemplate"
             >
-              Descargar Plantilla (.xlsx)
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right: 0.35rem;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M7.5 12 12 16.5m0 0L16.5 12M12 16.5V3" />
+              </svg>
+              Descargar Plantilla Oficial
             </button>
+          </div>
+
+          <!-- Guía Interactiva de Columnas y Tipos de Datos Aceptados -->
+          <div style="margin-bottom: 1.25rem; border: 1px solid #cbd5e1; border-radius: 8px; background: #ffffff; padding: 0.85rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+              <strong style="font-size: 0.88rem; color: #1e293b; display: flex; align-items: center; gap: 0.35rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: #0284c7;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                </svg>
+                Guía de Datos Esperados por Columna
+              </strong>
+              <span class="tecnm-badge tecnm-badge-info" style="font-size: 0.7rem;">Reglas de Validación</span>
+            </div>
+
+            <div style="font-size: 0.8rem; color: #475569; margin-bottom: 0.65rem; line-height: 1.45;">
+              • <strong>Empresa (14 columnas)</strong>: Todos los datos son obligatorios salvo <em>RazonSocial</em>. El RFC debe tener 12 o 13 caracteres alfanuméricos.<br />
+              • <strong>Convenio (6 columnas)</strong>: Si escribe <em>NumeroConvenio</em>, son requeridos <em>AlcanceConvenio</em> (GENERAL o ESPECIFICOS), <em>ClavePIT</em> y <em>TipoCIA</em>.<br />
+              • <strong>Vigencia</strong>: <em>FechaCaducidad</em> en <code>DD/MM/AAAA</code> (ej. 31/12/2026). Si se deja vacía = <strong>Vigencia Indefinida</strong>.<br />
+              • <strong>Proceso</strong>: <em>EstadoProceso</em> solo acepta <code>EN_RENOVACION</code>, <code>CANCELADO</code>, o vacío (normal).
+            </div>
+
+            <div style="max-height: 220px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+              <table class="tecnm-table tecnm-table-striped" style="font-size: 0.78rem; margin: 0;">
+                <thead>
+                  <tr style="background: #0f172a; color: #ffffff;">
+                    <th style="padding: 0.35rem 0.5rem; position: sticky; top: 0; z-index: 2;">Columna en Excel</th>
+                    <th style="padding: 0.35rem 0.5rem; position: sticky; top: 0; z-index: 2;">Obligatorio</th>
+                    <th style="padding: 0.35rem 0.5rem; position: sticky; top: 0; z-index: 2;">Tipo de Dato / Formato</th>
+                    <th style="padding: 0.35rem 0.5rem; position: sticky; top: 0; z-index: 2;">Ejemplo Válido</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Nombre</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-danger" style="font-size: 0.7rem;">Sí</span></td>
+                    <td>Texto (Nombre público u oficial)</td>
+                    <td>Altos Hornos de México</td>
+                  </tr>
+                  <tr>
+                    <td><strong>RazonSocial</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-secondary" style="font-size: 0.7rem;">Opcional</span></td>
+                    <td>Texto (Razón fiscal completa)</td>
+                    <td>Altos Hornos de México S.A.B. de C.V.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>NombreComercial</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-danger" style="font-size: 0.7rem;">Sí</span></td>
+                    <td>Texto (Siglas o marca)</td>
+                    <td>AHMSA</td>
+                  </tr>
+                  <tr>
+                    <td><strong>RFC</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-danger" style="font-size: 0.7rem;">Sí</span></td>
+                    <td>12 chars (moral) o 13 chars (física)</td>
+                    <td>AHM441231AB1</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Sector</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-danger" style="font-size: 0.7rem;">Sí</span></td>
+                    <td>Industrial, Servicios, Público, etc.</td>
+                    <td>Siderúrgico / Metalmecánico</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Calle</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-danger" style="font-size: 0.7rem;">Sí</span></td>
+                    <td>Nombre de la vialidad</td>
+                    <td>Prolongación Juárez</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Numero</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-danger" style="font-size: 0.7rem;">Sí</span></td>
+                    <td>Texto o número (exterior/int)</td>
+                    <td>s/n o 1200</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Colonia</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-danger" style="font-size: 0.7rem;">Sí</span></td>
+                    <td>Colonia o parque industrial</td>
+                    <td>Parque Industrial Monclova</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Ciudad</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-danger" style="font-size: 0.7rem;">Sí</span></td>
+                    <td>Municipio / Ciudad</td>
+                    <td>Monclova</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Estado</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-danger" style="font-size: 0.7rem;">Sí</span></td>
+                    <td>Entidad federativa</td>
+                    <td>Coahuila</td>
+                  </tr>
+                  <tr>
+                    <td><strong>CodigoPostal</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-danger" style="font-size: 0.7rem;">Sí</span></td>
+                    <td>5 dígitos numéricos</td>
+                    <td>25700</td>
+                  </tr>
+                  <tr>
+                    <td><strong>NombreContacto</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-danger" style="font-size: 0.7rem;">Sí</span></td>
+                    <td>Contacto oficial de vinculación</td>
+                    <td>Ing. Carlos Mendoza Silva</td>
+                  </tr>
+                  <tr>
+                    <td><strong>CorreoContacto</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-danger" style="font-size: 0.7rem;">Sí</span></td>
+                    <td>Email válido con @ y punto</td>
+                    <td>cmendoza@ahmsa.com</td>
+                  </tr>
+                  <tr>
+                    <td><strong>TeléfonoContacto</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-danger" style="font-size: 0.7rem;">Sí</span></td>
+                    <td>Teléfono con lada</td>
+                    <td>866-649-3000</td>
+                  </tr>
+                  <tr style="background: #eff6ff;">
+                    <td><strong>NumeroConvenio</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-warning" style="font-size: 0.7rem;">Condicional</span></td>
+                    <td>ID archivo / carpeta (vacío = sin convenio)</td>
+                    <td>CV-2025-01</td>
+                  </tr>
+                  <tr style="background: #eff6ff;">
+                    <td><strong>FechaCaducidad</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-secondary" style="font-size: 0.7rem;">Opcional</span></td>
+                    <td>DD/MM/AAAA (vacío = Indefinido)</td>
+                    <td>31/12/2026</td>
+                  </tr>
+                  <tr style="background: #eff6ff;">
+                    <td><strong>EstadoProceso</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-secondary" style="font-size: 0.7rem;">Opcional</span></td>
+                    <td>EN_RENOVACION, CANCELADO, o vacío</td>
+                    <td>EN_RENOVACION</td>
+                  </tr>
+                  <tr style="background: #eff6ff;">
+                    <td><strong>AlcanceConvenio</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-warning" style="font-size: 0.7rem;">Condicional</span></td>
+                    <td>GENERAL o ESPECIFICOS</td>
+                    <td>GENERAL</td>
+                  </tr>
+                  <tr style="background: #eff6ff;">
+                    <td><strong>ClavePIT</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-warning" style="font-size: 0.7rem;">Condicional</span></td>
+                    <td>Código PIT oficial</td>
+                    <td>5.1.2</td>
+                  </tr>
+                  <tr style="background: #eff6ff;">
+                    <td><strong>TipoCIA</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-warning" style="font-size: 0.7rem;">Condicional</span></td>
+                    <td>USO COMPARTIDO, CON IES, etc.</td>
+                    <td>USO COMPARTIDO</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div class="tecnm-form-group">
