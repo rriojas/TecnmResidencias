@@ -91,6 +91,7 @@ const showAdvisorAssignments = computed(() =>
 )
 
 const showCompanies = computed(() =>
+  !authStore.hasRole('student') &&
   !authStore.isCareerHead &&
   (authStore.isAdmin ||
    authStore.hasPermission('companies.view') ||
@@ -98,7 +99,8 @@ const showCompanies = computed(() =>
 )
 
 const showAcademicaGroup = computed(() =>
-  showStudents.value || showAdvisors.value || showAdvisorAssignments.value || showCompanies.value
+  !authStore.hasRole('student') &&
+  (showStudents.value || showAdvisors.value || showAdvisorAssignments.value || showCompanies.value)
 )
 
 const showProposal = computed(() =>

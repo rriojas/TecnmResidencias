@@ -70,9 +70,28 @@ a:hover {
    ============================================================ */
 .tecnm-container {
   width: 100%;
-  max-width: 1280px;               /* Spec 08 §5 - Desktop container */
+  max-width: 1360px;
   margin: 0 auto;
   padding: 0 var(--tecnm-spacing-md);
+  transition: max-width 0.25s ease-in-out;
+}
+
+@media (min-width: 1536px) {
+  .tecnm-container {
+    max-width: 1560px;
+  }
+}
+
+@media (min-width: 1800px) {
+  .tecnm-container {
+    max-width: 1720px;
+  }
+}
+
+.tecnm-container.is-fluid {
+  max-width: 98% !important;
+  width: 98% !important;
+  padding: 0 1rem !important;
 }
 
 .tecnm-page-layout {
@@ -694,9 +713,87 @@ textarea.tecnm-form-control {
 }
 
 .tecnm-table-responsive {
+  width: 100%;
   overflow-x: auto;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  max-height: clamp(360px, calc(100vh - 310px), 82vh);
   min-height: 200px;
+  border: 1px solid var(--tecnm-border-color, #cbd5e1);
+  border-radius: var(--tecnm-border-radius-md, 8px);
+  background: #ffffff;
+  position: relative;
+}
+
+.tecnm-table-responsive thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--tecnm-blue-primary, #1b396a) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.14);
+}
+
+/* Barra de Adaptación a Pantalla */
+.tecnm-screen-adapter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.4rem 0.65rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  font-size: 0.82rem;
+}
+
+.tecnm-screen-adapter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tecnm-screen-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+  color: #475569;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tecnm-page-size-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+  color: #334155;
+  margin-left: 0.25rem;
+}
+
+.tecnm-page-size-selector select {
+  padding: 0.2rem 0.4rem;
+  font-size: 0.8rem;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Modo Vista Fluida para envolventes */
+.tecnm-view-fluid {
+  margin-left: calc(-1 * min(3vw, 36px));
+  margin-right: calc(-1 * min(3vw, 36px));
+  width: calc(100% + 2 * min(3vw, 36px)) !important;
+  max-width: none !important;
+  transition: all 0.2s ease-in-out;
 }
 
 .tecnm-th-sortable {
