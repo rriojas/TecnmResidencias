@@ -46,9 +46,13 @@ public class CompanyService : ICompanyService
 
     public async Task<Result<CompanyResponseDto>> CreateAsync(CreateCompanyDto dto, long? createdByUserId = null)
     {
-        if (string.IsNullOrWhiteSpace(dto.Name))
+        var primaryName = !string.IsNullOrWhiteSpace(dto.Name) 
+            ? dto.Name.Trim() 
+            : (!string.IsNullOrWhiteSpace(dto.LegalName) ? dto.LegalName.Trim() : dto.TradeName?.Trim());
+
+        if (string.IsNullOrWhiteSpace(primaryName))
         {
-            return Result<CompanyResponseDto>.Failure("El nombre de la empresa es obligatorio");
+            return Result<CompanyResponseDto>.Failure("El nombre o razón social de la empresa es obligatorio");
         }
 
         string? cleanRfc = !string.IsNullOrWhiteSpace(dto.Rfc) ? dto.Rfc.Trim().ToUpperInvariant() : null;
@@ -61,15 +65,37 @@ public class CompanyService : ICompanyService
             }
         }
 
+        var street = dto.Street?.Trim();
+        var number = dto.Number?.Trim();
+        var colonia = dto.Colonia?.Trim();
+        var city = dto.City?.Trim();
+        var state = dto.State?.Trim();
+        var postalCode = dto.PostalCode?.Trim();
+
+        string? compositeAddress = dto.Address?.Trim();
+        if (string.IsNullOrWhiteSpace(compositeAddress) && (!string.IsNullOrWhiteSpace(street) || !string.IsNullOrWhiteSpace(city)))
+        {
+            compositeAddress = $"{street} #{number}, Col. {colonia}, {city}, {state}, C.P. {postalCode}".Trim();
+        }
+
         var company = new Company
         {
-            Name = dto.Name.Trim(),
+            Name = primaryName,
+            LegalName = !string.IsNullOrWhiteSpace(dto.LegalName) ? dto.LegalName.Trim() : null,
+            TradeName = !string.IsNullOrWhiteSpace(dto.TradeName) ? dto.TradeName.Trim() : null,
             Rfc = cleanRfc,
             Sector = dto.Sector?.Trim(),
-            Address = dto.Address?.Trim(),
+            Address = compositeAddress,
+            Street = street,
+            Number = number,
+            Colonia = colonia,
+            City = city,
+            State = state,
+            PostalCode = postalCode,
             ContactName = dto.ContactName.Trim(),
             ContactEmail = dto.ContactEmail.Trim(),
             ContactPhone = dto.ContactPhone?.Trim(),
+            HasAgreement = false,
             IsActive = true,
             IsVisible = true,
             CreatedBy = createdByUserId,
@@ -89,9 +115,13 @@ public class CompanyService : ICompanyService
             return Result<CompanyResponseDto>.Failure("Empresa no encontrada");
         }
 
-        if (string.IsNullOrWhiteSpace(dto.Name))
+        var primaryName = !string.IsNullOrWhiteSpace(dto.Name) 
+            ? dto.Name.Trim() 
+            : (!string.IsNullOrWhiteSpace(dto.LegalName) ? dto.LegalName.Trim() : dto.TradeName?.Trim());
+
+        if (string.IsNullOrWhiteSpace(primaryName))
         {
-            return Result<CompanyResponseDto>.Failure("El nombre de la empresa es obligatorio");
+            return Result<CompanyResponseDto>.Failure("El nombre o razón social de la empresa es obligatorio");
         }
 
         string? cleanRfc = !string.IsNullOrWhiteSpace(dto.Rfc) ? dto.Rfc.Trim().ToUpperInvariant() : null;
@@ -104,10 +134,31 @@ public class CompanyService : ICompanyService
             }
         }
 
-        company.Name = dto.Name.Trim();
+        var street = dto.Street?.Trim();
+        var number = dto.Number?.Trim();
+        var colonia = dto.Colonia?.Trim();
+        var city = dto.City?.Trim();
+        var state = dto.State?.Trim();
+        var postalCode = dto.PostalCode?.Trim();
+
+        string? compositeAddress = dto.Address?.Trim();
+        if (!string.IsNullOrWhiteSpace(street) || !string.IsNullOrWhiteSpace(city))
+        {
+            compositeAddress = $"{street} #{number}, Col. {colonia}, {city}, {state}, C.P. {postalCode}".Trim();
+        }
+
+        company.Name = primaryName;
+        company.LegalName = !string.IsNullOrWhiteSpace(dto.LegalName) ? dto.LegalName.Trim() : null;
+        company.TradeName = !string.IsNullOrWhiteSpace(dto.TradeName) ? dto.TradeName.Trim() : null;
         company.Rfc = cleanRfc;
         company.Sector = dto.Sector?.Trim();
-        company.Address = dto.Address?.Trim();
+        company.Address = compositeAddress ?? company.Address;
+        company.Street = street ?? company.Street;
+        company.Number = number ?? company.Number;
+        company.Colonia = colonia ?? company.Colonia;
+        company.City = city ?? company.City;
+        company.State = state ?? company.State;
+        company.PostalCode = postalCode ?? company.PostalCode;
         company.ContactName = dto.ContactName.Trim();
         company.ContactEmail = dto.ContactEmail.Trim();
         company.ContactPhone = dto.ContactPhone?.Trim();
@@ -166,17 +217,74 @@ public class CompanyService : ICompanyService
 
         var expectedColumns = new List<string>
         {
-            "Nombre", "RFC", "Sector", "Dirección", "NombreContacto", "CorreoContacto", "TeléfonoContacto"
+            "Nombre", "RazonSocial", "NombreComercial", "RFC", "Sector", "Calle", "Numero", "Colonia", "Ciudad", "Estado", "CodigoPostal", "NombreContacto", "CorreoContacto", "TeléfonoContacto"
         };
 
         using var stream = file.OpenReadStream();
         var (isValid, errorMessage, rows) = ExcelHelper.ParseExcelFile(stream, expectedColumns);
+
+        // Fallback to allow old template headers if someone uploads old template
+        if (!isValid)
+        {
+            stream.Position = 0;
+            var oldColumns = new List<string> { "Nombre", "RFC", "Sector", "Dirección", "NombreContacto", "CorreoContacto", "TeléfonoContacto" };
+            var oldParse = ExcelHelper.ParseExcelFile(stream, oldColumns);
+            if (oldParse.IsValid)
+            {
+                isValid = true;
+                rows = oldParse.Rows;
+            }
+        }
 
         if (!isValid)
         {
             return Result<BatchImportResultDto>.Failure(errorMessage ?? "Error de validación de encabezados en el archivo Excel.", 400);
         }
 
+        // FASE 1: VALIDACIÓN TOTAL ESTRICTA. Si falta algún dato requerido en cualquier fila, abortar todo.
+        int checkRowNum = 1;
+        foreach (var row in rows)
+        {
+            checkRowNum++;
+            var name = row.GetValueOrDefault("Nombre")?.Trim();
+            var legalName = row.GetValueOrDefault("RazonSocial")?.Trim();
+            var sector = row.GetValueOrDefault("Sector")?.Trim();
+            var contactName = row.GetValueOrDefault("NombreContacto")?.Trim();
+            var contactEmail = row.GetValueOrDefault("CorreoContacto")?.Trim();
+            var contactPhone = (row.GetValueOrDefault("TeléfonoContacto") ?? row.GetValueOrDefault("TelefonoContacto"))?.Trim();
+
+            if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(legalName))
+            {
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Nombre o Razón Social es obligatorio. Proceso detenido para evitar datos incompletos.", 400);
+            }
+
+            if (string.IsNullOrWhiteSpace(sector))
+            {
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Sector es obligatorio. Proceso detenido.", 400);
+            }
+
+            if (string.IsNullOrWhiteSpace(contactName))
+            {
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Nombre de Contacto es obligatorio. Proceso detenido.", 400);
+            }
+
+            if (string.IsNullOrWhiteSpace(contactEmail))
+            {
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Correo de Contacto es obligatorio. Proceso detenido.", 400);
+            }
+
+            if (!contactEmail.Contains('@') || !contactEmail.Contains('.'))
+            {
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Correo '{contactEmail}' no es válido. Proceso detenido.", 400);
+            }
+
+            if (string.IsNullOrWhiteSpace(contactPhone))
+            {
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Teléfono de Contacto es obligatorio. Proceso detenido.", 400);
+            }
+        }
+
+        // FASE 2: PROCESAR REGISTROS. Si la empresa ya existe, solo completar campos que estén NULL en la base de datos.
         var result = new BatchImportResultDto
         {
             TotalRows = rows.Count
@@ -186,115 +294,263 @@ public class CompanyService : ICompanyService
         foreach (var row in rows)
         {
             rowNum++;
-            var name = row.GetValueOrDefault("Nombre");
-            var rfc = row.GetValueOrDefault("RFC");
-            var sector = row.GetValueOrDefault("Sector");
-            var address = row.GetValueOrDefault("Dirección");
-            var contactName = row.GetValueOrDefault("NombreContacto");
-            var contactEmail = row.GetValueOrDefault("CorreoContacto");
-            var contactPhone = row.GetValueOrDefault("TeléfonoContacto");
+            var name = row.GetValueOrDefault("Nombre")?.Trim();
+            var legalName = row.GetValueOrDefault("RazonSocial")?.Trim();
+            var tradeName = row.GetValueOrDefault("NombreComercial")?.Trim();
+            var rfc = row.GetValueOrDefault("RFC")?.Trim();
+            var sector = row.GetValueOrDefault("Sector")?.Trim();
+            var calle = row.GetValueOrDefault("Calle")?.Trim();
+            var numero = row.GetValueOrDefault("Numero")?.Trim();
+            var colonia = row.GetValueOrDefault("Colonia")?.Trim();
+            var ciudad = row.GetValueOrDefault("Ciudad")?.Trim();
+            var estado = row.GetValueOrDefault("Estado")?.Trim();
+            var codigoPostal = row.GetValueOrDefault("CodigoPostal")?.Trim();
+            var oldAddress = row.GetValueOrDefault("Dirección")?.Trim();
+            var contactName = row.GetValueOrDefault("NombreContacto")?.Trim();
+            var contactEmail = row.GetValueOrDefault("CorreoContacto")?.Trim().ToLowerInvariant();
+            var contactPhone = (row.GetValueOrDefault("TeléfonoContacto") ?? row.GetValueOrDefault("TelefonoContacto"))?.Trim();
 
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                result.ErrorCount++;
-                result.Errors.Add($"Fila {rowNum}: El nombre de la empresa es obligatorio.");
-                continue;
-            }
+            var primaryName = !string.IsNullOrWhiteSpace(name) ? name : (legalName ?? tradeName ?? "Empresa");
+            string? cleanRfc = !string.IsNullOrWhiteSpace(rfc) ? rfc.ToUpperInvariant() : null;
 
-            string? cleanRfc = !string.IsNullOrWhiteSpace(rfc) ? rfc.Trim().ToUpperInvariant() : null;
+            // Buscar si ya existe la empresa
+            Company? existing = null;
             if (cleanRfc != null)
             {
-                if (cleanRfc.Length < 12 || cleanRfc.Length > 13)
+                existing = await _repository.GetByRfcAsync(cleanRfc);
+            }
+            if (existing == null && !string.IsNullOrWhiteSpace(primaryName))
+            {
+                existing = await _repository.GetByNameOrLegalNameAsync(primaryName);
+            }
+
+            if (existing != null)
+            {
+                // Solo modificar columnas que NO contengan datos previamente
+                bool modified = false;
+                if (string.IsNullOrWhiteSpace(existing.LegalName) && !string.IsNullOrWhiteSpace(legalName))
                 {
-                    result.ErrorCount++;
-                    result.Errors.Add($"Fila {rowNum}: El RFC '{cleanRfc}' debe contener 12 o 13 caracteres.");
-                    continue;
+                    existing.LegalName = legalName;
+                    modified = true;
+                }
+                if (string.IsNullOrWhiteSpace(existing.TradeName) && !string.IsNullOrWhiteSpace(tradeName))
+                {
+                    existing.TradeName = tradeName;
+                    modified = true;
+                }
+                if (string.IsNullOrWhiteSpace(existing.Rfc) && cleanRfc != null)
+                {
+                    existing.Rfc = cleanRfc;
+                    modified = true;
+                }
+                if (string.IsNullOrWhiteSpace(existing.Sector) && !string.IsNullOrWhiteSpace(sector))
+                {
+                    existing.Sector = sector;
+                    modified = true;
+                }
+                if (string.IsNullOrWhiteSpace(existing.Street) && !string.IsNullOrWhiteSpace(calle))
+                {
+                    existing.Street = calle;
+                    modified = true;
+                }
+                if (string.IsNullOrWhiteSpace(existing.Number) && !string.IsNullOrWhiteSpace(numero))
+                {
+                    existing.Number = numero;
+                    modified = true;
+                }
+                if (string.IsNullOrWhiteSpace(existing.Colonia) && !string.IsNullOrWhiteSpace(colonia))
+                {
+                    existing.Colonia = colonia;
+                    modified = true;
+                }
+                if (string.IsNullOrWhiteSpace(existing.City) && !string.IsNullOrWhiteSpace(ciudad))
+                {
+                    existing.City = ciudad;
+                    modified = true;
+                }
+                if (string.IsNullOrWhiteSpace(existing.State) && !string.IsNullOrWhiteSpace(estado))
+                {
+                    existing.State = estado;
+                    modified = true;
+                }
+                if (string.IsNullOrWhiteSpace(existing.PostalCode) && !string.IsNullOrWhiteSpace(codigoPostal))
+                {
+                    existing.PostalCode = codigoPostal;
+                    modified = true;
+                }
+                if (string.IsNullOrWhiteSpace(existing.Address))
+                {
+                    if (!string.IsNullOrWhiteSpace(oldAddress))
+                    {
+                        existing.Address = oldAddress;
+                        modified = true;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(existing.Street) || !string.IsNullOrWhiteSpace(existing.City))
+                    {
+                        existing.Address = $"{existing.Street} #{existing.Number}, Col. {existing.Colonia}, {existing.City}, {existing.State}, C.P. {existing.PostalCode}".Trim();
+                        modified = true;
+                    }
+                }
+                if (string.IsNullOrWhiteSpace(existing.ContactPhone) && !string.IsNullOrWhiteSpace(contactPhone))
+                {
+                    existing.ContactPhone = contactPhone;
+                    modified = true;
                 }
 
-                var existing = await _repository.GetByRfcAsync(cleanRfc);
-                if (existing != null)
+                if (modified)
+                {
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    existing.UpdatedBy = createdByUserId;
+                    await _repository.UpdateAsync(existing);
+                    result.SuccessCount++;
+                }
+                else
                 {
                     result.SkippedCount++;
-                    result.Skipped.Add($"Fila {rowNum}: Omitida. Ya existe la empresa '{name}' con RFC '{cleanRfc}'.");
-                    continue;
+                    result.Skipped.Add($"Fila {rowNum}: Omitida. La empresa '{existing.Name}' ya cuenta con todos los datos registrados.");
                 }
             }
-
-            if (string.IsNullOrWhiteSpace(sector))
+            else
             {
-                result.ErrorCount++;
-                result.Errors.Add($"Fila {rowNum}: El sector de la empresa es obligatorio.");
-                continue;
+                string? compositeAddress = oldAddress;
+                if (string.IsNullOrWhiteSpace(compositeAddress) && (!string.IsNullOrWhiteSpace(calle) || !string.IsNullOrWhiteSpace(ciudad)))
+                {
+                    compositeAddress = $"{calle} #{numero}, Col. {colonia}, {ciudad}, {estado}, C.P. {codigoPostal}".Trim();
+                }
+
+                var newCompany = new Company
+                {
+                    Name = primaryName,
+                    LegalName = !string.IsNullOrWhiteSpace(legalName) ? legalName : null,
+                    TradeName = !string.IsNullOrWhiteSpace(tradeName) ? tradeName : null,
+                    Rfc = cleanRfc,
+                    Sector = sector,
+                    Address = compositeAddress,
+                    Street = calle,
+                    Number = numero,
+                    Colonia = colonia,
+                    City = ciudad,
+                    State = estado,
+                    PostalCode = codigoPostal,
+                    ContactName = contactName!,
+                    ContactEmail = contactEmail!,
+                    ContactPhone = contactPhone,
+                    HasAgreement = false,
+                    IsActive = true,
+                    IsVisible = true,
+                    CreatedBy = createdByUserId,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                await _repository.AddAsync(newCompany);
+                result.SuccessCount++;
             }
-
-            if (string.IsNullOrWhiteSpace(address))
-            {
-                result.ErrorCount++;
-                result.Errors.Add($"Fila {rowNum}: La dirección de la empresa es obligatoria.");
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(contactName))
-            {
-                result.ErrorCount++;
-                result.Errors.Add($"Fila {rowNum}: El nombre de contacto es obligatorio.");
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(contactEmail))
-            {
-                result.ErrorCount++;
-                result.Errors.Add($"Fila {rowNum}: El correo de contacto es obligatorio.");
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(contactPhone))
-            {
-                result.ErrorCount++;
-                result.Errors.Add($"Fila {rowNum}: El teléfono de contacto es obligatorio.");
-                continue;
-            }
-
-            var cleanEmail = contactEmail.Trim().ToLowerInvariant();
-            if (!cleanEmail.Contains('@') || !cleanEmail.Contains('.'))
-            {
-                result.ErrorCount++;
-                result.Errors.Add($"Fila {rowNum}: El correo de contacto '{cleanEmail}' no es una dirección de correo válida.");
-                continue;
-            }
-
-            var company = new Company
-            {
-                Name = name.Trim(),
-                Rfc = cleanRfc,
-                Sector = sector.Trim(),
-                Address = address.Trim(),
-                ContactName = contactName.Trim(),
-                ContactEmail = cleanEmail,
-                ContactPhone = contactPhone.Trim(),
-                IsActive = true,
-                IsVisible = true,
-                CreatedBy = createdByUserId,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            await _repository.AddAsync(company);
-            result.SuccessCount++;
         }
 
         return Result<BatchImportResultDto>.Success(result);
     }
 
+    public async Task<Result<CompanyAgreementDto>> GetAgreementByCompanyIdAsync(long companyId)
+    {
+        var agreement = await _repository.GetAgreementByCompanyIdAsync(companyId);
+        if (agreement == null)
+        {
+            return Result<CompanyAgreementDto>.Failure("Convenio no encontrado para esta empresa.", 404);
+        }
+
+        return Result<CompanyAgreementDto>.Success(MapToAgreementDto(agreement));
+    }
+
+    public async Task<Result<PaginatedResult<CompanyAgreementDto>>> GetAgreementsPagedAsync(PaginationQuery query, string? statusFilter)
+    {
+        var paged = await _repository.GetAgreementsPagedAsync(query, statusFilter);
+        var dtos = paged.Items.Select(MapToAgreementDto).ToList();
+
+        var result = PaginatedResult<CompanyAgreementDto>.Create(
+            dtos,
+            paged.TotalCount,
+            paged.PageNumber,
+            paged.PageSize
+        );
+
+        return Result<PaginatedResult<CompanyAgreementDto>>.Success(result);
+    }
+
+    public async Task<Result<CompanyAgreementDto>> SaveAgreementAsync(long companyId, SaveCompanyAgreementDto dto, long? userId = null)
+    {
+        var company = await _repository.GetByIdAsync(companyId);
+        if (company == null)
+        {
+            return Result<CompanyAgreementDto>.Failure("Empresa receptora no encontrada.", 404);
+        }
+
+        var existing = await _repository.GetAgreementByCompanyIdAsync(companyId);
+        if (existing == null)
+        {
+            existing = new CompanyAgreement
+            {
+                CompanyId = companyId,
+                ArchiveId = dto.ArchiveId?.Trim(),
+                Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim().ToUpperInvariant() : "VIGENTE",
+                PitCode = dto.PitCode?.Trim(),
+                CiaType = dto.CiaType?.Trim(),
+                AgreementScope = dto.AgreementScope?.Trim(),
+                Sector = dto.Sector?.Trim() ?? company.Sector,
+                BusinessLine = dto.BusinessLine?.Trim(),
+                CompanySize = dto.CompanySize?.Trim(),
+                GeographicScope = dto.GeographicScope?.Trim(),
+                Notes = dto.Notes?.Trim(),
+                IsActive = true,
+                IsVisible = true,
+                CreatedBy = userId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+        }
+        else
+        {
+            existing.ArchiveId = dto.ArchiveId?.Trim();
+            existing.Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim().ToUpperInvariant() : "VIGENTE";
+            existing.PitCode = dto.PitCode?.Trim();
+            existing.CiaType = dto.CiaType?.Trim();
+            existing.AgreementScope = dto.AgreementScope?.Trim();
+            existing.Sector = dto.Sector?.Trim() ?? company.Sector;
+            existing.BusinessLine = dto.BusinessLine?.Trim();
+            existing.CompanySize = dto.CompanySize?.Trim();
+            existing.GeographicScope = dto.GeographicScope?.Trim();
+            existing.Notes = dto.Notes?.Trim();
+            existing.UpdatedBy = userId;
+            existing.UpdatedAt = DateTime.UtcNow;
+        }
+
+        company.HasAgreement = true;
+        await _repository.UpdateAsync(company);
+        await _repository.SaveAgreementAsync(existing);
+
+        // Volver a cargar con relación para DTO
+        var reloaded = await _repository.GetAgreementByCompanyIdAsync(companyId);
+        return Result<CompanyAgreementDto>.Success(MapToAgreementDto(reloaded ?? existing));
+    }
+
     private static CompanyResponseDto MapToResponseDto(Company company) => new(
         company.Id,
         company.Name,
+        company.LegalName,
+        company.TradeName,
         company.Rfc,
         company.Sector,
         company.Address,
+        company.Street,
+        company.Number,
+        company.Colonia,
+        company.City,
+        company.State,
+        company.PostalCode,
         company.ContactName,
         company.ContactEmail,
         company.ContactPhone,
+        company.HasAgreement || company.Agreement != null,
         company.IsActive,
         company.IsVisible,
         company.DisplayOrder,
@@ -304,5 +560,27 @@ public class CompanyService : ICompanyService
         company.DeletedAt,
         company.CreatedAt,
         company.UpdatedAt
+    );
+
+    private static CompanyAgreementDto MapToAgreementDto(CompanyAgreement a) => new(
+        a.Id,
+        a.CompanyId,
+        a.Company?.Name ?? "Empresa",
+        a.Company?.LegalName,
+        a.Company?.TradeName,
+        a.Company?.Rfc,
+        a.ArchiveId,
+        a.Status,
+        a.PitCode,
+        a.CiaType,
+        a.AgreementScope,
+        a.Sector,
+        a.BusinessLine,
+        a.CompanySize,
+        a.GeographicScope,
+        a.Notes,
+        a.IsActive,
+        a.CreatedAt,
+        a.UpdatedAt
     );
 }

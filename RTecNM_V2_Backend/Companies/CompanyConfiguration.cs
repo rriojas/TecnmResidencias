@@ -20,6 +20,14 @@ public class CompanyConfiguration : IEntityTypeConfiguration<Company>
             .HasMaxLength(200)
             .IsRequired();
 
+        builder.Property(c => c.LegalName)
+            .HasColumnName("legal_name")
+            .HasMaxLength(250);
+
+        builder.Property(c => c.TradeName)
+            .HasColumnName("trade_name")
+            .HasMaxLength(150);
+
         builder.Property(c => c.Rfc)
             .HasColumnName("rfc")
             .HasMaxLength(13)
@@ -36,6 +44,30 @@ public class CompanyConfiguration : IEntityTypeConfiguration<Company>
             .HasColumnName("address")
             .HasMaxLength(300);
 
+        builder.Property(c => c.Street)
+            .HasColumnName("street")
+            .HasMaxLength(150);
+
+        builder.Property(c => c.Number)
+            .HasColumnName("number")
+            .HasMaxLength(50);
+
+        builder.Property(c => c.Colonia)
+            .HasColumnName("colonia")
+            .HasMaxLength(150);
+
+        builder.Property(c => c.City)
+            .HasColumnName("city")
+            .HasMaxLength(100);
+
+        builder.Property(c => c.State)
+            .HasColumnName("state")
+            .HasMaxLength(100);
+
+        builder.Property(c => c.PostalCode)
+            .HasColumnName("postal_code")
+            .HasMaxLength(10);
+
         builder.Property(c => c.ContactName)
             .HasColumnName("contact_name")
             .HasMaxLength(150)
@@ -49,6 +81,10 @@ public class CompanyConfiguration : IEntityTypeConfiguration<Company>
         builder.Property(c => c.ContactPhone)
             .HasColumnName("contact_phone")
             .HasMaxLength(30);
+
+        builder.Property(c => c.HasAgreement)
+            .HasColumnName("has_agreement")
+            .HasDefaultValue(false);
 
         // BaseEntity fields
         builder.Property(c => c.IsActive).HasColumnName("is_active");

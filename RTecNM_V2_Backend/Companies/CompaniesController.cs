@@ -124,4 +124,34 @@ public class CompaniesController : ControllerBase
         var bytes = System.IO.File.ReadAllBytes(filePath);
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Plantilla_Empresas.xlsx");
     }
+
+    [HttpGet("agreements")]
+    [Authorize(Roles = "admin,vinculacion")]
+    public async Task<IActionResult> GetAgreements([FromQuery] PaginationQuery query, [FromQuery] string? status)
+    {
+        var result = await _companyService.GetAgreementsPagedAsync(query, status);
+        return result.IsSuccess ? Ok(result.Data) : BadRequest(new { message = result.ErrorMessage });
+    }
+
+    [HttpGet("{id}/agreement")]
+    [Authorize(Roles = "admin,vinculacion")]
+    public async Task<IActionResult> GetAgreementByCompanyId(long id)
+    {
+        var result = await _companyService.GetAgreementByCompanyIdAsync(id);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 404, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
+
+    [HttpPut("{id}/agreement")]
+    [Authorize(Roles = "admin,vinculacion")]
+    public async Task<IActionResult> SaveAgreement(long id, [FromBody] SaveCompanyAgreementDto dto)
+    {
+        var result = await _companyService.SaveAgreementAsync(id, dto, _currentUser.UserId);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
 }

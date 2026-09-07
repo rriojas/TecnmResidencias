@@ -33,9 +33,16 @@ public static class ExcelTemplateSeeder
         var companyTemplatePath = Path.Combine(templatesDir, "Plantilla_Empresas.xlsx");
         var companyTable = new DataTable();
         companyTable.Columns.Add("Nombre");
+        companyTable.Columns.Add("RazonSocial");
+        companyTable.Columns.Add("NombreComercial");
         companyTable.Columns.Add("RFC");
         companyTable.Columns.Add("Sector");
-        companyTable.Columns.Add("Dirección");
+        companyTable.Columns.Add("Calle");
+        companyTable.Columns.Add("Numero");
+        companyTable.Columns.Add("Colonia");
+        companyTable.Columns.Add("Ciudad");
+        companyTable.Columns.Add("Estado");
+        companyTable.Columns.Add("CodigoPostal");
         companyTable.Columns.Add("NombreContacto");
         companyTable.Columns.Add("CorreoContacto");
         companyTable.Columns.Add("TeléfonoContacto");
