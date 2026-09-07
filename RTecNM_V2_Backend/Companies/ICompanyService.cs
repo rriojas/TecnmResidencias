@@ -13,8 +13,11 @@ public interface ICompanyService
     Task<Result<bool>> ReactivateAsync(long id);
     Task<Result<BatchImportResultDto>> ImportExcelAsync(Microsoft.AspNetCore.Http.IFormFile file, long? createdByUserId = null);
 
-    // Convenios
-    Task<Result<CompanyAgreementDto>> GetAgreementByCompanyIdAsync(long companyId);
+    // Convenios N:M
+    Task<Result<CompanyAgreementDto>> GetAgreementByIdAsync(long agreementId);
+    Task<Result<List<CompanyAgreementDto>>> GetAgreementsByCompanyIdAsync(long companyId);
     Task<Result<PaginatedResult<CompanyAgreementDto>>> GetAgreementsPagedAsync(PaginationQuery query, string? statusFilter);
-    Task<Result<CompanyAgreementDto>> SaveAgreementAsync(long companyId, SaveCompanyAgreementDto dto, long? userId = null);
+    Task<Result<CompanyAgreementDto>> CreateAgreementAsync(SaveCompanyAgreementDto dto, long? userId = null);
+    Task<Result<CompanyAgreementDto>> UpdateAgreementAsync(long agreementId, SaveCompanyAgreementDto dto, long? userId = null);
+    Task<Result<bool>> DeleteAgreementAsync(long agreementId);
 }

@@ -451,15 +451,22 @@ public class CompanyService : ICompanyService
         return Result<BatchImportResultDto>.Success(result);
     }
 
-    public async Task<Result<CompanyAgreementDto>> GetAgreementByCompanyIdAsync(long companyId)
+    public async Task<Result<CompanyAgreementDto>> GetAgreementByIdAsync(long agreementId)
     {
-        var agreement = await _repository.GetAgreementByCompanyIdAsync(companyId);
+        var agreement = await _repository.GetAgreementByIdAsync(agreementId);
         if (agreement == null)
         {
-            return Result<CompanyAgreementDto>.Failure("Convenio no encontrado para esta empresa.", 404);
+            return Result<CompanyAgreementDto>.Failure("Convenio no encontrado.", 404);
         }
 
         return Result<CompanyAgreementDto>.Success(MapToAgreementDto(agreement));
+    }
+
+    public async Task<Result<List<CompanyAgreementDto>>> GetAgreementsByCompanyIdAsync(long companyId)
+    {
+        var agreements = await _repository.GetAgreementsByCompanyIdAsync(companyId);
+        var dtos = agreements.Select(MapToAgreementDto).ToList();
+        return Result<List<CompanyAgreementDto>>.Success(dtos);
     }
 
     public async Task<Result<PaginatedResult<CompanyAgreementDto>>> GetAgreementsPagedAsync(PaginationQuery query, string? statusFilter)
@@ -477,60 +484,72 @@ public class CompanyService : ICompanyService
         return Result<PaginatedResult<CompanyAgreementDto>>.Success(result);
     }
 
-    public async Task<Result<CompanyAgreementDto>> SaveAgreementAsync(long companyId, SaveCompanyAgreementDto dto, long? userId = null)
+    public async Task<Result<CompanyAgreementDto>> CreateAgreementAsync(SaveCompanyAgreementDto dto, long? userId = null)
     {
-        var company = await _repository.GetByIdAsync(companyId);
-        if (company == null)
+        var agreement = new CompanyAgreement
         {
-            return Result<CompanyAgreementDto>.Failure("Empresa receptora no encontrada.", 404);
+            ArchiveId = dto.ArchiveId?.Trim(),
+            Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim().ToUpperInvariant() : "1 VIGENTE",
+            PitCode = dto.PitCode?.Trim(),
+            CiaType = dto.CiaType?.Trim(),
+            AgreementScope = dto.AgreementScope?.Trim(),
+            Sector = dto.Sector?.Trim(),
+            BusinessLine = dto.BusinessLine?.Trim(),
+            CompanySize = dto.CompanySize?.Trim(),
+            GeographicScope = dto.GeographicScope?.Trim(),
+            Notes = dto.Notes?.Trim(),
+            IsActive = true,
+            IsVisible = true,
+            CreatedBy = userId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var companyIds = dto.CompanyIds ?? new List<long>();
+        var created = await _repository.AddAgreementAsync(agreement, companyIds);
+        var reloaded = await _repository.GetAgreementByIdAsync(created.Id);
+
+        return Result<CompanyAgreementDto>.Success(MapToAgreementDto(reloaded ?? created));
+    }
+
+    public async Task<Result<CompanyAgreementDto>> UpdateAgreementAsync(long agreementId, SaveCompanyAgreementDto dto, long? userId = null)
+    {
+        var agreement = await _repository.GetAgreementByIdAsync(agreementId);
+        if (agreement == null)
+        {
+            return Result<CompanyAgreementDto>.Failure("Convenio no encontrado.", 404);
         }
 
-        var existing = await _repository.GetAgreementByCompanyIdAsync(companyId);
-        if (existing == null)
+        agreement.ArchiveId = dto.ArchiveId?.Trim();
+        agreement.Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim().ToUpperInvariant() : "1 VIGENTE";
+        agreement.PitCode = dto.PitCode?.Trim();
+        agreement.CiaType = dto.CiaType?.Trim();
+        agreement.AgreementScope = dto.AgreementScope?.Trim();
+        agreement.Sector = dto.Sector?.Trim();
+        agreement.BusinessLine = dto.BusinessLine?.Trim();
+        agreement.CompanySize = dto.CompanySize?.Trim();
+        agreement.GeographicScope = dto.GeographicScope?.Trim();
+        agreement.Notes = dto.Notes?.Trim();
+        agreement.UpdatedBy = userId;
+        agreement.UpdatedAt = DateTime.UtcNow;
+
+        var companyIds = dto.CompanyIds ?? new List<long>();
+        await _repository.UpdateAgreementAsync(agreement, companyIds);
+        var reloaded = await _repository.GetAgreementByIdAsync(agreementId);
+
+        return Result<CompanyAgreementDto>.Success(MapToAgreementDto(reloaded ?? agreement));
+    }
+
+    public async Task<Result<bool>> DeleteAgreementAsync(long agreementId)
+    {
+        var agreement = await _repository.GetAgreementByIdAsync(agreementId);
+        if (agreement == null)
         {
-            existing = new CompanyAgreement
-            {
-                CompanyId = companyId,
-                ArchiveId = dto.ArchiveId?.Trim(),
-                Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim().ToUpperInvariant() : "VIGENTE",
-                PitCode = dto.PitCode?.Trim(),
-                CiaType = dto.CiaType?.Trim(),
-                AgreementScope = dto.AgreementScope?.Trim(),
-                Sector = dto.Sector?.Trim() ?? company.Sector,
-                BusinessLine = dto.BusinessLine?.Trim(),
-                CompanySize = dto.CompanySize?.Trim(),
-                GeographicScope = dto.GeographicScope?.Trim(),
-                Notes = dto.Notes?.Trim(),
-                IsActive = true,
-                IsVisible = true,
-                CreatedBy = userId,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-        }
-        else
-        {
-            existing.ArchiveId = dto.ArchiveId?.Trim();
-            existing.Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim().ToUpperInvariant() : "VIGENTE";
-            existing.PitCode = dto.PitCode?.Trim();
-            existing.CiaType = dto.CiaType?.Trim();
-            existing.AgreementScope = dto.AgreementScope?.Trim();
-            existing.Sector = dto.Sector?.Trim() ?? company.Sector;
-            existing.BusinessLine = dto.BusinessLine?.Trim();
-            existing.CompanySize = dto.CompanySize?.Trim();
-            existing.GeographicScope = dto.GeographicScope?.Trim();
-            existing.Notes = dto.Notes?.Trim();
-            existing.UpdatedBy = userId;
-            existing.UpdatedAt = DateTime.UtcNow;
+            return Result<bool>.Failure("Convenio no encontrado.", 404);
         }
 
-        company.HasAgreement = true;
-        await _repository.UpdateAsync(company);
-        await _repository.SaveAgreementAsync(existing);
-
-        // Volver a cargar con relación para DTO
-        var reloaded = await _repository.GetAgreementByCompanyIdAsync(companyId);
-        return Result<CompanyAgreementDto>.Success(MapToAgreementDto(reloaded ?? existing));
+        await _repository.DeleteAgreementAsync(agreementId);
+        return Result<bool>.Success(true);
     }
 
     private static CompanyResponseDto MapToResponseDto(Company company) => new(
@@ -550,7 +569,7 @@ public class CompanyService : ICompanyService
         company.ContactName,
         company.ContactEmail,
         company.ContactPhone,
-        company.HasAgreement || company.Agreement != null,
+        company.HasAgreement || (company.AgreementCompanies != null && company.AgreementCompanies.Any()),
         company.IsActive,
         company.IsVisible,
         company.DisplayOrder,
@@ -564,11 +583,6 @@ public class CompanyService : ICompanyService
 
     private static CompanyAgreementDto MapToAgreementDto(CompanyAgreement a) => new(
         a.Id,
-        a.CompanyId,
-        a.Company?.Name ?? "Empresa",
-        a.Company?.LegalName,
-        a.Company?.TradeName,
-        a.Company?.Rfc,
         a.ArchiveId,
         a.Status,
         a.PitCode,
@@ -579,6 +593,17 @@ public class CompanyService : ICompanyService
         a.CompanySize,
         a.GeographicScope,
         a.Notes,
+        a.AgreementCompanies != null
+            ? a.AgreementCompanies
+                .Where(ac => ac.Company != null)
+                .Select(ac => new CompanyBriefDto(
+                    ac.Company!.Id,
+                    ac.Company.Name,
+                    ac.Company.LegalName,
+                    ac.Company.TradeName,
+                    ac.Company.Rfc))
+                .ToList()
+            : new List<CompanyBriefDto>(),
         a.IsActive,
         a.CreatedAt,
         a.UpdatedAt

@@ -144,6 +144,7 @@ async function handleImportSubmit() {
     showAlert(`Importación finalizada. ${res.data.successCount} empresas procesadas exitosamente.`, 'success')
     pageNumber.value = 1
     loadCompanies()
+    loadCompanyOptions()
   } catch (err) {
     importError.value =
       err.response?.data?.message ||
@@ -260,8 +261,8 @@ async function openEditModal(company) {
     editingCompanyId.value = c.id
     form.value = {
       name: c.name || '',
-      legalName: c.legalName || c.name || '',
-      tradeName: c.tradeName || c.name || '',
+      legalName: c.legalName || '',
+      tradeName: c.tradeName || '',
       rfc: (c.rfc || '').toUpperCase(),
       sector: c.sector || '',
       street: c.street || '',
@@ -286,7 +287,7 @@ async function handleSubmit() {
 
   const nameVal = form.value.name.trim() || form.value.legalName.trim() || form.value.tradeName.trim()
   if (!nameVal) {
-    formError.value = 'Ingrese el nombre o razón social de la empresa.'
+    formError.value = 'Ingrese el nombre de la empresa.'
     return
   }
   if (!form.value.contactName.trim()) {
@@ -302,8 +303,8 @@ async function handleSubmit() {
 
   const payload = {
     name: nameVal,
-    legalName: form.value.legalName.trim() || nameVal,
-    tradeName: form.value.tradeName.trim() || nameVal,
+    legalName: form.value.legalName.trim() || undefined,
+    tradeName: form.value.tradeName.trim() || undefined,
     rfc: form.value.rfc.trim() ? form.value.rfc.trim().toUpperCase() : null,
     sector: form.value.sector.trim() || undefined,
     street: form.value.street.trim() || undefined,
@@ -327,6 +328,7 @@ async function handleSubmit() {
     }
     isModalOpen.value = false
     loadCompanies()
+    loadCompanyOptions()
   } catch (err) {
     formError.value =
       err.response?.data?.message ||
@@ -349,6 +351,7 @@ async function handleDeactivate(company) {
     await apiClient.delete(`/v1/companies/${company.id}`)
     showAlert('Empresa desactivada correctamente.', 'success')
     loadCompanies()
+    loadCompanyOptions()
   } catch (err) {
     showAlert(err.response?.data?.message || 'Error al desactivar empresa.', 'danger')
   }
@@ -359,6 +362,7 @@ async function handleReactivate(company) {
     await apiClient.patch(`/v1/companies/${company.id}/activate`)
     showAlert('Empresa reactivada correctamente.', 'success')
     loadCompanies()
+    loadCompanyOptions()
   } catch (err) {
     showAlert(err.response?.data?.message || 'Error al reactivar empresa.', 'danger')
   }
@@ -389,7 +393,7 @@ async function handleDownloadCompanyTemplate() {
 }
 
 // ==========================================
-// ESTADO: SECCIÓN CONVENIOS INSTITUCIONALES
+// ESTADO: CONVENIOS INSTITUCIONALES (N:M)
 // ==========================================
 const agreements = ref([])
 const isAgreementsLoading = ref(false)
@@ -400,14 +404,35 @@ const agreementTotalPages = ref(0)
 const agreementSearchTerm = ref('')
 const agreementStatusFilter = ref('all')
 
-// Modal Convenio
+// Opciones de empresas para selector múltiple
+const allCompanyOptions = ref([])
+const companyPickerSearch = ref('')
+
+async function loadCompanyOptions() {
+  try {
+    const res = await apiClient.get('/v1/companies/options')
+    allCompanyOptions.value = res.data || []
+  } catch {
+    allCompanyOptions.value = []
+  }
+}
+
+const filteredCompanyOptions = computed(() => {
+  const term = companyPickerSearch.value.trim().toLowerCase()
+  if (!term) return allCompanyOptions.value
+  return allCompanyOptions.value.filter((c) =>
+    (c.name || '').toLowerCase().includes(term) || (c.rfc || '').toLowerCase().includes(term)
+  )
+})
+
+// Modal Convenio (N:M)
 const isAgreementModalOpen = ref(false)
+const isAgreementEditMode = ref(false)
+const editingAgreementId = ref(null)
 const isAgreementSubmitting = ref(false)
 const agreementFormError = ref('')
-const selectedAgreementCompany = ref(null)
 
 const agreementForm = ref({
-  companyId: null,
   archiveId: '',
   status: '1 VIGENTE',
   pitCode: '5.1.2',
@@ -418,6 +443,7 @@ const agreementForm = ref({
   companySize: 'MEDIANAS EMPRESAS',
   geographicScope: 'NACIONAL',
   notes: '',
+  companyIds: [],
 })
 
 async function loadAgreements({ silent = false } = {}) {
@@ -466,59 +492,34 @@ function onAgreementStatusFilterChange() {
   loadAgreements()
 }
 
-async function openAgreementModalForCompany(company) {
-  selectedAgreementCompany.value = company
+function openCreateAgreementModal() {
+  isAgreementEditMode.value = false
+  editingAgreementId.value = null
+  companyPickerSearch.value = ''
   agreementFormError.value = ''
   agreementForm.value = {
-    companyId: company.id,
     archiveId: '',
     status: '1 VIGENTE',
     pitCode: '5.1.2',
     ciaType: 'USO COMPARTIDO',
     agreementScope: 'GENERAL',
-    sector: company.sector || 'PRIVADO',
+    sector: 'PRIVADO',
     businessLine: '',
     companySize: 'MEDIANAS EMPRESAS',
     geographicScope: 'NACIONAL',
     notes: '',
+    companyIds: [],
   }
-
-  try {
-    const res = await apiClient.get(`/v1/companies/${company.id}/agreement`)
-    if (res.data) {
-      const a = res.data
-      agreementForm.value = {
-        companyId: company.id,
-        archiveId: a.archiveId || '',
-        status: a.status || '1 VIGENTE',
-        pitCode: a.pitCode || '5.1.2',
-        ciaType: a.ciaType || 'USO COMPARTIDO',
-        agreementScope: a.agreementScope || 'GENERAL',
-        sector: a.sector || company.sector || 'PRIVADO',
-        businessLine: a.businessLine || '',
-        companySize: a.companySize || 'MEDIANAS EMPRESAS',
-        geographicScope: a.geographicScope || 'NACIONAL',
-        notes: a.notes || '',
-      }
-    }
-  } catch {
-    // Si no existe convenio aún, se usa el template por defecto
-  }
-
+  loadCompanyOptions()
   isAgreementModalOpen.value = true
 }
 
 function openEditAgreementModal(agreement) {
-  selectedAgreementCompany.value = {
-    id: agreement.companyId,
-    name: agreement.companyName,
-    legalName: agreement.companyLegalName,
-    tradeName: agreement.companyTradeName,
-    rfc: agreement.companyRfc,
-  }
+  isAgreementEditMode.value = true
+  editingAgreementId.value = agreement.id
+  companyPickerSearch.value = ''
   agreementFormError.value = ''
   agreementForm.value = {
-    companyId: agreement.companyId,
     archiveId: agreement.archiveId || '',
     status: agreement.status || '1 VIGENTE',
     pitCode: agreement.pitCode || '5.1.2',
@@ -529,14 +530,58 @@ function openEditAgreementModal(agreement) {
     companySize: agreement.companySize || 'MEDIANAS EMPRESAS',
     geographicScope: agreement.geographicScope || 'NACIONAL',
     notes: agreement.notes || '',
+    companyIds: (agreement.companies || []).map((c) => c.id),
   }
+  loadCompanyOptions()
   isAgreementModalOpen.value = true
+}
+
+function openAgreementModalForCompany(company) {
+  isAgreementEditMode.value = false
+  editingAgreementId.value = null
+  companyPickerSearch.value = ''
+  agreementFormError.value = ''
+  agreementForm.value = {
+    archiveId: '',
+    status: '1 VIGENTE',
+    pitCode: '5.1.2',
+    ciaType: 'USO COMPARTIDO',
+    agreementScope: 'GENERAL',
+    sector: company.sector || 'PRIVADO',
+    businessLine: '',
+    companySize: 'MEDIANAS EMPRESAS',
+    geographicScope: 'NACIONAL',
+    notes: '',
+    companyIds: [company.id],
+  }
+  loadCompanyOptions()
+  isAgreementModalOpen.value = true
+}
+
+function removeCompanyFromAgreement(companyId) {
+  agreementForm.value.companyIds = agreementForm.value.companyIds.filter((id) => id !== companyId)
+}
+
+function getCompanyNameById(id) {
+  const found = allCompanyOptions.value.find((c) => c.id === id)
+  return found ? found.name : `Empresa #${id}`
+}
+
+function filterAgreementsByCompany(company) {
+  activeTab.value = 'agreements'
+  agreementSearchTerm.value = company.name || company.rfc || ''
+  agreementPageNumber.value = 1
+  loadAgreements()
+}
+
+function viewCompanyAgreements(company) {
+  filterAgreementsByCompany(company)
 }
 
 async function handleAgreementSubmit() {
   agreementFormError.value = ''
-  if (!agreementForm.value.companyId) {
-    agreementFormError.value = 'Empresa no seleccionada.'
+  if (!agreementForm.value.companyIds || agreementForm.value.companyIds.length === 0) {
+    agreementFormError.value = 'Debe seleccionar al menos una empresa para vincular al convenio.'
     return
   }
 
@@ -552,22 +597,44 @@ async function handleAgreementSubmit() {
     companySize: agreementForm.value.companySize.trim() || undefined,
     geographicScope: agreementForm.value.geographicScope.trim() || undefined,
     notes: agreementForm.value.notes.trim() || undefined,
+    companyIds: agreementForm.value.companyIds,
   }
 
   try {
-    await apiClient.put(`/v1/companies/${agreementForm.value.companyId}/agreement`, payload)
-    showAlert('Convenio institucional guardado exitosamente.', 'success')
-    isAgreementModalOpen.value = false
-    if (activeTab.value === 'agreements') {
-      loadAgreements()
+    if (isAgreementEditMode.value) {
+      await apiClient.put(`/v1/companies/agreements/${editingAgreementId.value}`, payload)
+      showAlert('Convenio institucional actualizado exitosamente.', 'success')
     } else {
-      loadCompanies()
+      await apiClient.post('/v1/companies/agreements', payload)
+      showAlert('Convenio institucional registrado exitosamente.', 'success')
     }
+    isAgreementModalOpen.value = false
+    loadAgreements()
+    loadCompanies()
   } catch (err) {
     agreementFormError.value =
       err.response?.data?.message || 'Error al guardar los datos del convenio.'
   } finally {
     isAgreementSubmitting.value = false
+  }
+}
+
+async function handleDeleteAgreement(agreement) {
+  const confirmed = await confirm({
+    title: 'Desactivar Convenio',
+    message: `¿Está seguro de desactivar el convenio "${agreement.archiveId || 'Convenio #' + agreement.id}"?`,
+    okText: 'Desactivar',
+    cancelText: 'Cancelar',
+  })
+  if (!confirmed) return
+
+  try {
+    await apiClient.delete(`/v1/companies/agreements/${agreement.id}`)
+    showAlert('Convenio desactivado correctamente.', 'success')
+    loadAgreements()
+    loadCompanies()
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al desactivar convenio.', 'danger')
   }
 }
 
@@ -597,6 +664,7 @@ watch(
 )
 
 onMounted(() => {
+  loadCompanyOptions()
   if (route.query.tab === 'agreements' && canViewAgreements.value) {
     activeTab.value = 'agreements'
     loadAgreements()
@@ -652,27 +720,40 @@ onMounted(() => {
           </svg>
           <span>Abrir búsqueda</span>
         </button>
-        <button
-          v-if="canImport && activeTab === 'companies'"
-          id="openImportCompanyModalBtn"
-          type="button"
-          class="tecnm-btn tecnm-btn-secondary"
-          @click="openImportModal"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right: 0.35rem; display: inline-block; vertical-align: middle;">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-          </svg>
-          <span>Importar Excel</span>
-        </button>
-        <button
-          v-if="canCreate && activeTab === 'companies'"
-          id="openCompanyModalBtn"
-          type="button"
-          class="tecnm-btn tecnm-btn-primary"
-          @click="openCreateModal"
-        >
-          + Registrar Nueva Empresa
-        </button>
+
+        <template v-if="activeTab === 'companies'">
+          <button
+            v-if="canImport"
+            id="openImportCompanyModalBtn"
+            type="button"
+            class="tecnm-btn tecnm-btn-secondary"
+            @click="openImportModal"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right: 0.35rem; display: inline-block; vertical-align: middle;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+            <span>Importar Excel</span>
+          </button>
+          <button
+            v-if="canCreate"
+            id="openCompanyModalBtn"
+            type="button"
+            class="tecnm-btn tecnm-btn-primary"
+            @click="openCreateModal"
+          >
+            + Registrar Nueva Empresa
+          </button>
+        </template>
+
+        <template v-else-if="activeTab === 'agreements' && canViewAgreements">
+          <button
+            type="button"
+            class="tecnm-btn tecnm-btn-primary"
+            @click="openCreateAgreementModal"
+          >
+            + Registrar Nuevo Convenio
+          </button>
+        </template>
       </div>
     </div>
 
@@ -863,14 +944,23 @@ onMounted(() => {
                   <TecnmBadge :status="c.isActive ? 'Activo' : 'Inactivo'" />
                 </td>
                 <td v-if="canViewAgreements">
+                  <span
+                    v-if="c.hasAgreement"
+                    class="tecnm-badge tecnm-badge-success"
+                    style="cursor: pointer;"
+                    title="Ver convenios asociados a esta empresa"
+                    @click="filterAgreementsByCompany(c)"
+                  >
+                    Con Convenio
+                  </span>
                   <button
+                    v-else
                     type="button"
-                    class="tecnm-btn tecnm-btn-sm"
-                    :class="c.hasAgreement ? 'tecnm-btn-success' : 'tecnm-btn-secondary'"
+                    class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                     style="font-size: 0.75rem; padding: 0.2rem 0.5rem;"
                     @click="openAgreementModalForCompany(c)"
                   >
-                    {{ c.hasAgreement ? 'Con Convenio' : '+ Asignar Convenio' }}
+                    + Asignar a Convenio
                   </button>
                 </td>
                 <td v-if="!authStore.isStudent">
@@ -932,7 +1022,7 @@ onMounted(() => {
     </div>
 
     <!-- ============================================================= -->
-    <!-- PESTAÑA 2: CONVENIOS INSTITUCIONALES (VINCULACIÓN / ADMIN)   -->
+    <!-- PESTAÑA 2: CONVENIOS INSTITUCIONALES (N:M)                    -->
     <!-- ============================================================= -->
     <div v-show="activeTab === 'agreements'" class="tecnm-card">
       <div class="tecnm-card-header">
@@ -986,21 +1076,43 @@ onMounted(() => {
           </div>
           <button
             type="button"
+            class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+            @click="openCreateAgreementModal"
+          >
+            + Registrar Convenio
+          </button>
+          <button
+            type="button"
             class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
             @click="loadAgreements"
           >
-            Recargar Convenios
+            Recargar
           </button>
         </div>
       </div>
 
       <div class="tecnm-card-body">
+        <div
+          v-if="agreementSearchTerm"
+          class="tecnm-alert tecnm-alert-info"
+          style="margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between;"
+        >
+          <span>Filtro de convenios aplicado: <strong>{{ agreementSearchTerm }}</strong></span>
+          <button
+            type="button"
+            class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+            @click="clearAgreementSearch"
+          >
+            Mostrar todos
+          </button>
+        </div>
+
         <div class="tecnm-table-responsive">
           <table class="tecnm-table tecnm-table-striped">
             <thead>
               <tr>
                 <th>ID ARCHIVO</th>
-                <th>EMPRESA</th>
+                <th>EMPRESAS VINCULADAS</th>
                 <th>STATUS</th>
                 <th>PIT</th>
                 <th>CIA</th>
@@ -1021,7 +1133,7 @@ onMounted(() => {
               <tr v-else-if="agreements.length === 0">
                 <td colspan="11" class="tecnm-table-empty">
                   <span v-if="agreementSearchTerm">No se encontraron convenios con "{{ agreementSearchTerm }}".</span>
-                  <span v-else>No hay convenios registrados con los filtros seleccionados. Puede asignar convenios desde la pestaña Directorio de Empresas.</span>
+                  <span v-else>No hay convenios registrados. Puede hacer clic en "+ Registrar Nuevo Convenio" para crear uno y vincular múltiples empresas.</span>
                 </td>
               </tr>
               <tr
@@ -1031,13 +1143,17 @@ onMounted(() => {
               >
                 <td><strong>{{ a.archiveId || '—' }}</strong></td>
                 <td>
-                  <div><strong>{{ a.companyName }}</strong></div>
-                  <small v-if="a.companyLegalName && a.companyLegalName !== a.companyName" class="tecnm-text-muted">
-                    {{ a.companyLegalName }}
-                  </small>
-                  <small v-if="a.companyRfc" class="tecnm-text-muted" style="display: block;">
-                    RFC: {{ a.companyRfc }}
-                  </small>
+                  <div v-if="a.companies && a.companies.length > 0" style="display: flex; flex-wrap: wrap; gap: 0.35rem;">
+                    <span
+                      v-for="comp in a.companies"
+                      :key="comp.id"
+                      class="tecnm-badge tecnm-badge-secondary"
+                      style="font-size: 0.75rem;"
+                    >
+                      {{ comp.tradeName || comp.name }}
+                    </span>
+                  </div>
+                  <span v-else class="tecnm-text-muted">Sin empresas vinculadas</span>
                 </td>
                 <td>
                   <span class="tecnm-badge" :class="getAgreementBadgeClass(a.status)">
@@ -1052,13 +1168,22 @@ onMounted(() => {
                 <td>{{ a.companySize || '—' }}</td>
                 <td>{{ a.geographicScope || '—' }}</td>
                 <td>
-                  <button
-                    type="button"
-                    class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
-                    @click="openEditAgreementModal(a)"
-                  >
-                    Editar Convenio
-                  </button>
+                  <div class="tecnm-row-actions">
+                    <button
+                      type="button"
+                      class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                      @click="openEditAgreementModal(a)"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      class="tecnm-btn tecnm-btn-danger tecnm-btn-sm"
+                      @click="handleDeleteAgreement(a)"
+                    >
+                      Desactivar
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -1352,7 +1477,7 @@ onMounted(() => {
     </div>
 
     <!-- ============================================================= -->
-    <!-- MODAL EDITAR / ASIGNAR CONVENIO (VINCULACIÓN)                -->
+    <!-- MODAL REGISTRAR / EDITAR CONVENIO N:M (VINCULACIÓN)          -->
     <!-- ============================================================= -->
     <div
       v-if="isAgreementModalOpen"
@@ -1362,10 +1487,10 @@ onMounted(() => {
       aria-modal="true"
       @click.self="isAgreementModalOpen = false"
     >
-      <div class="modal-card" style="max-width: 720px;">
+      <div class="modal-card" style="max-width: 760px;">
         <div class="tecnm-modal-header">
           <h3 class="tecnm-modal-title">
-            Ficha de Convenio Institucional
+            {{ isAgreementEditMode ? 'Editar Convenio Institucional' : 'Registrar Nuevo Convenio Institucional' }}
           </h3>
           <button
             type="button"
@@ -1387,13 +1512,72 @@ onMounted(() => {
             <span>{{ agreementFormError }}</span>
           </div>
 
-          <div
-            v-if="selectedAgreementCompany"
-            class="tecnm-alert tecnm-alert-info"
-            style="margin-bottom: 1rem;"
-          >
-            <strong>Empresa:</strong> {{ selectedAgreementCompany.name }}
-            <span v-if="selectedAgreementCompany.rfc">({{ selectedAgreementCompany.rfc }})</span>
+          <!-- Selector Múltiple de Empresas (N:M) -->
+          <div class="tecnm-form-group" style="border: 1px solid var(--tecnm-border-color, #e2e8f0); border-radius: 8px; padding: 0.85rem; background: var(--tecnm-surface-neutral, #f8fafc);">
+            <label class="tecnm-label" style="font-weight: 600; margin-bottom: 0.25rem;">
+              Empresas Vinculadas al Convenio * (Seleccione una o varias)
+            </label>
+            <p class="tecnm-text-muted" style="font-size: 0.8rem; margin-bottom: 0.5rem;">
+              Un mismo convenio puede respaldar a múltiples empresas u organizaciones.
+            </p>
+
+            <!-- Píldoras de empresas seleccionadas -->
+            <div v-if="agreementForm.companyIds.length > 0" style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.6rem;">
+              <span
+                v-for="cid in agreementForm.companyIds"
+                :key="cid"
+                class="tecnm-badge tecnm-badge-primary"
+                style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.6rem; font-size: 0.8rem;"
+              >
+                <span>{{ getCompanyNameById(cid) }}</span>
+                <button
+                  type="button"
+                  style="background: transparent; border: none; color: #fff; cursor: pointer; padding: 0; font-weight: bold; line-height: 1;"
+                  @click="removeCompanyFromAgreement(cid)"
+                >
+                  &times;
+                </button>
+              </span>
+            </div>
+            <div v-else class="tecnm-text-muted" style="font-size: 0.85rem; margin-bottom: 0.5rem; font-style: italic;">
+              Ninguna empresa seleccionada aún.
+            </div>
+
+            <!-- Filtro de búsqueda rápida en empresas -->
+            <input
+              v-model="companyPickerSearch"
+              type="text"
+              class="tecnm-form-control"
+              placeholder="Filtrar empresas del catálogo..."
+              style="margin-bottom: 0.5rem; font-size: 0.85rem;"
+            />
+
+            <!-- Lista con scroll de checkboxes -->
+            <div style="max-height: 150px; overflow-y: auto; background: #fff; border: 1px solid var(--tecnm-border-color, #e2e8f0); border-radius: 4px; padding: 0.5rem;">
+              <div
+                v-for="opt in filteredCompanyOptions"
+                :key="opt.id"
+                style="display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0;"
+              >
+                <input
+                  :id="`chk_comp_${opt.id}`"
+                  v-model="agreementForm.companyIds"
+                  type="checkbox"
+                  :value="opt.id"
+                  style="cursor: pointer;"
+                />
+                <label
+                  :for="`chk_comp_${opt.id}`"
+                  style="margin-bottom: 0; cursor: pointer; font-size: 0.85rem; flex: 1;"
+                >
+                  <strong>{{ opt.name }}</strong>
+                  <small v-if="opt.rfc" class="tecnm-text-muted"> ({{ opt.rfc }})</small>
+                </label>
+              </div>
+              <div v-if="filteredCompanyOptions.length === 0" class="tecnm-text-muted" style="font-size: 0.85rem; padding: 0.25rem;">
+                No se encontraron empresas con ese término.
+              </div>
+            </div>
           </div>
 
           <!-- Campos de la Ficha de Convenios -->
@@ -1430,7 +1614,7 @@ onMounted(() => {
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
             <div class="tecnm-form-group">
-              <label for="agreementPitCodeSelect" class="tecnm-label">PIT 2025-2026</label>
+              <label for="agreementPitCodeSelect" class="tecnm-label">PIT</label>
               <input
                 id="agreementPitCodeSelect"
                 v-model="agreementForm.pitCode"
@@ -1556,7 +1740,7 @@ onMounted(() => {
               class="tecnm-btn tecnm-btn-primary"
               :disabled="isAgreementSubmitting"
             >
-              <span v-if="!isAgreementSubmitting">Guardar Convenio</span>
+              <span v-if="!isAgreementSubmitting">{{ isAgreementEditMode ? 'Actualizar Convenio' : 'Guardar Convenio' }}</span>
               <span v-else class="login-spinner"></span>
             </button>
           </div>

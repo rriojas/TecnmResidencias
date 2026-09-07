@@ -12,8 +12,11 @@ public interface ICompanyRepository
     Task<Company> AddAsync(Company company);
     Task UpdateAsync(Company company);
 
-    // Agreements
-    Task<CompanyAgreement?> GetAgreementByCompanyIdAsync(long companyId);
+    // Convenios N:M
+    Task<CompanyAgreement?> GetAgreementByIdAsync(long agreementId);
+    Task<List<CompanyAgreement>> GetAgreementsByCompanyIdAsync(long companyId);
     Task<PaginatedResult<CompanyAgreement>> GetAgreementsPagedAsync(PaginationQuery query, string? statusFilter);
-    Task SaveAgreementAsync(CompanyAgreement agreement);
+    Task<CompanyAgreement> AddAgreementAsync(CompanyAgreement agreement, List<long> companyIds);
+    Task UpdateAgreementAsync(CompanyAgreement agreement, List<long> companyIds);
+    Task DeleteAgreementAsync(long agreementId);
 }

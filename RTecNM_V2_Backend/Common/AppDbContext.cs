@@ -26,6 +26,7 @@ public class AppDbContext : DbContext
     public DbSet<Advisor> Advisors => Set<Advisor>();
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<CompanyAgreement> CompanyAgreements => Set<CompanyAgreement>();
+    public DbSet<AgreementCompany> AgreementCompanies => Set<AgreementCompany>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProjectObjective> ProjectObjectives => Set<ProjectObjective>();
     public DbSet<WeeklyActivity> WeeklyActivities => Set<WeeklyActivity>();
@@ -53,6 +54,7 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new CareerHeadConfiguration());
         modelBuilder.ApplyConfiguration(new CompanyConfiguration());
         modelBuilder.ApplyConfiguration(new CompanyAgreementConfiguration());
+        modelBuilder.ApplyConfiguration(new AgreementCompanyConfiguration());
         modelBuilder.ApplyConfiguration(new ProjectConfiguration());
         modelBuilder.ApplyConfiguration(new ProjectObjectiveConfiguration());
         modelBuilder.ApplyConfiguration(new WeeklyActivityConfiguration());

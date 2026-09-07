@@ -15,10 +15,6 @@ public class CompanyAgreementConfiguration : IEntityTypeConfiguration<CompanyAgr
             .HasColumnName("id")
             .ValueGeneratedOnAdd();
 
-        builder.Property(ca => ca.CompanyId)
-            .HasColumnName("company_id")
-            .IsRequired();
-
         builder.Property(ca => ca.ArchiveId)
             .HasColumnName("archive_id")
             .HasMaxLength(50);
@@ -26,7 +22,7 @@ public class CompanyAgreementConfiguration : IEntityTypeConfiguration<CompanyAgr
         builder.Property(ca => ca.Status)
             .HasColumnName("status")
             .HasMaxLength(50)
-            .HasDefaultValue("VIGENTE")
+            .HasDefaultValue("1 VIGENTE")
             .IsRequired();
 
         builder.Property(ca => ca.PitCode)
@@ -63,9 +59,8 @@ public class CompanyAgreementConfiguration : IEntityTypeConfiguration<CompanyAgr
         builder.HasIndex(ca => ca.Status)
             .HasDatabaseName("ix_company_agreements_status");
 
-        builder.HasIndex(ca => ca.CompanyId)
-            .IsUnique()
-            .HasDatabaseName("ix_company_agreements_company_id");
+        builder.HasIndex(ca => ca.ArchiveId)
+            .HasDatabaseName("ix_company_agreements_archive_id");
 
         // BaseEntity fields
         builder.Property(ca => ca.IsActive).HasColumnName("is_active");
@@ -78,9 +73,39 @@ public class CompanyAgreementConfiguration : IEntityTypeConfiguration<CompanyAgr
         builder.Property(ca => ca.UpdatedAt).HasColumnName("updated_at");
         builder.Property(ca => ca.DeletedAt).HasColumnName("deleted_at");
 
-        builder.HasOne(ca => ca.Company)
-            .WithOne(c => c.Agreement)
-            .HasForeignKey<CompanyAgreement>(ca => ca.CompanyId)
+        builder.HasMany(ca => ca.AgreementCompanies)
+            .WithOne(ac => ac.Agreement)
+            .HasForeignKey(ac => ac.AgreementId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+public class AgreementCompanyConfiguration : IEntityTypeConfiguration<AgreementCompany>
+{
+    public void Configure(EntityTypeBuilder<AgreementCompany> builder)
+    {
+        builder.ToTable("agreement_companies");
+
+        builder.HasKey(ac => new { ac.AgreementId, ac.CompanyId });
+
+        builder.Property(ac => ac.AgreementId)
+            .HasColumnName("agreement_id");
+
+        builder.Property(ac => ac.CompanyId)
+            .HasColumnName("company_id");
+
+        builder.Property(ac => ac.CreatedAt)
+            .HasColumnName("created_at")
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+        builder.HasOne(ac => ac.Agreement)
+            .WithMany(ca => ca.AgreementCompanies)
+            .HasForeignKey(ac => ac.AgreementId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(ac => ac.Company)
+            .WithMany(c => c.AgreementCompanies)
+            .HasForeignKey(ac => ac.CompanyId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

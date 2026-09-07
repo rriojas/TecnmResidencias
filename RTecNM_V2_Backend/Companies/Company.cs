@@ -23,5 +23,5 @@ public class Company : BaseEntity
     public string? ContactPhone { get; set; }
 
     public bool HasAgreement { get; set; } = false;
-    public CompanyAgreement? Agreement { get; set; }
+    public ICollection<AgreementCompany> AgreementCompanies { get; set; } = new List<AgreementCompany>();
 }

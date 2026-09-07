@@ -133,25 +133,55 @@ public class CompaniesController : ControllerBase
         return result.IsSuccess ? Ok(result.Data) : BadRequest(new { message = result.ErrorMessage });
     }
 
-    [HttpGet("{id}/agreement")]
+    [HttpGet("agreements/{id}")]
     [Authorize(Roles = "admin,vinculacion")]
-    public async Task<IActionResult> GetAgreementByCompanyId(long id)
+    public async Task<IActionResult> GetAgreementById(long id)
     {
-        var result = await _companyService.GetAgreementByCompanyIdAsync(id);
+        var result = await _companyService.GetAgreementByIdAsync(id);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 404, new { message = result.ErrorMessage });
 
         return Ok(result.Data);
     }
 
-    [HttpPut("{id}/agreement")]
+    [HttpGet("{id}/agreements")]
     [Authorize(Roles = "admin,vinculacion")]
-    public async Task<IActionResult> SaveAgreement(long id, [FromBody] SaveCompanyAgreementDto dto)
+    public async Task<IActionResult> GetAgreementsByCompanyId(long id)
     {
-        var result = await _companyService.SaveAgreementAsync(id, dto, _currentUser.UserId);
+        var result = await _companyService.GetAgreementsByCompanyIdAsync(id);
+        return Ok(result.Data);
+    }
+
+    [HttpPost("agreements")]
+    [Authorize(Roles = "admin,vinculacion")]
+    public async Task<IActionResult> CreateAgreement([FromBody] SaveCompanyAgreementDto dto)
+    {
+        var result = await _companyService.CreateAgreementAsync(dto, _currentUser.UserId);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return CreatedAtAction(nameof(GetAgreementById), new { id = result.Data!.Id }, result.Data);
+    }
+
+    [HttpPut("agreements/{id}")]
+    [Authorize(Roles = "admin,vinculacion")]
+    public async Task<IActionResult> UpdateAgreement(long id, [FromBody] SaveCompanyAgreementDto dto)
+    {
+        var result = await _companyService.UpdateAgreementAsync(id, dto, _currentUser.UserId);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 
         return Ok(result.Data);
+    }
+
+    [HttpDelete("agreements/{id}")]
+    [Authorize(Roles = "admin,vinculacion")]
+    public async Task<IActionResult> DeleteAgreement(long id)
+    {
+        var result = await _companyService.DeleteAgreementAsync(id);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(new { message = "Convenio desactivado correctamente." });
     }
 }
