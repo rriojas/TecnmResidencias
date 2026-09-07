@@ -4,8 +4,8 @@ namespace TecNM.Residency.Companies;
 
 public interface ICompanyService
 {
-    Task<Result<PaginatedResult<CompanyResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false);
-    Task<Result<IEnumerable<CompanyResponseDto>>> GetAllAsync(bool includeInactive = false);
+    Task<Result<PaginatedResult<CompanyResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, bool onlyWithActiveAgreement = false);
+    Task<Result<IEnumerable<CompanyResponseDto>>> GetAllAsync(bool includeInactive = false, bool onlyWithActiveAgreement = false);
     Task<Result<CompanyResponseDto>> GetByIdAsync(long id);
     Task<Result<CompanyResponseDto>> CreateAsync(CreateCompanyDto dto, long? createdByUserId = null);
     Task<Result<CompanyResponseDto>> UpdateAsync(long id, UpdateCompanyDto dto, long? updatedByUserId = null);

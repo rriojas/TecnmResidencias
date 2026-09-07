@@ -30,15 +30,33 @@ public class CompaniesController : ControllerBase
     [Authorize(Roles = "admin,vinculacion,departmenthead,academic,director,student")]
     public async Task<IActionResult> GetAll([FromQuery] PaginationQuery query, [FromQuery] string? status, [FromQuery] bool includeInactive = false)
     {
-        var result = await _companyService.GetPagedAsync(query, status, includeInactive);
-        return result.IsSuccess ? Ok(result.Data) : BadRequest(new { message = result.ErrorMessage });
+        var isStudent = User.IsInRole("student");
+        var result = await _companyService.GetPagedAsync(query, status, includeInactive, onlyWithActiveAgreement: isStudent);
+        if (!result.IsSuccess)
+            return BadRequest(new { message = result.ErrorMessage });
+
+        var isAuthorizedForAgreements = User.IsInRole("admin") || User.IsInRole("vinculacion");
+        if (!isAuthorizedForAgreements && result.Data?.Items != null)
+        {
+            var sanitizedItems = result.Data.Items.Select(c => c with { HasAgreement = false }).ToList();
+            var sanitizedPaged = PaginatedResult<CompanyResponseDto>.Create(
+                sanitizedItems,
+                result.Data.TotalCount,
+                result.Data.PageNumber,
+                result.Data.PageSize
+            );
+            return Ok(sanitizedPaged);
+        }
+
+        return Ok(result.Data);
     }
 
     [HttpGet("options")]
     [Authorize(Roles = "admin,vinculacion,departmenthead,academic,director,student")]
     public async Task<IActionResult> GetOptions()
     {
-        var result = await _companyService.GetAllAsync(includeInactive: false);
+        var isStudent = User.IsInRole("student");
+        var result = await _companyService.GetAllAsync(includeInactive: false, onlyWithActiveAgreement: isStudent);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 
@@ -53,6 +71,20 @@ public class CompaniesController : ControllerBase
         var result = await _companyService.GetByIdAsync(id);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 404, new { message = result.ErrorMessage });
+
+        if (User.IsInRole("student"))
+        {
+            if (!result.Data!.IsActive || !result.Data.HasAgreement)
+            {
+                return NotFound(new { message = "Empresa no disponible o sin convenio vigente" });
+            }
+        }
+
+        var isAuthorizedForAgreements = User.IsInRole("admin") || User.IsInRole("vinculacion");
+        if (!isAuthorizedForAgreements && result.Data != null)
+        {
+            return Ok(result.Data with { HasAgreement = false });
+        }
 
         return Ok(result.Data);
     }

@@ -19,11 +19,13 @@ public class CompanyAgreementConfiguration : IEntityTypeConfiguration<CompanyAgr
             .HasColumnName("archive_id")
             .HasMaxLength(50);
 
-        builder.Property(ca => ca.Status)
-            .HasColumnName("status")
-            .HasMaxLength(50)
-            .HasDefaultValue("1 VIGENTE")
-            .IsRequired();
+        builder.Property(ca => ca.ExpirationDate)
+            .HasColumnName("expiration_date")
+            .HasColumnType("date");
+
+        builder.Property(ca => ca.ProcessStatus)
+            .HasColumnName("process_status")
+            .HasMaxLength(50);
 
         builder.Property(ca => ca.PitCode)
             .HasColumnName("pit_code")
@@ -56,8 +58,11 @@ public class CompanyAgreementConfiguration : IEntityTypeConfiguration<CompanyAgr
         builder.Property(ca => ca.Notes)
             .HasColumnName("notes");
 
-        builder.HasIndex(ca => ca.Status)
-            .HasDatabaseName("ix_company_agreements_status");
+        builder.HasIndex(ca => ca.ExpirationDate)
+            .HasDatabaseName("ix_company_agreements_expiration_date");
+
+        builder.HasIndex(ca => ca.ProcessStatus)
+            .HasDatabaseName("ix_company_agreements_process_status");
 
         builder.HasIndex(ca => ca.ArchiveId)
             .HasDatabaseName("ix_company_agreements_archive_id");
@@ -93,6 +98,10 @@ public class AgreementCompanyConfiguration : IEntityTypeConfiguration<AgreementC
 
         builder.Property(ac => ac.CompanyId)
             .HasColumnName("company_id");
+
+        builder.Property(ac => ac.AgreementScope)
+            .HasColumnName("agreement_scope")
+            .HasMaxLength(50);
 
         builder.Property(ac => ac.CreatedAt)
             .HasColumnName("created_at")

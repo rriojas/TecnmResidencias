@@ -14,7 +14,8 @@ services:
     volumes:
       - postgres_v2_data:/var/lib/postgresql
       - ./docs/database/01_schema_and_essential_seeds.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./docs/database/02_demo_data.sql:/docker-entrypoint-initdb.d/02-demo.sql:ro
+      # 02_demo_data.sql deshabilitado en producción para evitar empresas o datos ficticios:
+      # - ./docs/database/02_demo_data.sql:/docker-entrypoint-initdb.d/02-demo.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U residency_user -d postgre_recidencias"]
       interval: 5s
@@ -30,6 +31,8 @@ services:
     ports:
       - "5185:5185"
     environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Seed__Enabled=false
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=postgre_recidencias;Username=residency_user;Password=SecurePassword2026!
       - Uploads__Path=uploads
       - SmtpSettings__Host=${SMTP_HOST:-smtp.office365.com}

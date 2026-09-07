@@ -15,6 +15,7 @@ COPY --from=build /app/publish .
 RUN mkdir -p /app/uploads/documents
 
 ENV ASPNETCORE_URLS=http://+:5185
+ENV ASPNETCORE_ENVIRONMENT=Production
 EXPOSE 5185
 
 ENTRYPOINT ["dotnet", "TecNM.Residency.dll"]

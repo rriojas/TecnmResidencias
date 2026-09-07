@@ -11,9 +11,9 @@ public class CompanyService : ICompanyService
         _repository = repository;
     }
 
-    public async Task<Result<PaginatedResult<CompanyResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
+    public async Task<Result<PaginatedResult<CompanyResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, bool onlyWithActiveAgreement = false)
     {
-        var paged = await _repository.GetPagedAsync(query, status, includeInactive);
+        var paged = await _repository.GetPagedAsync(query, status, includeInactive, onlyWithActiveAgreement);
         var dtos = paged.Items.Select(MapToResponseDto).ToList();
 
         var result = PaginatedResult<CompanyResponseDto>.Create(
@@ -26,9 +26,9 @@ public class CompanyService : ICompanyService
         return Result<PaginatedResult<CompanyResponseDto>>.Success(result);
     }
 
-    public async Task<Result<IEnumerable<CompanyResponseDto>>> GetAllAsync(bool includeInactive = false)
+    public async Task<Result<IEnumerable<CompanyResponseDto>>> GetAllAsync(bool includeInactive = false, bool onlyWithActiveAgreement = false)
     {
-        var companies = await _repository.GetAllAsync(includeInactive);
+        var companies = await _repository.GetAllAsync(includeInactive, onlyWithActiveAgreement);
         var dtos = companies.Select(MapToResponseDto);
         return Result<IEnumerable<CompanyResponseDto>>.Success(dtos);
     }
@@ -217,22 +217,26 @@ public class CompanyService : ICompanyService
 
         var expectedColumns = new List<string>
         {
-            "Nombre", "RazonSocial", "NombreComercial", "RFC", "Sector", "Calle", "Numero", "Colonia", "Ciudad", "Estado", "CodigoPostal", "NombreContacto", "CorreoContacto", "TeléfonoContacto"
+            "Nombre", "RazonSocial", "NombreComercial", "RFC", "Sector", "Calle", "Numero", "Colonia", "Ciudad", "Estado", "CodigoPostal", "NombreContacto", "CorreoContacto", "TeléfonoContacto",
+            "NumeroConvenio", "FechaCaducidad", "EstadoProceso", "AlcanceConvenio", "ClavePIT", "TipoCIA"
         };
 
         using var stream = file.OpenReadStream();
         var (isValid, errorMessage, rows) = ExcelHelper.ParseExcelFile(stream, expectedColumns);
 
-        // Fallback to allow old template headers if someone uploads old template
+        // Fallback para admitir plantilla base de empresas (14 columnas) si no trae convenios
         if (!isValid)
         {
             stream.Position = 0;
-            var oldColumns = new List<string> { "Nombre", "RFC", "Sector", "Dirección", "NombreContacto", "CorreoContacto", "TeléfonoContacto" };
-            var oldParse = ExcelHelper.ParseExcelFile(stream, oldColumns);
-            if (oldParse.IsValid)
+            var baseColumns = new List<string>
+            {
+                "Nombre", "RazonSocial", "NombreComercial", "RFC", "Sector", "Calle", "Numero", "Colonia", "Ciudad", "Estado", "CodigoPostal", "NombreContacto", "CorreoContacto", "TeléfonoContacto"
+            };
+            var baseParse = ExcelHelper.ParseExcelFile(stream, baseColumns);
+            if (baseParse.IsValid)
             {
                 isValid = true;
-                rows = oldParse.Rows;
+                rows = baseParse.Rows;
             }
         }
 
@@ -241,46 +245,127 @@ public class CompanyService : ICompanyService
             return Result<BatchImportResultDto>.Failure(errorMessage ?? "Error de validación de encabezados en el archivo Excel.", 400);
         }
 
-        // FASE 1: VALIDACIÓN TOTAL ESTRICTA. Si falta algún dato requerido en cualquier fila, abortar todo.
+        // FASE 1: VALIDACIÓN TOTAL ESTRICTA. Todos los campos obligatorios deben estar presentes.
+        // Opcionales permitidos: RazonSocial (opcional si hay Nombre), FechaCaducidad (opcional si es indefinido), EstadoProceso (opcional).
         int checkRowNum = 1;
         foreach (var row in rows)
         {
             checkRowNum++;
             var name = row.GetValueOrDefault("Nombre")?.Trim();
-            var legalName = row.GetValueOrDefault("RazonSocial")?.Trim();
+            var tradeName = row.GetValueOrDefault("NombreComercial")?.Trim();
+            var rfc = row.GetValueOrDefault("RFC")?.Trim();
             var sector = row.GetValueOrDefault("Sector")?.Trim();
+            var calle = row.GetValueOrDefault("Calle")?.Trim();
+            var numero = row.GetValueOrDefault("Numero")?.Trim();
+            var colonia = row.GetValueOrDefault("Colonia")?.Trim();
+            var ciudad = row.GetValueOrDefault("Ciudad")?.Trim();
+            var estado = row.GetValueOrDefault("Estado")?.Trim();
+            var codigoPostal = row.GetValueOrDefault("CodigoPostal")?.Trim();
             var contactName = row.GetValueOrDefault("NombreContacto")?.Trim();
             var contactEmail = row.GetValueOrDefault("CorreoContacto")?.Trim();
             var contactPhone = (row.GetValueOrDefault("TeléfonoContacto") ?? row.GetValueOrDefault("TelefonoContacto"))?.Trim();
 
-            if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(legalName))
+            var archiveId = (row.GetValueOrDefault("NumeroConvenio") ?? row.GetValueOrDefault("Convenio") ?? row.GetValueOrDefault("Archivo"))?.Trim();
+            var expRaw = (row.GetValueOrDefault("FechaCaducidad") ?? row.GetValueOrDefault("Vigencia") ?? row.GetValueOrDefault("FechaExpiracion"))?.Trim();
+            var pit = (row.GetValueOrDefault("ClavePIT") ?? row.GetValueOrDefault("PIT"))?.Trim();
+            var cia = (row.GetValueOrDefault("TipoCIA") ?? row.GetValueOrDefault("CIA"))?.Trim();
+            var scope = (row.GetValueOrDefault("AlcanceConvenio") ?? row.GetValueOrDefault("Alcance") ?? row.GetValueOrDefault("Tipo1"))?.Trim();
+
+            // 1. Datos de Empresa
+            if (string.IsNullOrWhiteSpace(name))
             {
-                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Nombre o Razón Social es obligatorio. Proceso detenido para evitar datos incompletos.", 400);
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Nombre de la empresa es obligatorio.", 400);
+            }
+
+            if (string.IsNullOrWhiteSpace(tradeName))
+            {
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Nombre Comercial (Siglas) es obligatorio.", 400);
+            }
+
+            if (string.IsNullOrWhiteSpace(rfc))
+            {
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El RFC es obligatorio.", 400);
+            }
+            if (rfc.Length < 12 || rfc.Length > 13)
+            {
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El RFC '{rfc}' no es válido (debe tener 12 o 13 caracteres).", 400);
             }
 
             if (string.IsNullOrWhiteSpace(sector))
             {
-                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Sector es obligatorio. Proceso detenido.", 400);
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Sector es obligatorio (ej. PUBLICO, SOCIAL, PRIVADO, EDUCATIVO).", 400);
+            }
+
+            if (string.IsNullOrWhiteSpace(calle))
+            {
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: La Calle de la empresa es obligatoria.", 400);
+            }
+
+            if (string.IsNullOrWhiteSpace(numero))
+            {
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Número de la dirección es obligatorio.", 400);
+            }
+
+            if (string.IsNullOrWhiteSpace(colonia))
+            {
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: La Colonia de la empresa es obligatoria.", 400);
+            }
+
+            if (string.IsNullOrWhiteSpace(ciudad))
+            {
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: La Ciudad es obligatoria.", 400);
+            }
+
+            if (string.IsNullOrWhiteSpace(estado))
+            {
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Estado es obligatorio.", 400);
+            }
+
+            if (string.IsNullOrWhiteSpace(codigoPostal))
+            {
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Código Postal es obligatorio.", 400);
             }
 
             if (string.IsNullOrWhiteSpace(contactName))
             {
-                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Nombre de Contacto es obligatorio. Proceso detenido.", 400);
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Nombre de Contacto es obligatorio.", 400);
             }
 
             if (string.IsNullOrWhiteSpace(contactEmail))
             {
-                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Correo de Contacto es obligatorio. Proceso detenido.", 400);
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Correo de Contacto es obligatorio.", 400);
             }
-
             if (!contactEmail.Contains('@') || !contactEmail.Contains('.'))
             {
-                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Correo '{contactEmail}' no es válido. Proceso detenido.", 400);
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Correo '{contactEmail}' no es válido.", 400);
             }
 
             if (string.IsNullOrWhiteSpace(contactPhone))
             {
-                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Teléfono de Contacto es obligatorio. Proceso detenido.", 400);
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Teléfono de Contacto es obligatorio.", 400);
+            }
+
+            // 2. Datos de Convenio (si se especifica convenio en la fila)
+            if (!string.IsNullOrWhiteSpace(archiveId))
+            {
+                if (string.IsNullOrWhiteSpace(pit))
+                {
+                    return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: La Clave PIT del convenio es obligatoria (ej. 5.1.2).", 400);
+                }
+                if (string.IsNullOrWhiteSpace(cia))
+                {
+                    return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Tipo CIA del convenio es obligatorio (ej. USO COMPARTIDO, CON IES).", 400);
+                }
+                if (string.IsNullOrWhiteSpace(scope))
+                {
+                    return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Alcance del convenio es obligatorio (GENERAL o ESPECIFICOS).", 400);
+                }
+
+                // Fecha de caducidad: solo si viene escrita, validar formato día/mes/año
+                if (!string.IsNullOrWhiteSpace(expRaw) && ParseExpirationDate(expRaw) == null)
+                {
+                    return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: La Fecha de Caducidad '{expRaw}' no tiene un formato válido (use día/mes/año, ej. 25/12/2026, o déjela vacía para vigencia indefinida).", 400);
+                }
             }
         }
 
@@ -445,10 +530,119 @@ public class CompanyService : ICompanyService
 
                 await _repository.AddAsync(newCompany);
                 result.SuccessCount++;
+                existing = newCompany;
+            }
+
+            // Distribuir datos de Convenio si vienen especificados en el Excel
+            var archiveId = (row.GetValueOrDefault("NumeroConvenio") ?? row.GetValueOrDefault("Convenio") ?? row.GetValueOrDefault("Archivo"))?.Trim();
+            if (!string.IsNullOrWhiteSpace(archiveId) && existing != null)
+            {
+                var expRaw = (row.GetValueOrDefault("FechaCaducidad") ?? row.GetValueOrDefault("Vigencia") ?? row.GetValueOrDefault("FechaExpiracion"))?.Trim();
+                var procRaw = (row.GetValueOrDefault("EstadoProceso") ?? row.GetValueOrDefault("Proceso"))?.Trim();
+                var pit = (row.GetValueOrDefault("ClavePIT") ?? row.GetValueOrDefault("PIT"))?.Trim();
+                var cia = (row.GetValueOrDefault("TipoCIA") ?? row.GetValueOrDefault("CIA"))?.Trim();
+                var scope = (row.GetValueOrDefault("AlcanceConvenio") ?? row.GetValueOrDefault("Alcance") ?? row.GetValueOrDefault("Tipo1"))?.Trim();
+
+                var expDate = ParseExpirationDate(expRaw);
+                string? procStatus = null;
+                if (!string.IsNullOrWhiteSpace(procRaw))
+                {
+                    var pUpper = procRaw.ToUpperInvariant();
+                    if (pUpper.Contains("RENOV")) procStatus = "EN_RENOVACION";
+                    else if (pUpper.Contains("CANCEL")) procStatus = "CANCELADO";
+                }
+
+                var agreement = await _repository.GetAgreementByArchiveIdAsync(archiveId);
+                if (agreement == null)
+                {
+                    agreement = new CompanyAgreement
+                    {
+                        ArchiveId = archiveId,
+                        ExpirationDate = expDate,
+                        ProcessStatus = procStatus,
+                        PitCode = !string.IsNullOrWhiteSpace(pit) ? pit : null,
+                        CiaType = !string.IsNullOrWhiteSpace(cia) ? cia : null,
+                        IsActive = true,
+                        IsVisible = true,
+                        CreatedBy = createdByUserId,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    await _repository.AddAgreementAsync(agreement, new List<SaveAgreementCompanyItemDto>());
+                }
+                else
+                {
+                    bool agrModified = false;
+                    if (!agreement.ExpirationDate.HasValue && expDate.HasValue)
+                    {
+                        agreement.ExpirationDate = expDate;
+                        agrModified = true;
+                    }
+                    if (string.IsNullOrWhiteSpace(agreement.ProcessStatus) && !string.IsNullOrWhiteSpace(procStatus))
+                    {
+                        agreement.ProcessStatus = procStatus;
+                        agrModified = true;
+                    }
+                    if (string.IsNullOrWhiteSpace(agreement.PitCode) && !string.IsNullOrWhiteSpace(pit))
+                    {
+                        agreement.PitCode = pit;
+                        agrModified = true;
+                    }
+                    if (string.IsNullOrWhiteSpace(agreement.CiaType) && !string.IsNullOrWhiteSpace(cia))
+                    {
+                        agreement.CiaType = cia;
+                        agrModified = true;
+                    }
+                    if (agrModified)
+                    {
+                        agreement.UpdatedAt = DateTime.UtcNow;
+                        await _repository.UpdateAgreementAsync(agreement, new List<SaveAgreementCompanyItemDto>());
+                    }
+                }
+
+                await _repository.LinkCompanyToAgreementAsync(agreement.Id, existing.Id, scope);
             }
         }
 
         return Result<BatchImportResultDto>.Success(result);
+    }
+
+    private static DateTime? ParseExpirationDate(string? rawValue)
+    {
+        if (string.IsNullOrWhiteSpace(rawValue)) return null;
+
+        var clean = rawValue.Trim();
+        if (clean.Equals("null", StringComparison.OrdinalIgnoreCase) ||
+            clean.Equals("indefinido", StringComparison.OrdinalIgnoreCase) ||
+            clean.Equals("indefinida", StringComparison.OrdinalIgnoreCase) ||
+            clean.Equals("n/a", StringComparison.OrdinalIgnoreCase) ||
+            clean.Equals("—") || clean.Equals("-"))
+        {
+            return null;
+        }
+
+        // Si viene como serial numérico de Excel
+        if (double.TryParse(clean, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double oaDate) && oaDate > 30000 && oaDate < 70000)
+        {
+            try { return DateTime.SpecifyKind(DateTime.FromOADate(oaDate).Date, DateTimeKind.Utc); } catch {}
+        }
+
+        string[] formats = {
+            "d/M/yyyy", "dd/MM/yyyy", "d-M-yyyy", "dd-MM-yyyy",
+            "yyyy-MM-dd", "yyyy/MM/dd", "d/M/yy", "dd/MM/yy"
+        };
+
+        if (DateTime.TryParseExact(clean, formats, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime parsed))
+        {
+            return DateTime.SpecifyKind(parsed.Date, DateTimeKind.Utc);
+        }
+
+        if (DateTime.TryParse(clean, out DateTime genericParsed))
+        {
+            return DateTime.SpecifyKind(genericParsed.Date, DateTimeKind.Utc);
+        }
+
+        return null;
     }
 
     public async Task<Result<CompanyAgreementDto>> GetAgreementByIdAsync(long agreementId)
@@ -489,15 +683,10 @@ public class CompanyService : ICompanyService
         var agreement = new CompanyAgreement
         {
             ArchiveId = dto.ArchiveId?.Trim(),
-            Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim().ToUpperInvariant() : "1 VIGENTE",
+            ExpirationDate = dto.ExpirationDate,
+            ProcessStatus = null, // Creación manual siempre inicia en estado normal
             PitCode = dto.PitCode?.Trim(),
             CiaType = dto.CiaType?.Trim(),
-            AgreementScope = dto.AgreementScope?.Trim(),
-            Sector = dto.Sector?.Trim(),
-            BusinessLine = dto.BusinessLine?.Trim(),
-            CompanySize = dto.CompanySize?.Trim(),
-            GeographicScope = dto.GeographicScope?.Trim(),
-            Notes = dto.Notes?.Trim(),
             IsActive = true,
             IsVisible = true,
             CreatedBy = userId,
@@ -505,8 +694,8 @@ public class CompanyService : ICompanyService
             UpdatedAt = DateTime.UtcNow
         };
 
-        var companyIds = dto.CompanyIds ?? new List<long>();
-        var created = await _repository.AddAgreementAsync(agreement, companyIds);
+        var companies = dto.Companies ?? new List<SaveAgreementCompanyItemDto>();
+        var created = await _repository.AddAgreementAsync(agreement, companies);
         var reloaded = await _repository.GetAgreementByIdAsync(created.Id);
 
         return Result<CompanyAgreementDto>.Success(MapToAgreementDto(reloaded ?? created));
@@ -521,20 +710,15 @@ public class CompanyService : ICompanyService
         }
 
         agreement.ArchiveId = dto.ArchiveId?.Trim();
-        agreement.Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim().ToUpperInvariant() : "1 VIGENTE";
+        agreement.ExpirationDate = dto.ExpirationDate;
+        agreement.ProcessStatus = !string.IsNullOrWhiteSpace(dto.ProcessStatus) ? dto.ProcessStatus.Trim().ToUpperInvariant() : null;
         agreement.PitCode = dto.PitCode?.Trim();
         agreement.CiaType = dto.CiaType?.Trim();
-        agreement.AgreementScope = dto.AgreementScope?.Trim();
-        agreement.Sector = dto.Sector?.Trim();
-        agreement.BusinessLine = dto.BusinessLine?.Trim();
-        agreement.CompanySize = dto.CompanySize?.Trim();
-        agreement.GeographicScope = dto.GeographicScope?.Trim();
-        agreement.Notes = dto.Notes?.Trim();
         agreement.UpdatedBy = userId;
         agreement.UpdatedAt = DateTime.UtcNow;
 
-        var companyIds = dto.CompanyIds ?? new List<long>();
-        await _repository.UpdateAgreementAsync(agreement, companyIds);
+        var companies = dto.Companies ?? new List<SaveAgreementCompanyItemDto>();
+        await _repository.UpdateAgreementAsync(agreement, companies);
         var reloaded = await _repository.GetAgreementByIdAsync(agreementId);
 
         return Result<CompanyAgreementDto>.Success(MapToAgreementDto(reloaded ?? agreement));
@@ -569,7 +753,7 @@ public class CompanyService : ICompanyService
         company.ContactName,
         company.ContactEmail,
         company.ContactPhone,
-        company.HasAgreement || (company.AgreementCompanies != null && company.AgreementCompanies.Any()),
+        company.HasAgreement || (company.AgreementCompanies != null && company.AgreementCompanies.Any(ac => ac.Agreement != null && ac.Agreement.IsActiveAgreement)),
         company.IsActive,
         company.IsVisible,
         company.DisplayOrder,
@@ -584,26 +768,25 @@ public class CompanyService : ICompanyService
     private static CompanyAgreementDto MapToAgreementDto(CompanyAgreement a) => new(
         a.Id,
         a.ArchiveId,
-        a.Status,
+        a.CalculateStatus(),
+        a.ExpirationDate,
+        a.ExpirationDate?.ToString("dd/MM/yyyy"),
+        a.ProcessStatus,
         a.PitCode,
         a.CiaType,
-        a.AgreementScope,
-        a.Sector,
-        a.BusinessLine,
-        a.CompanySize,
-        a.GeographicScope,
-        a.Notes,
         a.AgreementCompanies != null
             ? a.AgreementCompanies
                 .Where(ac => ac.Company != null)
-                .Select(ac => new CompanyBriefDto(
+                .Select(ac => new AgreementCompanyItemDto(
                     ac.Company!.Id,
                     ac.Company.Name,
                     ac.Company.LegalName,
                     ac.Company.TradeName,
-                    ac.Company.Rfc))
+                    ac.Company.Rfc,
+                    ac.Company.Sector,
+                    ac.AgreementScope))
                 .ToList()
-            : new List<CompanyBriefDto>(),
+            : new List<AgreementCompanyItemDto>(),
         a.IsActive,
         a.CreatedAt,
         a.UpdatedAt

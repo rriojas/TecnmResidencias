@@ -12,19 +12,31 @@ public class CompanyRepository : ICompanyRepository
         _context = context;
     }
 
-    public async Task<PaginatedResult<Company>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
+    public async Task<PaginatedResult<Company>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, bool onlyWithActiveAgreement = false)
     {
         IQueryable<Company> q = _context.Companies
             .Include(c => c.AgreementCompanies)
                 .ThenInclude(ac => ac.Agreement)
             .AsNoTracking();
 
-        if (status == "active")
-            q = q.Where(c => c.IsActive);
-        else if (status == "inactive")
-            q = q.Where(c => !c.IsActive);
-        else if (!includeInactive && status != "all")
-            q = q.Where(c => c.IsActive);
+        if (onlyWithActiveAgreement)
+        {
+            var today = DateTime.UtcNow.Date;
+            q = q.Where(c => c.IsActive && c.AgreementCompanies.Any(ac =>
+                ac.Agreement != null &&
+                ac.Agreement.IsActive &&
+                (ac.Agreement.ProcessStatus == null || ac.Agreement.ProcessStatus != "CANCELADO") &&
+                (!ac.Agreement.ExpirationDate.HasValue || ac.Agreement.ExpirationDate.Value >= today)));
+        }
+        else
+        {
+            if (status == "active")
+                q = q.Where(c => c.IsActive);
+            else if (status == "inactive")
+                q = q.Where(c => !c.IsActive);
+            else if (!includeInactive && status != "all")
+                q = q.Where(c => c.IsActive);
+        }
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
@@ -47,10 +59,23 @@ public class CompanyRepository : ICompanyRepository
         return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
     }
 
-    public async Task<IEnumerable<Company>> GetAllAsync(bool includeInactive = false)
+    public async Task<IEnumerable<Company>> GetAllAsync(bool includeInactive = false, bool onlyWithActiveAgreement = false)
     {
-        var query = _context.Companies.AsQueryable();
-        if (!includeInactive)
+        var query = _context.Companies
+            .Include(c => c.AgreementCompanies)
+                .ThenInclude(ac => ac.Agreement)
+            .AsQueryable();
+
+        if (onlyWithActiveAgreement)
+        {
+            var today = DateTime.UtcNow.Date;
+            query = query.Where(c => c.IsActive && c.AgreementCompanies.Any(ac =>
+                ac.Agreement != null &&
+                ac.Agreement.IsActive &&
+                (ac.Agreement.ProcessStatus == null || ac.Agreement.ProcessStatus != "CANCELADO") &&
+                (!ac.Agreement.ExpirationDate.HasValue || ac.Agreement.ExpirationDate.Value >= today)));
+        }
+        else if (!includeInactive)
         {
             query = query.Where(c => c.IsActive);
         }
@@ -111,6 +136,16 @@ public class CompanyRepository : ICompanyRepository
             .FirstOrDefaultAsync(ca => ca.Id == agreementId);
     }
 
+    public async Task<CompanyAgreement?> GetAgreementByArchiveIdAsync(string archiveId)
+    {
+        if (string.IsNullOrWhiteSpace(archiveId)) return null;
+        var term = archiveId.Trim().ToLowerInvariant();
+        return await _context.CompanyAgreements
+            .Include(ca => ca.AgreementCompanies)
+                .ThenInclude(ac => ac.Company)
+            .FirstOrDefaultAsync(ca => ca.ArchiveId != null && ca.ArchiveId.ToLower() == term);
+    }
+
     public async Task<List<CompanyAgreement>> GetAgreementsByCompanyIdAsync(long companyId)
     {
         return await _context.AgreementCompanies
@@ -128,10 +163,30 @@ public class CompanyRepository : ICompanyRepository
                 .ThenInclude(ac => ac.Company)
             .AsNoTracking();
 
+        var today = DateTime.UtcNow.Date;
+
         if (!string.IsNullOrWhiteSpace(statusFilter) && statusFilter != "all")
         {
             var filter = statusFilter.Trim().ToUpperInvariant();
-            q = q.Where(ca => ca.Status.ToUpper().Contains(filter));
+            if (filter.Contains("VIGENTE"))
+            {
+                q = q.Where(ca => (ca.ProcessStatus == null || ca.ProcessStatus != "CANCELADO") &&
+                                  (!ca.ExpirationDate.HasValue || ca.ExpirationDate.Value >= today));
+            }
+            else if (filter.Contains("VENCIDO"))
+            {
+                q = q.Where(ca => (ca.ProcessStatus == null || ca.ProcessStatus != "CANCELADO") &&
+                                  (ca.ProcessStatus == null || ca.ProcessStatus != "EN_RENOVACION") &&
+                                  ca.ExpirationDate.HasValue && ca.ExpirationDate.Value < today);
+            }
+            else if (filter.Contains("RENOV") || filter.Contains("STAND"))
+            {
+                q = q.Where(ca => ca.ProcessStatus == "EN_RENOVACION");
+            }
+            else if (filter.Contains("CANCEL"))
+            {
+                q = q.Where(ca => ca.ProcessStatus == "CANCELADO");
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(query.Search))
@@ -140,40 +195,51 @@ public class CompanyRepository : ICompanyRepository
             q = q.Where(ca => (ca.ArchiveId != null && ca.ArchiveId.ToLower().Contains(term))
                              || (ca.PitCode != null && ca.PitCode.ToLower().Contains(term))
                              || (ca.CiaType != null && ca.CiaType.ToLower().Contains(term))
-                             || (ca.Sector != null && ca.Sector.ToLower().Contains(term))
-                             || (ca.BusinessLine != null && ca.BusinessLine.ToLower().Contains(term))
-                             || ca.AgreementCompanies.Any(ac => ac.Company != null && 
-                                 (ac.Company.Name.ToLower().Contains(term) ||
-                                  (ac.Company.LegalName != null && ac.Company.LegalName.ToLower().Contains(term)) ||
-                                  (ac.Company.TradeName != null && ac.Company.TradeName.ToLower().Contains(term)) ||
-                                  (ac.Company.Rfc != null && ac.Company.Rfc.ToLower().Contains(term)))));
+                             || (ca.ProcessStatus != null && ca.ProcessStatus.ToLower().Contains(term))
+                             || ca.AgreementCompanies.Any(ac => (ac.AgreementScope != null && ac.AgreementScope.ToLower().Contains(term))
+                                 || (ac.Company != null && 
+                                     (ac.Company.Name.ToLower().Contains(term) ||
+                                      (ac.Company.LegalName != null && ac.Company.LegalName.ToLower().Contains(term)) ||
+                                      (ac.Company.TradeName != null && ac.Company.TradeName.ToLower().Contains(term)) ||
+                                      (ac.Company.Rfc != null && ac.Company.Rfc.ToLower().Contains(term)) ||
+                                      (ac.Company.Sector != null && ac.Company.Sector.ToLower().Contains(term))))));
         }
 
         q = q.ApplySort(query.SortBy, query.SortDir,
-            new[] { "Status", "ArchiveId", "PitCode", "CiaType", "Sector", "CreatedAt" },
+            new[] { "ArchiveId", "ExpirationDate", "ProcessStatus", "PitCode", "CiaType", "CreatedAt" },
             "CreatedAt", defaultDescending: true);
 
         return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
     }
 
-    public async Task<CompanyAgreement> AddAgreementAsync(CompanyAgreement agreement, List<long> companyIds)
+    public async Task<CompanyAgreement> AddAgreementAsync(CompanyAgreement agreement, List<SaveAgreementCompanyItemDto> companies)
     {
         await _context.CompanyAgreements.AddAsync(agreement);
         await _context.SaveChangesAsync();
 
-        if (companyIds.Count > 0)
+        if (companies != null && companies.Count > 0)
         {
-            foreach (var cid in companyIds.Distinct())
+            var distinctCompanies = companies
+                .GroupBy(c => c.CompanyId)
+                .Select(g => g.First())
+                .ToList();
+
+            var today = DateTime.UtcNow.Date;
+            var isAgreementActive = agreement.IsActive && agreement.ProcessStatus != "CANCELADO" &&
+                (!agreement.ExpirationDate.HasValue || agreement.ExpirationDate.Value >= today);
+
+            foreach (var item in distinctCompanies)
             {
                 await _context.AgreementCompanies.AddAsync(new AgreementCompany
                 {
                     AgreementId = agreement.Id,
-                    CompanyId = cid,
+                    CompanyId = item.CompanyId,
+                    AgreementScope = item.AgreementScope?.Trim(),
                     CreatedAt = DateTime.UtcNow
                 });
 
-                var comp = await _context.Companies.FindAsync(cid);
-                if (comp != null) comp.HasAgreement = true;
+                var comp = await _context.Companies.FindAsync(item.CompanyId);
+                if (comp != null && isAgreementActive) comp.HasAgreement = true;
             }
             await _context.SaveChangesAsync();
         }
@@ -181,7 +247,7 @@ public class CompanyRepository : ICompanyRepository
         return agreement;
     }
 
-    public async Task UpdateAgreementAsync(CompanyAgreement agreement, List<long> companyIds)
+    public async Task UpdateAgreementAsync(CompanyAgreement agreement, List<SaveAgreementCompanyItemDto> companies)
     {
         _context.CompanyAgreements.Update(agreement);
 
@@ -190,21 +256,39 @@ public class CompanyRepository : ICompanyRepository
             .ToListAsync();
 
         var existingCompanyIds = existingLinks.Select(l => l.CompanyId).ToHashSet();
-        var newCompanyIds = companyIds.Distinct().ToHashSet();
+        var incoming = companies ?? new List<SaveAgreementCompanyItemDto>();
+        var incomingDistinct = incoming
+            .GroupBy(c => c.CompanyId)
+            .Select(g => g.First())
+            .ToList();
+        var newCompanyIds = incomingDistinct.Select(c => c.CompanyId).ToHashSet();
 
+        // 1. Remover las que ya no están
         var toRemove = existingLinks.Where(l => !newCompanyIds.Contains(l.CompanyId)).ToList();
         if (toRemove.Count > 0)
         {
             _context.AgreementCompanies.RemoveRange(toRemove);
         }
 
-        var toAdd = newCompanyIds.Where(id => !existingCompanyIds.Contains(id)).ToList();
-        foreach (var cid in toAdd)
+        // 2. Actualizar las existentes que permanecen (por si cambió AgreementScope)
+        foreach (var link in existingLinks.Where(l => newCompanyIds.Contains(l.CompanyId)))
+        {
+            var match = incomingDistinct.FirstOrDefault(c => c.CompanyId == link.CompanyId);
+            if (match != null)
+            {
+                link.AgreementScope = match.AgreementScope?.Trim();
+            }
+        }
+
+        // 3. Agregar las nuevas
+        var toAdd = incomingDistinct.Where(c => !existingCompanyIds.Contains(c.CompanyId)).ToList();
+        foreach (var item in toAdd)
         {
             await _context.AgreementCompanies.AddAsync(new AgreementCompany
             {
                 AgreementId = agreement.Id,
-                CompanyId = cid,
+                CompanyId = item.CompanyId,
+                AgreementScope = item.AgreementScope?.Trim(),
                 CreatedAt = DateTime.UtcNow
             });
         }
@@ -213,10 +297,13 @@ public class CompanyRepository : ICompanyRepository
 
         // Actualizar bandera HasAgreement en empresas afectadas
         var allAffectedIds = existingCompanyIds.Concat(newCompanyIds).Distinct();
+        var today = DateTime.UtcNow.Date;
         foreach (var cid in allAffectedIds)
         {
             var hasActive = await _context.AgreementCompanies
-                .AnyAsync(ac => ac.CompanyId == cid && ac.Agreement != null && ac.Agreement.IsActive);
+                .AnyAsync(ac => ac.CompanyId == cid && ac.Agreement != null && ac.Agreement.IsActive &&
+                    ac.Agreement.ProcessStatus != "CANCELADO" &&
+                    (!ac.Agreement.ExpirationDate.HasValue || ac.Agreement.ExpirationDate.Value >= today));
             var comp = await _context.Companies.FindAsync(cid);
             if (comp != null) comp.HasAgreement = hasActive;
         }
@@ -230,6 +317,49 @@ public class CompanyRepository : ICompanyRepository
         if (agreement != null)
         {
             agreement.IsActive = false;
+            agreement.ProcessStatus = "CANCELADO";
+            await _context.SaveChangesAsync();
+
+            var companyIds = await _context.AgreementCompanies
+                .Where(ac => ac.AgreementId == agreementId)
+                .Select(ac => ac.CompanyId)
+                .ToListAsync();
+
+            var today = DateTime.UtcNow.Date;
+            foreach (var cid in companyIds)
+            {
+                var hasActive = await _context.AgreementCompanies
+                    .AnyAsync(ac => ac.CompanyId == cid && ac.Agreement != null && ac.Agreement.IsActive &&
+                        ac.Agreement.ProcessStatus != "CANCELADO" &&
+                        (!ac.Agreement.ExpirationDate.HasValue || ac.Agreement.ExpirationDate.Value >= today));
+                var comp = await _context.Companies.FindAsync(cid);
+                if (comp != null) comp.HasAgreement = hasActive;
+            }
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task LinkCompanyToAgreementAsync(long agreementId, long companyId, string? scope)
+    {
+        var exists = await _context.AgreementCompanies
+            .AnyAsync(ac => ac.AgreementId == agreementId && ac.CompanyId == companyId);
+        if (!exists)
+        {
+            await _context.AgreementCompanies.AddAsync(new AgreementCompany
+            {
+                AgreementId = agreementId,
+                CompanyId = companyId,
+                AgreementScope = scope?.Trim() ?? "GENERAL",
+                CreatedAt = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+        }
+
+        var agreement = await _context.CompanyAgreements.FindAsync(agreementId);
+        var comp = await _context.Companies.FindAsync(companyId);
+        if (comp != null && agreement != null && agreement.IsActiveAgreement)
+        {
+            comp.HasAgreement = true;
             await _context.SaveChangesAsync();
         }
     }

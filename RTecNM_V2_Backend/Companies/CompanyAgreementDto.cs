@@ -1,41 +1,40 @@
 namespace TecNM.Residency.Companies;
 
-public record CompanyBriefDto(
-    long Id,
-    string Name,
+public record AgreementCompanyItemDto(
+    long CompanyId,
+    string CompanyName,
     string? LegalName,
     string? TradeName,
-    string? Rfc
+    string? Rfc,
+    string? Sector,
+    string? AgreementScope
 );
 
 public record CompanyAgreementDto(
     long Id,
     string? ArchiveId,
     string Status,
+    DateTime? ExpirationDate,
+    string? ExpirationDateFormatted,
+    string? ProcessStatus,
     string? PitCode,
     string? CiaType,
-    string? AgreementScope,
-    string? Sector,
-    string? BusinessLine,
-    string? CompanySize,
-    string? GeographicScope,
-    string? Notes,
-    List<CompanyBriefDto> Companies,
+    List<AgreementCompanyItemDto> Companies,
     bool IsActive,
     DateTime CreatedAt,
     DateTime UpdatedAt
 );
 
+public record SaveAgreementCompanyItemDto(
+    long CompanyId,
+    string? AgreementScope
+);
+
 public record SaveCompanyAgreementDto(
     string? ArchiveId,
-    string Status,
+    DateTime? ExpirationDate,
+    string? ProcessStatus,
     string? PitCode,
     string? CiaType,
-    string? AgreementScope,
-    string? Sector,
-    string? BusinessLine,
-    string? CompanySize,
-    string? GeographicScope,
-    string? Notes,
-    List<long>? CompanyIds
+    List<SaveAgreementCompanyItemDto>? Companies
 );

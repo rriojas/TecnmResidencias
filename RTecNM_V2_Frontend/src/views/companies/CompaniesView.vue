@@ -22,6 +22,13 @@ const canViewAgreements = computed(() => {
   return authStore.isAdmin || authStore.hasRole('vinculacion')
 })
 
+const tableColspan = computed(() => {
+  let count = 7
+  if (canViewAgreements.value) count++
+  if (!authStore.isStudent) count++
+  return count
+})
+
 function switchTab(tab) {
   activeTab.value = tab
   if (tab === 'agreements') {
@@ -434,17 +441,29 @@ const agreementFormError = ref('')
 
 const agreementForm = ref({
   archiveId: '',
-  status: '1 VIGENTE',
+  hasExpirationDate: false,
+  expirationDate: '', // Formato DD/MM/YYYY
+  processStatus: '', // '' | 'EN_RENOVACION' | 'CANCELADO'
   pitCode: '5.1.2',
   ciaType: 'USO COMPARTIDO',
-  agreementScope: 'GENERAL',
-  sector: 'PRIVADO',
-  businessLine: '',
-  companySize: 'MEDIANAS EMPRESAS',
-  geographicScope: 'NACIONAL',
-  notes: '',
-  companyIds: [],
+  companies: [],
 })
+
+function formatDateDDMMYYYY(dateVal) {
+  if (!dateVal) return '—'
+  const s = String(dateVal).trim()
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) return s
+  try {
+    const d = new Date(s)
+    if (isNaN(d.getTime())) return s
+    const day = String(d.getUTCDate()).padStart(2, '0')
+    const month = String(d.getUTCMonth() + 1).padStart(2, '0')
+    const year = d.getUTCFullYear()
+    return `${day}/${month}/${year}`
+  } catch {
+    return s
+  }
+}
 
 async function loadAgreements({ silent = false } = {}) {
   if (!canViewAgreements.value) return
@@ -499,16 +518,12 @@ function openCreateAgreementModal() {
   agreementFormError.value = ''
   agreementForm.value = {
     archiveId: '',
-    status: '1 VIGENTE',
+    hasExpirationDate: false,
+    expirationDate: '',
+    processStatus: '',
     pitCode: '5.1.2',
     ciaType: 'USO COMPARTIDO',
-    agreementScope: 'GENERAL',
-    sector: 'PRIVADO',
-    businessLine: '',
-    companySize: 'MEDIANAS EMPRESAS',
-    geographicScope: 'NACIONAL',
-    notes: '',
-    companyIds: [],
+    companies: [],
   }
   loadCompanyOptions()
   isAgreementModalOpen.value = true
@@ -519,18 +534,18 @@ function openEditAgreementModal(agreement) {
   editingAgreementId.value = agreement.id
   companyPickerSearch.value = ''
   agreementFormError.value = ''
+  const hasExp = Boolean(agreement.expirationDate)
   agreementForm.value = {
     archiveId: agreement.archiveId || '',
-    status: agreement.status || '1 VIGENTE',
+    hasExpirationDate: hasExp,
+    expirationDate: agreement.expirationDateFormatted || (hasExp ? formatDateDDMMYYYY(agreement.expirationDate) : ''),
+    processStatus: agreement.processStatus || '',
     pitCode: agreement.pitCode || '5.1.2',
     ciaType: agreement.ciaType || 'USO COMPARTIDO',
-    agreementScope: agreement.agreementScope || 'GENERAL',
-    sector: agreement.sector || 'PRIVADO',
-    businessLine: agreement.businessLine || '',
-    companySize: agreement.companySize || 'MEDIANAS EMPRESAS',
-    geographicScope: agreement.geographicScope || 'NACIONAL',
-    notes: agreement.notes || '',
-    companyIds: (agreement.companies || []).map((c) => c.id),
+    companies: (agreement.companies || []).map((c) => ({
+      companyId: c.companyId || c.id,
+      agreementScope: c.agreementScope || 'GENERAL',
+    })),
   }
   loadCompanyOptions()
   isAgreementModalOpen.value = true
@@ -543,28 +558,57 @@ function openAgreementModalForCompany(company) {
   agreementFormError.value = ''
   agreementForm.value = {
     archiveId: '',
-    status: '1 VIGENTE',
+    hasExpirationDate: false,
+    expirationDate: '',
+    processStatus: '',
     pitCode: '5.1.2',
     ciaType: 'USO COMPARTIDO',
-    agreementScope: 'GENERAL',
-    sector: company.sector || 'PRIVADO',
-    businessLine: '',
-    companySize: 'MEDIANAS EMPRESAS',
-    geographicScope: 'NACIONAL',
-    notes: '',
-    companyIds: [company.id],
+    companies: [
+      {
+        companyId: company.id,
+        agreementScope: 'GENERAL',
+      },
+    ],
   }
   loadCompanyOptions()
   isAgreementModalOpen.value = true
 }
 
-function removeCompanyFromAgreement(companyId) {
-  agreementForm.value.companyIds = agreementForm.value.companyIds.filter((id) => id !== companyId)
+function toggleCompanyInAgreement(companyId) {
+  const index = agreementForm.value.companies.findIndex((c) => c.companyId === companyId)
+  if (index >= 0) {
+    agreementForm.value.companies.splice(index, 1)
+  } else {
+    agreementForm.value.companies.push({
+      companyId,
+      agreementScope: 'GENERAL',
+    })
+  }
 }
 
-function getCompanyNameById(id) {
+function removeCompanyFromAgreement(companyId) {
+  agreementForm.value.companies = agreementForm.value.companies.filter((c) => c.companyId !== companyId)
+}
+
+function getCompanyDetailsById(id) {
   const found = allCompanyOptions.value.find((c) => c.id === id)
-  return found ? found.name : `Empresa #${id}`
+  return found || { id, name: `Empresa #${id}`, sector: '—', tradeName: null, rfc: '' }
+}
+
+function isCompanySelectedInAgreement(companyId) {
+  return agreementForm.value.companies.some((c) => c.companyId === companyId)
+}
+
+function getCompanyScopeInAgreement(companyId) {
+  const item = agreementForm.value.companies.find((c) => c.companyId === companyId)
+  return item ? item.agreementScope : 'GENERAL'
+}
+
+function setCompanyScopeInAgreement(companyId, scope) {
+  const item = agreementForm.value.companies.find((c) => c.companyId === companyId)
+  if (item) {
+    item.agreementScope = scope
+  }
 }
 
 function filterAgreementsByCompany(company) {
@@ -580,24 +624,44 @@ function viewCompanyAgreements(company) {
 
 async function handleAgreementSubmit() {
   agreementFormError.value = ''
-  if (!agreementForm.value.companyIds || agreementForm.value.companyIds.length === 0) {
+  if (!agreementForm.value.companies || agreementForm.value.companies.length === 0) {
     agreementFormError.value = 'Debe seleccionar al menos una empresa para vincular al convenio.'
     return
+  }
+
+  let expirationDatePayload = null
+  if (agreementForm.value.hasExpirationDate) {
+    const raw = (agreementForm.value.expirationDate || '').trim()
+    if (!raw) {
+      agreementFormError.value = 'Debe ingresar la fecha de caducidad en formato día/mes/año (ej. 25/12/2026) o desactivar la fecha de caducidad.'
+      return
+    }
+    const match = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+    if (!match) {
+      agreementFormError.value = 'El formato de fecha de caducidad debe ser día/mes/año (ej. 25/12/2026).'
+      return
+    }
+    const day = parseInt(match[1], 10)
+    const month = parseInt(match[2], 10)
+    const year = parseInt(match[3], 10)
+    if (month < 1 || month > 12 || day < 1 || day > 31 || year < 1900 || year > 2100) {
+      agreementFormError.value = 'La fecha de caducidad ingresada no es válida.'
+      return
+    }
+    expirationDatePayload = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   }
 
   isAgreementSubmitting.value = true
   const payload = {
     archiveId: agreementForm.value.archiveId.trim() || undefined,
-    status: agreementForm.value.status,
+    expirationDate: expirationDatePayload,
+    processStatus: isAgreementEditMode.value ? (agreementForm.value.processStatus || null) : null,
     pitCode: agreementForm.value.pitCode.trim() || undefined,
     ciaType: agreementForm.value.ciaType.trim() || undefined,
-    agreementScope: agreementForm.value.agreementScope.trim() || undefined,
-    sector: agreementForm.value.sector.trim() || undefined,
-    businessLine: agreementForm.value.businessLine.trim() || undefined,
-    companySize: agreementForm.value.companySize.trim() || undefined,
-    geographicScope: agreementForm.value.geographicScope.trim() || undefined,
-    notes: agreementForm.value.notes.trim() || undefined,
-    companyIds: agreementForm.value.companyIds,
+    companies: agreementForm.value.companies.map((c) => ({
+      companyId: c.companyId,
+      agreementScope: c.agreementScope || 'GENERAL',
+    })),
   }
 
   try {
@@ -640,10 +704,10 @@ async function handleDeleteAgreement(agreement) {
 
 function getAgreementBadgeClass(status) {
   const s = String(status || '').toUpperCase()
-  if (s.includes('1') || s.includes('VIGENTE')) return 'tecnm-badge-success'
-  if (s.includes('2') || s.includes('VENCIDO')) return 'tecnm-badge-danger'
-  if (s.includes('3') || s.includes('STAND BY') || s.includes('STAND')) return 'tecnm-badge-warning'
-  if (s.includes('4') || s.includes('RENOVAR')) return 'tecnm-badge-info'
+  if (s.includes('VIGENTE')) return 'tecnm-badge-success'
+  if (s.includes('VENCIDO')) return 'tecnm-badge-danger'
+  if (s.includes('RENOV') || s.includes('STAND')) return 'tecnm-badge-warning'
+  if (s.includes('CANCEL')) return 'tecnm-badge-secondary'
   return 'tecnm-badge-secondary'
 }
 
@@ -902,12 +966,12 @@ onMounted(() => {
             </thead>
             <tbody id="companiesTableBody">
               <tr v-if="isLoading">
-                <td :colspan="canViewAgreements ? 9 : 8" class="tecnm-table-empty">
+                <td :colspan="tableColspan" class="tecnm-table-empty">
                   Cargando catálogo de empresas...
                 </td>
               </tr>
               <tr v-else-if="companies.length === 0">
-                <td :colspan="canViewAgreements ? 9 : 8" class="tecnm-table-empty">
+                <td :colspan="tableColspan" class="tecnm-table-empty">
                   <span v-if="searchTerm">No se encontraron empresas con el término "{{ searchTerm }}".</span>
                   <span v-else-if="includeInactive">No hay empresas registradas en el catálogo.</span>
                   <span v-else>No hay empresas receptoras registradas.</span>
@@ -1024,7 +1088,7 @@ onMounted(() => {
     <!-- ============================================================= -->
     <!-- PESTAÑA 2: CONVENIOS INSTITUCIONALES (N:M)                    -->
     <!-- ============================================================= -->
-    <div v-show="activeTab === 'agreements'" class="tecnm-card">
+    <div v-if="canViewAgreements" v-show="activeTab === 'agreements'" class="tecnm-card">
       <div class="tecnm-card-header">
         <h3 class="tecnm-card-title">Convenios de Vinculación Registrados</h3>
       </div>
@@ -1067,11 +1131,11 @@ onMounted(() => {
               style="min-width: 150px; font-size: 0.85rem;"
               @change="onAgreementStatusFilterChange"
             >
-              <option value="all">Todos los Status</option>
-              <option value="1 VIGENTE">1 VIGENTE</option>
-              <option value="2 VENCIDO">2 VENCIDO</option>
-              <option value="3 STAND BY">3 STAND BY</option>
-              <option value="4 RENOVAR">4 RENOVAR</option>
+              <option value="all">Todos los Convenios</option>
+              <option value="VIGENTE">Vigentes (Activos / Indefinidos)</option>
+              <option value="EN_RENOVACION">En Proceso de Renovación</option>
+              <option value="VENCIDO">Vencidos (Caducados)</option>
+              <option value="CANCELADO">Cancelados</option>
             </select>
           </div>
           <button
@@ -1112,26 +1176,23 @@ onMounted(() => {
             <thead>
               <tr>
                 <th>ID ARCHIVO</th>
-                <th>EMPRESAS VINCULADAS</th>
-                <th>STATUS</th>
+                <th>ESTATUS</th>
+                <th>VIGENCIA</th>
+                <th>PROCESO</th>
                 <th>PIT</th>
                 <th>CIA</th>
-                <th>TIPO 1</th>
-                <th>SECTOR</th>
-                <th>GIRO</th>
-                <th>TAMAÑO</th>
-                <th>TIPO 2</th>
+                <th>EMPRESAS VINCULADAS (SECTOR / ALCANCE TIPO 1)</th>
                 <th class="tecnm-th-actions">Acciones</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="isAgreementsLoading">
-                <td colspan="11" class="tecnm-table-empty">
+                <td colspan="8" class="tecnm-table-empty">
                   Cargando convenios institucionales...
                 </td>
               </tr>
               <tr v-else-if="agreements.length === 0">
-                <td colspan="11" class="tecnm-table-empty">
+                <td colspan="8" class="tecnm-table-empty">
                   <span v-if="agreementSearchTerm">No se encontraron convenios con "{{ agreementSearchTerm }}".</span>
                   <span v-else>No hay convenios registrados. Puede hacer clic en "+ Registrar Nuevo Convenio" para crear uno y vincular múltiples empresas.</span>
                 </td>
@@ -1143,30 +1204,47 @@ onMounted(() => {
               >
                 <td><strong>{{ a.archiveId || '—' }}</strong></td>
                 <td>
-                  <div v-if="a.companies && a.companies.length > 0" style="display: flex; flex-wrap: wrap; gap: 0.35rem;">
-                    <span
-                      v-for="comp in a.companies"
-                      :key="comp.id"
-                      class="tecnm-badge tecnm-badge-secondary"
-                      style="font-size: 0.75rem;"
-                    >
-                      {{ comp.tradeName || comp.name }}
-                    </span>
-                  </div>
-                  <span v-else class="tecnm-text-muted">Sin empresas vinculadas</span>
-                </td>
-                <td>
                   <span class="tecnm-badge" :class="getAgreementBadgeClass(a.status)">
                     {{ a.status }}
                   </span>
                 </td>
+                <td>
+                  <span v-if="!a.expirationDate" class="tecnm-badge" style="font-size: 0.75rem; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">
+                    Vigencia Indefinida
+                  </span>
+                  <span v-else style="font-weight: 600; font-size: 0.85rem; color: #1e293b;">
+                    {{ a.expirationDateFormatted || formatDateDDMMYYYY(a.expirationDate) }}
+                  </span>
+                </td>
+                <td>
+                  <span v-if="a.processStatus === 'EN_RENOVACION'" class="tecnm-badge tecnm-badge-warning" style="font-size: 0.75rem;">
+                    En Renovación
+                  </span>
+                  <span v-else-if="a.processStatus === 'CANCELADO'" class="tecnm-badge tecnm-badge-danger" style="font-size: 0.75rem;">
+                    Cancelado
+                  </span>
+                  <span v-else class="tecnm-text-muted" style="font-size: 0.8rem;">—</span>
+                </td>
                 <td>{{ a.pitCode || '—' }}</td>
                 <td>{{ a.ciaType || '—' }}</td>
-                <td>{{ a.agreementScope || '—' }}</td>
-                <td>{{ a.sector || '—' }}</td>
-                <td>{{ a.businessLine || '—' }}</td>
-                <td>{{ a.companySize || '—' }}</td>
-                <td>{{ a.geographicScope || '—' }}</td>
+                <td>
+                  <div v-if="a.companies && a.companies.length > 0" style="display: flex; flex-direction: column; gap: 0.35rem;">
+                    <div
+                      v-for="comp in a.companies"
+                      :key="comp.companyId"
+                      style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; background: #f8fafc; padding: 0.25rem 0.5rem; border-radius: 4px; border: 1px solid #e2e8f0;"
+                    >
+                      <strong style="color: #0f172a; font-size: 0.85rem;">{{ comp.tradeName || comp.companyName }}</strong>
+                      <span v-if="comp.sector" class="tecnm-badge tecnm-badge-secondary" style="font-size: 0.7rem;">
+                        {{ comp.sector }}
+                      </span>
+                      <span class="tecnm-badge" :class="comp.agreementScope === 'ESPECÍFICOS' ? 'tecnm-badge-warning' : 'tecnm-badge-info'" style="font-size: 0.7rem;">
+                        {{ comp.agreementScope || 'GENERAL' }}
+                      </span>
+                    </div>
+                  </div>
+                  <span v-else class="tecnm-text-muted">Sin empresas vinculadas</span>
+                </td>
                 <td>
                   <div class="tecnm-row-actions">
                     <button
@@ -1480,7 +1558,7 @@ onMounted(() => {
     <!-- MODAL REGISTRAR / EDITAR CONVENIO N:M (VINCULACIÓN)          -->
     <!-- ============================================================= -->
     <div
-      v-if="isAgreementModalOpen"
+      v-if="canViewAgreements && isAgreementModalOpen"
       id="agreementModal"
       class="modal-backdrop active"
       role="dialog"
@@ -1512,76 +1590,8 @@ onMounted(() => {
             <span>{{ agreementFormError }}</span>
           </div>
 
-          <!-- Selector Múltiple de Empresas (N:M) -->
-          <div class="tecnm-form-group" style="border: 1px solid var(--tecnm-border-color, #e2e8f0); border-radius: 8px; padding: 0.85rem; background: var(--tecnm-surface-neutral, #f8fafc);">
-            <label class="tecnm-label" style="font-weight: 600; margin-bottom: 0.25rem;">
-              Empresas Vinculadas al Convenio * (Seleccione una o varias)
-            </label>
-            <p class="tecnm-text-muted" style="font-size: 0.8rem; margin-bottom: 0.5rem;">
-              Un mismo convenio puede respaldar a múltiples empresas u organizaciones.
-            </p>
-
-            <!-- Píldoras de empresas seleccionadas -->
-            <div v-if="agreementForm.companyIds.length > 0" style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.6rem;">
-              <span
-                v-for="cid in agreementForm.companyIds"
-                :key="cid"
-                class="tecnm-badge tecnm-badge-primary"
-                style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.6rem; font-size: 0.8rem;"
-              >
-                <span>{{ getCompanyNameById(cid) }}</span>
-                <button
-                  type="button"
-                  style="background: transparent; border: none; color: #fff; cursor: pointer; padding: 0; font-weight: bold; line-height: 1;"
-                  @click="removeCompanyFromAgreement(cid)"
-                >
-                  &times;
-                </button>
-              </span>
-            </div>
-            <div v-else class="tecnm-text-muted" style="font-size: 0.85rem; margin-bottom: 0.5rem; font-style: italic;">
-              Ninguna empresa seleccionada aún.
-            </div>
-
-            <!-- Filtro de búsqueda rápida en empresas -->
-            <input
-              v-model="companyPickerSearch"
-              type="text"
-              class="tecnm-form-control"
-              placeholder="Filtrar empresas del catálogo..."
-              style="margin-bottom: 0.5rem; font-size: 0.85rem;"
-            />
-
-            <!-- Lista con scroll de checkboxes -->
-            <div style="max-height: 150px; overflow-y: auto; background: #fff; border: 1px solid var(--tecnm-border-color, #e2e8f0); border-radius: 4px; padding: 0.5rem;">
-              <div
-                v-for="opt in filteredCompanyOptions"
-                :key="opt.id"
-                style="display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0;"
-              >
-                <input
-                  :id="`chk_comp_${opt.id}`"
-                  v-model="agreementForm.companyIds"
-                  type="checkbox"
-                  :value="opt.id"
-                  style="cursor: pointer;"
-                />
-                <label
-                  :for="`chk_comp_${opt.id}`"
-                  style="margin-bottom: 0; cursor: pointer; font-size: 0.85rem; flex: 1;"
-                >
-                  <strong>{{ opt.name }}</strong>
-                  <small v-if="opt.rfc" class="tecnm-text-muted"> ({{ opt.rfc }})</small>
-                </label>
-              </div>
-              <div v-if="filteredCompanyOptions.length === 0" class="tecnm-text-muted" style="font-size: 0.85rem; padding: 0.25rem;">
-                No se encontraron empresas con ese término.
-              </div>
-            </div>
-          </div>
-
-          <!-- Campos de la Ficha de Convenios -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+          <!-- Datos Principales del Convenio -->
+          <div :style="isAgreementEditMode ? 'display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;' : 'display: block; margin-bottom: 1rem;'">
             <div class="tecnm-form-group">
               <label for="agreementArchiveIdInput" class="tecnm-label">ID ARCHIVO</label>
               <input
@@ -1595,24 +1605,61 @@ onMounted(() => {
               />
             </div>
 
-            <div class="tecnm-form-group">
-              <label for="agreementStatusSelect" class="tecnm-label">STATUS *</label>
+            <div v-if="isAgreementEditMode" class="tecnm-form-group">
+              <label for="agreementProcessStatusSelect" class="tecnm-label">PROCESO DEL CONVENIO</label>
               <select
-                id="agreementStatusSelect"
-                v-model="agreementForm.status"
+                id="agreementProcessStatusSelect"
+                v-model="agreementForm.processStatus"
                 class="tecnm-form-control"
                 :disabled="isAgreementSubmitting"
-                required
               >
-                <option value="1 VIGENTE">1 VIGENTE</option>
-                <option value="2 VENCIDO">2 VENCIDO</option>
-                <option value="3 STAND BY">3 STAND BY</option>
-                <option value="4 RENOVAR">4 RENOVAR</option>
+                <option value="">Ninguno (Vigencia Normal)</option>
+                <option value="EN_RENOVACION">En Proceso de Renovación</option>
+                <option value="CANCELADO">Cancelado / Revocado</option>
               </select>
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+          <!-- Vigencia y Fecha de Caducidad (Día/Mes/Año) -->
+          <div class="tecnm-card" style="margin-bottom: 1rem; border: 1px solid var(--tecnm-border-color, #cbd5e1); padding: 0.85rem; border-radius: 8px; background: #f8fafc;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+              <div>
+                <label class="tecnm-switch-label" style="font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                  <span class="tecnm-switch">
+                    <input
+                      id="agreementHasExpirationToggle"
+                      v-model="agreementForm.hasExpirationDate"
+                      type="checkbox"
+                      :disabled="isAgreementSubmitting"
+                    />
+                    <span class="tecnm-switch-slider"></span>
+                  </span>
+                  <span>Activar fecha de caducidad / vencimiento</span>
+                </label>
+                <small class="tecnm-text-muted" style="display: block; margin-top: 0.35rem;">
+                  {{ agreementForm.hasExpirationDate ? 'El convenio vencerá automáticamente en la fecha indicada.' : 'Convenio de vigencia indefinida (nunca caduca).' }}
+                </small>
+              </div>
+
+              <div v-if="agreementForm.hasExpirationDate" style="min-width: 220px;">
+                <label for="agreementExpirationDateInput" class="tecnm-label" style="margin-bottom: 0.25rem; font-size: 0.85rem; font-weight: 600;">
+                  Fecha de Caducidad (Día/Mes/Año) *
+                </label>
+                <input
+                  id="agreementExpirationDateInput"
+                  v-model="agreementForm.expirationDate"
+                  type="text"
+                  class="tecnm-form-control"
+                  placeholder="DD/MM/AAAA (ej. 25/12/2026)"
+                  maxlength="10"
+                  required
+                  :disabled="isAgreementSubmitting"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
             <div class="tecnm-form-group">
               <label for="agreementPitCodeSelect" class="tecnm-label">PIT</label>
               <input
@@ -1641,89 +1688,107 @@ onMounted(() => {
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-            <div class="tecnm-form-group">
-              <label for="agreementScopeSelect" class="tecnm-label">TIPO 1 (Alcance)</label>
-              <select
-                id="agreementScopeSelect"
-                v-model="agreementForm.agreementScope"
-                class="tecnm-form-control"
-                :disabled="isAgreementSubmitting"
-              >
-                <option value="GENERAL">GENERAL</option>
-                <option value="ESPECÍFICOS">ESPECÍFICOS</option>
-              </select>
+          <!-- Empresas Vinculadas con Tipo 1 Individual -->
+          <div class="tecnm-form-group" style="border: 1px solid var(--tecnm-border-color, #e2e8f0); border-radius: 8px; padding: 1rem; background: var(--tecnm-surface-neutral, #f8fafc);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <label class="tecnm-label" style="font-weight: 600; margin-bottom: 0;">
+                Empresas Vinculadas al Convenio ({{ agreementForm.companies.length }}) *
+              </label>
+              <small class="tecnm-text-muted">Cada empresa mantiene su Sector y define su Tipo 1 (Alcance)</small>
             </div>
 
-            <div class="tecnm-form-group">
-              <label for="agreementSectorSelect" class="tecnm-label">SECTOR</label>
-              <select
-                id="agreementSectorSelect"
-                v-model="agreementForm.sector"
-                class="tecnm-form-control"
-                :disabled="isAgreementSubmitting"
+            <!-- Lista de empresas ya vinculadas -->
+            <div v-if="agreementForm.companies.length > 0" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.85rem;">
+              <div
+                v-for="item in agreementForm.companies"
+                :key="item.companyId"
+                style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; background: #fff; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #cbd5e1;"
               >
-                <option value="PÚBLICO">PÚBLICO</option>
-                <option value="SOCIAL">SOCIAL</option>
-                <option value="PRIVADO">PRIVADO</option>
-                <option value="EDUCATIVO">EDUCATIVO</option>
-              </select>
-            </div>
-          </div>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-weight: 600; color: #0f172a; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    {{ getCompanyDetailsById(item.companyId).tradeName || getCompanyDetailsById(item.companyId).name }}
+                  </div>
+                  <div style="display: flex; gap: 0.4rem; align-items: center; margin-top: 0.2rem;">
+                    <span v-if="getCompanyDetailsById(item.companyId).sector" class="tecnm-badge tecnm-badge-secondary" style="font-size: 0.7rem;">
+                      Sector: {{ getCompanyDetailsById(item.companyId).sector }}
+                    </span>
+                    <small v-if="getCompanyDetailsById(item.companyId).rfc" class="tecnm-text-muted" style="font-size: 0.75rem;">
+                      RFC: {{ getCompanyDetailsById(item.companyId).rfc }}
+                    </small>
+                  </div>
+                </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-            <div class="tecnm-form-group">
-              <label for="agreementBusinessLineInput" class="tecnm-label">GIRO</label>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div>
+                    <label :for="`scope_${item.companyId}`" style="font-size: 0.75rem; font-weight: 500; display: block; margin-bottom: 0.15rem;">
+                      Tipo 1:
+                    </label>
+                    <select
+                      :id="`scope_${item.companyId}`"
+                      v-model="item.agreementScope"
+                      class="tecnm-form-control"
+                      style="font-size: 0.8rem; padding: 0.25rem 0.5rem; height: auto;"
+                      :disabled="isAgreementSubmitting"
+                    >
+                      <option value="GENERAL">GENERAL</option>
+                      <option value="ESPECÍFICOS">ESPECÍFICOS</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="tecnm-btn tecnm-btn-danger tecnm-btn-sm"
+                    style="margin-top: 1rem; padding: 0.25rem 0.5rem;"
+                    title="Quitar empresa de este convenio"
+                    :disabled="isAgreementSubmitting"
+                    @click="removeCompanyFromAgreement(item.companyId)"
+                  >
+                    &times;
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div v-else class="tecnm-alert tecnm-alert-warning" style="margin-bottom: 0.75rem; font-size: 0.85rem; padding: 0.5rem 0.75rem;">
+              No hay empresas vinculadas. Agregue una o más empresas usando el buscador a continuación.
+            </div>
+
+            <!-- Buscador para agregar empresas -->
+            <div>
               <input
-                id="agreementBusinessLineInput"
-                v-model="agreementForm.businessLine"
+                v-model="companyPickerSearch"
                 type="text"
                 class="tecnm-form-control"
-                placeholder="Ej. Automotriz, Metalmecánico, Software..."
-                maxlength="150"
-                :disabled="isAgreementSubmitting"
+                placeholder="Escriba el nombre o RFC para buscar empresas y vincularlas..."
+                style="margin-bottom: 0.5rem; font-size: 0.85rem;"
               />
+
+              <div style="max-height: 140px; overflow-y: auto; background: #fff; border: 1px solid var(--tecnm-border-color, #e2e8f0); border-radius: 4px; padding: 0.35rem;">
+                <div
+                  v-for="opt in filteredCompanyOptions"
+                  :key="opt.id"
+                  style="display: flex; align-items: center; justify-content: space-between; padding: 0.3rem 0.5rem; border-bottom: 1px solid #f1f5f9;"
+                >
+                  <div style="flex: 1; font-size: 0.85rem;">
+                    <strong>{{ opt.name }}</strong>
+                    <span v-if="opt.sector" style="color: #64748b; font-size: 0.75rem; margin-left: 0.35rem;">({{ opt.sector }})</span>
+                    <small v-if="opt.rfc" class="tecnm-text-muted" style="margin-left: 0.35rem;">[{{ opt.rfc }}]</small>
+                  </div>
+                  <button
+                    type="button"
+                    class="tecnm-btn tecnm-btn-sm"
+                    :class="isCompanySelectedInAgreement(opt.id) ? 'tecnm-btn-secondary' : 'tecnm-btn-primary'"
+                    style="font-size: 0.75rem; padding: 0.2rem 0.5rem;"
+                    :disabled="isAgreementSubmitting"
+                    @click="toggleCompanyInAgreement(opt.id)"
+                  >
+                    {{ isCompanySelectedInAgreement(opt.id) ? '✓ Vinculada' : '+ Vincular' }}
+                  </button>
+                </div>
+                <div v-if="filteredCompanyOptions.length === 0" class="tecnm-text-muted" style="font-size: 0.85rem; padding: 0.4rem; text-align: center;">
+                  No se encontraron empresas con ese término.
+                </div>
+              </div>
             </div>
-
-            <div class="tecnm-form-group">
-              <label for="agreementCompanySizeSelect" class="tecnm-label">TAMAÑO</label>
-              <select
-                id="agreementCompanySizeSelect"
-                v-model="agreementForm.companySize"
-                class="tecnm-form-control"
-                :disabled="isAgreementSubmitting"
-              >
-                <option value="MICROEMPRESA">MICROEMPRESA</option>
-                <option value="PEQUEÑAS EMPRESAS">PEQUEÑAS EMPRESAS</option>
-                <option value="MEDIANAS EMPRESAS">MEDIANAS EMPRESAS</option>
-                <option value="GRANDES EMPRESAS">GRANDES EMPRESAS</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="tecnm-form-group">
-            <label for="agreementGeographicScopeSelect" class="tecnm-label">TIPO 2 (Cobertura Geográfica)</label>
-            <select
-              id="agreementGeographicScopeSelect"
-              v-model="agreementForm.geographicScope"
-              class="tecnm-form-control"
-              :disabled="isAgreementSubmitting"
-            >
-              <option value="NACIONAL">NACIONAL</option>
-              <option value="INTERNACIONAL">INTERNACIONAL</option>
-            </select>
-          </div>
-
-          <div class="tecnm-form-group">
-            <label for="agreementNotesInput" class="tecnm-label">Observaciones / Notas Adicionales</label>
-            <textarea
-              id="agreementNotesInput"
-              v-model="agreementForm.notes"
-              class="tecnm-form-control"
-              rows="3"
-              placeholder="Detalles sobre vigencia, cláusulas o seguimiento..."
-              :disabled="isAgreementSubmitting"
-            ></textarea>
           </div>
 
           <div class="tecnm-modal-footer">

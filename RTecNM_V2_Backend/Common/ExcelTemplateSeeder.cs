@@ -46,6 +46,12 @@ public static class ExcelTemplateSeeder
         companyTable.Columns.Add("NombreContacto");
         companyTable.Columns.Add("CorreoContacto");
         companyTable.Columns.Add("TeléfonoContacto");
+        companyTable.Columns.Add("NumeroConvenio");
+        companyTable.Columns.Add("FechaCaducidad");
+        companyTable.Columns.Add("EstadoProceso");
+        companyTable.Columns.Add("AlcanceConvenio");
+        companyTable.Columns.Add("ClavePIT");
+        companyTable.Columns.Add("TipoCIA");
 
         MiniExcel.SaveAs(companyTemplatePath, companyTable, overwriteFile: true);
         logger.LogInformation("Generada plantilla limpia para empresas en: {Path}", companyTemplatePath);
