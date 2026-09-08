@@ -55,7 +55,7 @@ public static class ExcelHelper
                 foreach (var key in expectedColumns)
                 {
                     var val = dict.FirstOrDefault(k => string.Equals(k.Key.Trim(), key.Trim(), StringComparison.OrdinalIgnoreCase)).Value;
-                    var strVal = val?.ToString()?.Trim() ?? string.Empty;
+                    var strVal = val?.ToString()?.Replace("\u00A0", " ")?.Replace("\u200B", "")?.Trim() ?? string.Empty;
                     rowDict[key.Trim()] = strVal;
                     if (!string.IsNullOrWhiteSpace(strVal))
                     {

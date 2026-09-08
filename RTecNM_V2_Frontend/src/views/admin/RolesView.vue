@@ -79,13 +79,13 @@ const userForm = ref({
   academicPeriodId: 1,
 })
 
-const INSTITUTIONAL_DOMAIN = '@monclova.tecnm.mx'
+const ALLOWED_DOMAINS = ['@monclova.tecnm.mx', '@tecnm.mx']
 const INSTITUTIONAL_EMAIL_ERROR =
-  'Debes ingresar un correo institucional válido (@monclova.tecnm.mx).'
+  'Debes ingresar un correo institucional válido (@monclova.tecnm.mx o @tecnm.mx).'
 
 function isInstitutionalEmail(email) {
-  const clean = (email || '').trim().toLowerCase()
-  return clean.endsWith(INSTITUTIONAL_DOMAIN) && clean.length > INSTITUTIONAL_DOMAIN.length
+  const clean = (email || '').replace(/\s+/g, '').toLowerCase()
+  return ALLOWED_DOMAINS.some((d) => clean.endsWith(d) && clean.length > d.length)
 }
 
 function showAlert(message, type = 'info') {
@@ -420,21 +420,25 @@ async function handleSaveUser() {
   }
 
   isSubmitting.value = true
-  const fullName = `${userForm.value.firstName.trim()} ${userForm.value.lastName.trim()}`.trim()
-  const controlNumber = userForm.value.controlNumber.trim().toUpperCase()
+  const cleanFirstName = userForm.value.firstName.trim().replace(/\s+/g, ' ')
+  const cleanLastName = userForm.value.lastName.trim().replace(/\s+/g, ' ')
+  const cleanLastName2 = userForm.value.lastName2 ? userForm.value.lastName2.trim().replace(/\s+/g, ' ') : null
+  const fullName = `${cleanFirstName} ${cleanLastName}`.trim()
+  const controlNumber = userForm.value.controlNumber ? userForm.value.controlNumber.replace(/\s+/g, '').toUpperCase() : null
+  const cleanEmail = email.replace(/\s+/g, '').toLowerCase()
 
   const payload = {
-    email,
+    email: cleanEmail,
     roleId: parseInt(userForm.value.roleId, 10),
-    firstName: userForm.value.firstName.trim() || null,
-    lastName: userForm.value.lastName.trim() || null,
-    lastName2: userForm.value.lastName2.trim() || null,
+    firstName: cleanFirstName || null,
+    lastName: cleanLastName || null,
+    lastName2: cleanLastName2 || null,
     controlNumber,
     careerId: parseInt(userForm.value.careerId || 4, 10),
     fullName,
-    title: userForm.value.title.trim() || null,
-    phone: userForm.value.phone.trim() || null,
-    curp: userForm.value.curp.trim().toUpperCase() || null,
+    title: userForm.value.title ? userForm.value.title.trim().replace(/\s+/g, ' ') : null,
+    phone: userForm.value.phone ? userForm.value.phone.trim().replace(/\s+/g, '') : null,
+    curp: userForm.value.curp ? userForm.value.curp.replace(/\s+/g, '').toUpperCase() : null,
     gender: userForm.value.gender || null,
     academicPeriodId: userForm.value.academicPeriodId ? parseInt(userForm.value.academicPeriodId, 10) : 1,
     departmentId: parseInt(userForm.value.careerId || 4, 10),

@@ -7,6 +7,7 @@ using TecNM.Residency.Admin;
 using TecNM.Residency.Advisors;
 using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
+using TecNM.Residency.Common.EmailVerification;
 using TecNM.Residency.Common.Notifications;
 using TecNM.Residency.Common.Settings;
 using TecNM.Residency.Companies;
@@ -96,6 +97,15 @@ builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
 builder.Services.AddSingleton<IEmailTemplateService, EmailTemplateService>();
 builder.Services.AddScoped<ISystemSettingService, SystemSettingService>();
 builder.Services.AddHostedService<EmailBackgroundWorker>();
+
+// Institutional Email Verification & Options
+builder.Services.Configure<InstitutionalEmailOptions>(builder.Configuration.GetSection(InstitutionalEmailOptions.SectionName));
+var instEmailConfig = builder.Configuration.GetSection(InstitutionalEmailOptions.SectionName).Get<InstitutionalEmailOptions>();
+if (instEmailConfig?.AllowedDomains != null && instEmailConfig.AllowedDomains.Count > 0)
+{
+    InstitutionalEmail.AllowedDomains = instEmailConfig.AllowedDomains;
+}
+builder.Services.AddScoped<IEmailVerificationService, EmailVerificationService>();
 
 var app = builder.Build();
 

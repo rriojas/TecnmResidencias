@@ -325,10 +325,10 @@ async function handleSubmit() {
   try {
     if (isEditMode.value) {
       await apiClient.put(`/v1/students/${editingStudentId.value}`, {
-        firstName: form.value.firstName.trim(),
-        lastName: form.value.lastName.trim(),
-        lastName2: form.value.lastName2.trim() || undefined,
-        curp: form.value.curp.trim().toUpperCase() || undefined,
+        firstName: form.value.firstName.trim().replace(/\s+/g, ' '),
+        lastName: form.value.lastName.trim().replace(/\s+/g, ' '),
+        lastName2: form.value.lastName2 ? form.value.lastName2.trim().replace(/\s+/g, ' ') : undefined,
+        curp: form.value.curp ? form.value.curp.replace(/\s+/g, '').toUpperCase() : undefined,
         gender: form.value.gender || undefined,
         careerId: Number(form.value.careerId),
         academicPeriodId: form.value.academicPeriodId ? Number(form.value.academicPeriodId) : undefined,
@@ -337,13 +337,13 @@ async function handleSubmit() {
       showAlert('Estudiante actualizado exitosamente.', 'success')
     } else {
       await apiClient.post('/v1/students', {
-        controlNumber: form.value.controlNumber.trim().toUpperCase(),
-        firstName: form.value.firstName.trim(),
-        lastName: form.value.lastName.trim(),
-        lastName2: form.value.lastName2.trim() || undefined,
-        curp: form.value.curp.trim().toUpperCase() || undefined,
+        controlNumber: form.value.controlNumber.replace(/\s+/g, '').toUpperCase(),
+        firstName: form.value.firstName.trim().replace(/\s+/g, ' '),
+        lastName: form.value.lastName.trim().replace(/\s+/g, ' '),
+        lastName2: form.value.lastName2 ? form.value.lastName2.trim().replace(/\s+/g, ' ') : undefined,
+        curp: form.value.curp ? form.value.curp.replace(/\s+/g, '').toUpperCase() : undefined,
         gender: form.value.gender || undefined,
-        email: form.value.email.trim().toLowerCase(),
+        email: form.value.email.replace(/\s+/g, '').toLowerCase(),
         careerId: Number(form.value.careerId),
         academicPeriodId: form.value.academicPeriodId ? Number(form.value.academicPeriodId) : undefined,
         gpa: form.value.gpa !== '' ? Number(form.value.gpa) : undefined,

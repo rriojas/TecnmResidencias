@@ -304,7 +304,7 @@ public class RoleRepository : IRoleRepository
 
     public async Task<bool> IsControlNumberInUseAsync(string controlNumber, long? excludeUserId = null)
     {
-        var cleanControlNum = (controlNumber ?? "").Trim().ToUpperInvariant();
+        var cleanControlNum = StringSanitizer.SanitizeControlNumber(controlNumber);
         if (string.IsNullOrEmpty(cleanControlNum)) return false;
         return await _context.Students.AnyAsync(s => s.ControlNumber.ToUpper() == cleanControlNum && (!excludeUserId.HasValue || s.UserId != excludeUserId.Value));
     }
@@ -394,8 +394,8 @@ public class RoleRepository : IRoleRepository
     public async Task EnsureStudentProfileAsync(long userId, string email, string? controlNum, string? firstName, string? lastName, string? lastName2, string? curp, string? gender, long? careerId, int? academicPeriodId, long? createdByUserId, long? updatedByUserId)
     {
         var existingStudent = await _context.Students.FirstOrDefaultAsync(s => s.UserId == userId);
-        var namePart = (email ?? "").Split('@')[0];
-        var finalControlNum = !string.IsNullOrWhiteSpace(controlNum) ? controlNum.Trim().ToUpperInvariant() : ("26" + userId.ToString("D6"));
+        var namePart = StringSanitizer.SanitizeEmail(email).Split('@')[0];
+        var finalControlNum = !string.IsNullOrWhiteSpace(controlNum) ? StringSanitizer.SanitizeControlNumber(controlNum) : ("26" + userId.ToString("D6"));
 
         if (existingStudent == null)
         {
@@ -403,11 +403,11 @@ public class RoleRepository : IRoleRepository
             {
                 UserId = userId,
                 ControlNumber = finalControlNum,
-                FirstName = !string.IsNullOrWhiteSpace(firstName) ? firstName.Trim() : namePart,
-                LastName = !string.IsNullOrWhiteSpace(lastName) ? lastName.Trim() : "Alumno",
-                LastName2 = lastName2?.Trim(),
-                Curp = curp?.Trim().ToUpperInvariant(),
-                Gender = gender?.Trim(),
+                FirstName = !string.IsNullOrWhiteSpace(firstName) ? StringSanitizer.SanitizeText(firstName) : namePart,
+                LastName = !string.IsNullOrWhiteSpace(lastName) ? StringSanitizer.SanitizeText(lastName) : "Alumno",
+                LastName2 = string.IsNullOrWhiteSpace(lastName2) ? null : StringSanitizer.SanitizeText(lastName2),
+                Curp = StringSanitizer.SanitizeCurp(curp),
+                Gender = string.IsNullOrWhiteSpace(gender) ? null : StringSanitizer.SanitizeText(gender),
                 CareerId = careerId > 0 ? careerId.Value : 1,
                 AcademicPeriodId = academicPeriodId,
                 IsActive = true,
@@ -419,12 +419,12 @@ public class RoleRepository : IRoleRepository
         }
         else
         {
-            if (!string.IsNullOrWhiteSpace(controlNum)) existingStudent.ControlNumber = controlNum.Trim().ToUpperInvariant();
-            if (!string.IsNullOrWhiteSpace(firstName)) existingStudent.FirstName = firstName.Trim();
-            if (!string.IsNullOrWhiteSpace(lastName)) existingStudent.LastName = lastName.Trim();
-            if (lastName2 != null) existingStudent.LastName2 = lastName2.Trim();
-            if (curp != null) existingStudent.Curp = curp.Trim().ToUpperInvariant();
-            if (gender != null) existingStudent.Gender = gender.Trim();
+            if (!string.IsNullOrWhiteSpace(controlNum)) existingStudent.ControlNumber = StringSanitizer.SanitizeControlNumber(controlNum);
+            if (!string.IsNullOrWhiteSpace(firstName)) existingStudent.FirstName = StringSanitizer.SanitizeText(firstName);
+            if (!string.IsNullOrWhiteSpace(lastName)) existingStudent.LastName = StringSanitizer.SanitizeText(lastName);
+            if (lastName2 != null) existingStudent.LastName2 = string.IsNullOrWhiteSpace(lastName2) ? null : StringSanitizer.SanitizeText(lastName2);
+            if (curp != null) existingStudent.Curp = StringSanitizer.SanitizeCurp(curp);
+            if (gender != null) existingStudent.Gender = string.IsNullOrWhiteSpace(gender) ? null : StringSanitizer.SanitizeText(gender);
             if (academicPeriodId.HasValue) existingStudent.AcademicPeriodId = academicPeriodId.Value;
             if (careerId > 0) existingStudent.CareerId = careerId.Value;
             existingStudent.UpdatedAt = DateTime.UtcNow;

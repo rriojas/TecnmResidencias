@@ -1,4 +1,5 @@
 using TecNM.Residency.Common;
+using TecNM.Residency.Common.EmailVerification;
 
 namespace TecNM.Residency.Auth;
 
@@ -6,11 +7,16 @@ public class RoleService : IRoleService
 {
     private readonly IRoleRepository _roleRepository;
     private readonly ICurrentUserService _currentUser;
+    private readonly IEmailVerificationService _emailVerificationService;
 
-    public RoleService(IRoleRepository roleRepository, ICurrentUserService currentUser)
+    public RoleService(
+        IRoleRepository roleRepository,
+        ICurrentUserService currentUser,
+        IEmailVerificationService emailVerificationService)
     {
         _roleRepository = roleRepository;
         _currentUser = currentUser;
+        _emailVerificationService = emailVerificationService;
     }
 
     public async Task<Result<PaginatedResult<RoleResponseDto>>> GetPagedRolesAsync(PaginationQuery query, bool includeInactive = false)
@@ -288,16 +294,26 @@ public class RoleService : IRoleService
         if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
             return Result<UserRoleManagementDto>.Failure("El correo y la contraseña son obligatorios", 400);
 
+        dto.FirstName = StringSanitizer.SanitizeText(dto.FirstName);
+        dto.LastName = StringSanitizer.SanitizeText(dto.LastName);
+        dto.LastName2 = StringSanitizer.SanitizeText(dto.LastName2);
+        dto.ControlNumber = StringSanitizer.SanitizeControlNumber(dto.ControlNumber);
+        dto.Curp = StringSanitizer.SanitizeCurp(dto.Curp);
+        dto.Phone = StringSanitizer.SanitizeText(dto.Phone);
+
         if (string.IsNullOrWhiteSpace(dto.FirstName) || string.IsNullOrWhiteSpace(dto.LastName) || string.IsNullOrWhiteSpace(dto.LastName2) || string.IsNullOrWhiteSpace(dto.ControlNumber) || string.IsNullOrWhiteSpace(dto.Phone))
             return Result<UserRoleManagementDto>.Failure("Todos los campos (Nombre, Apellido Paterno, Apellido Materno, Matrícula y Teléfono) son obligatorios para registrar un nuevo usuario", 400);
 
-        if (!InstitutionalEmail.IsValid(dto.Email))
-            return Result<UserRoleManagementDto>.Failure(InstitutionalEmail.ErrorMessage, 400);
+        var emailVerification = await _emailVerificationService.ValidateAndVerifyEmailAsync(dto.Email);
+        if (!emailVerification.IsSuccess)
+            return Result<UserRoleManagementDto>.Failure(emailVerification.ErrorMessage!, emailVerification.StatusCode ?? 400);
+
+        var cleanEmail = emailVerification.Data!;
 
         if (dto.RoleId <= 0)
             return Result<UserRoleManagementDto>.Failure("Debe seleccionar un rol para el usuario", 400);
 
-        var emailUsed = await _roleRepository.IsEmailInUseAsync(dto.Email);
+        var emailUsed = await _roleRepository.IsEmailInUseAsync(cleanEmail);
         if (emailUsed)
             return Result<UserRoleManagementDto>.Failure("El correo electrónico ya se encuentra registrado.", 400);
 
@@ -319,7 +335,7 @@ public class RoleService : IRoleService
         {
             var user = new User
             {
-                Email = dto.Email.Trim().ToLowerInvariant(),
+                Email = cleanEmail,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
                 Role = baseUserRole,
                 IsAdmin = isSuperAdmin,
@@ -417,21 +433,31 @@ public class RoleService : IRoleService
 
         if (!string.IsNullOrWhiteSpace(dto.Email) && !dto.Email.Trim().Equals(user.Email, StringComparison.OrdinalIgnoreCase))
         {
-            if (!InstitutionalEmail.IsValid(dto.Email))
-                return Result<UserRoleManagementDto>.Failure(InstitutionalEmail.ErrorMessage, 400);
+            var emailVerification = await _emailVerificationService.ValidateAndVerifyEmailAsync(dto.Email);
+            if (!emailVerification.IsSuccess)
+                return Result<UserRoleManagementDto>.Failure(emailVerification.ErrorMessage!, emailVerification.StatusCode ?? 400);
 
-            var emailUsed = await _roleRepository.IsEmailInUseAsync(dto.Email, userId);
+            var cleanEmail = emailVerification.Data!;
+            var emailUsed = await _roleRepository.IsEmailInUseAsync(cleanEmail, userId);
             if (emailUsed)
                 return Result<UserRoleManagementDto>.Failure("El correo electrónico ya se encuentra registrado por otro usuario.", 400);
-            user.Email = dto.Email.Trim().ToLowerInvariant();
+            user.Email = cleanEmail;
         }
 
         if (user.Role == UserRole.Student && !string.IsNullOrWhiteSpace(dto.ControlNumber))
         {
-            var controlNumUsed = await _roleRepository.IsControlNumberInUseAsync(dto.ControlNumber, userId);
+            var cleanControlNum = StringSanitizer.SanitizeControlNumber(dto.ControlNumber);
+            dto.ControlNumber = cleanControlNum;
+            var controlNumUsed = await _roleRepository.IsControlNumberInUseAsync(cleanControlNum, userId);
             if (controlNumUsed)
                 return Result<UserRoleManagementDto>.Failure("El número de control ya se encuentra registrado por otro estudiante.", 400);
         }
+
+        dto.FirstName = StringSanitizer.SanitizeText(dto.FirstName);
+        dto.LastName = StringSanitizer.SanitizeText(dto.LastName);
+        dto.LastName2 = StringSanitizer.SanitizeText(dto.LastName2);
+        dto.Curp = StringSanitizer.SanitizeCurp(dto.Curp);
+        dto.Phone = StringSanitizer.SanitizeText(dto.Phone);
 
         if (dto.RoleId > 0)
         {

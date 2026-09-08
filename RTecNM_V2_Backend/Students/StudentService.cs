@@ -5,6 +5,7 @@ using TecNM.Residency.Common;
 using TecNM.Residency.Common.Notifications;
 using TecNM.Residency.Projects;
 
+using TecNM.Residency.Common.EmailVerification;
 using TecNM.Residency.Common.Settings;
 
 namespace TecNM.Residency.Students;
@@ -20,6 +21,7 @@ public class StudentService : IStudentService
     private readonly IEmailQueue _emailQueue;
     private readonly IEmailTemplateService _emailTemplateService;
     private readonly ISystemSettingService _settingService;
+    private readonly IEmailVerificationService _emailVerificationService;
     private readonly AppDbContext _context;
 
     public StudentService(
@@ -32,6 +34,7 @@ public class StudentService : IStudentService
         IEmailQueue emailQueue,
         IEmailTemplateService emailTemplateService,
         ISystemSettingService settingService,
+        IEmailVerificationService emailVerificationService,
         AppDbContext context)
     {
         _studentRepository = studentRepository;
@@ -43,6 +46,7 @@ public class StudentService : IStudentService
         _emailQueue = emailQueue;
         _emailTemplateService = emailTemplateService;
         _settingService = settingService;
+        _emailVerificationService = emailVerificationService;
         _context = context;
     }
 
@@ -114,15 +118,26 @@ public class StudentService : IStudentService
 
     public async Task<Result<StudentResponseDto>> CreateAsync(CreateStudentDto dto)
     {
-        if (!InstitutionalEmail.IsValid(dto.Email))
-            return Result<StudentResponseDto>.Failure(InstitutionalEmail.ErrorMessage, 400);
+        var cleanControlNum = StringSanitizer.SanitizeControlNumber(dto.ControlNumber);
+        if (string.IsNullOrWhiteSpace(cleanControlNum))
+            return Result<StudentResponseDto>.Failure("El número de control es obligatorio.", 400);
 
-        var cleanControlNum = (dto.ControlNumber ?? "").Trim().ToUpperInvariant();
+        var emailCheck = await _emailVerificationService.ValidateAndVerifyEmailAsync(dto.Email);
+        if (!emailCheck.IsSuccess)
+            return Result<StudentResponseDto>.Failure(emailCheck.ErrorMessage!, emailCheck.StatusCode ?? 400);
+
+        var cleanEmail = emailCheck.Data!;
+        var cleanFirstName = StringSanitizer.SanitizeText(dto.FirstName);
+        var cleanLastName = StringSanitizer.SanitizeText(dto.LastName);
+        var cleanLastName2 = string.IsNullOrWhiteSpace(dto.LastName2) ? null : StringSanitizer.SanitizeText(dto.LastName2);
+        var cleanCurp = StringSanitizer.SanitizeCurp(dto.Curp);
+        var cleanGender = string.IsNullOrWhiteSpace(dto.Gender) ? null : StringSanitizer.SanitizeText(dto.Gender);
+
         var existingStudent = await _studentRepository.GetByControlNumberAsync(cleanControlNum);
         if (existingStudent is not null)
             return Result<StudentResponseDto>.Failure("El número de control ya se encuentra registrado", 400);
 
-        var existingUser = await _authRepository.GetByEmailAsync(dto.Email);
+        var existingUser = await _authRepository.GetByEmailAsync(cleanEmail);
         if (existingUser is not null)
             return Result<StudentResponseDto>.Failure("El correo electrónico ya está registrado", 400);
 
@@ -130,7 +145,7 @@ public class StudentService : IStudentService
         var defaultPasswordHash = BCrypt.Net.BCrypt.HashPassword(cleanControlNum);
         var newUser = new User
         {
-            Email = dto.Email.Trim().ToLowerInvariant(),
+            Email = cleanEmail,
             PasswordHash = defaultPasswordHash,
             Role = UserRole.Student,
             IsActive = true,
@@ -145,11 +160,11 @@ public class StudentService : IStudentService
         {
             UserId = createdUser.Id,
             ControlNumber = cleanControlNum,
-            FirstName = dto.FirstName.Trim(),
-            LastName = dto.LastName.Trim(),
-            LastName2 = !string.IsNullOrWhiteSpace(dto.LastName2) ? dto.LastName2.Trim() : null,
-            Curp = !string.IsNullOrWhiteSpace(dto.Curp) ? dto.Curp.Trim().ToUpperInvariant() : null,
-            Gender = !string.IsNullOrWhiteSpace(dto.Gender) ? dto.Gender.Trim() : null,
+            FirstName = cleanFirstName,
+            LastName = cleanLastName,
+            LastName2 = cleanLastName2,
+            Curp = cleanCurp,
+            Gender = cleanGender,
             CareerId = dto.CareerId,
             AcademicPeriodId = dto.AcademicPeriodId,
             Gpa = dto.Gpa,
@@ -179,11 +194,11 @@ public class StudentService : IStudentService
         if (student is null)
             return Result<StudentResponseDto>.Failure("Estudiante no encontrado", 404);
 
-        student.FirstName = dto.FirstName.Trim();
-        student.LastName = dto.LastName.Trim();
-        student.LastName2 = !string.IsNullOrWhiteSpace(dto.LastName2) ? dto.LastName2.Trim() : null;
-        student.Curp = !string.IsNullOrWhiteSpace(dto.Curp) ? dto.Curp.Trim().ToUpperInvariant() : null;
-        student.Gender = !string.IsNullOrWhiteSpace(dto.Gender) ? dto.Gender.Trim() : null;
+        student.FirstName = StringSanitizer.SanitizeText(dto.FirstName);
+        student.LastName = StringSanitizer.SanitizeText(dto.LastName);
+        student.LastName2 = string.IsNullOrWhiteSpace(dto.LastName2) ? null : StringSanitizer.SanitizeText(dto.LastName2);
+        student.Curp = StringSanitizer.SanitizeCurp(dto.Curp);
+        student.Gender = string.IsNullOrWhiteSpace(dto.Gender) ? null : StringSanitizer.SanitizeText(dto.Gender);
         student.AcademicPeriodId = dto.AcademicPeriodId;
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
@@ -478,12 +493,34 @@ public class StudentService : IStudentService
                 continue;
             }
 
-            var cleanControlNum = controlNum.Trim().ToUpperInvariant();
+            var cleanControlNum = StringSanitizer.SanitizeControlNumber(controlNum);
+            if (string.IsNullOrWhiteSpace(cleanControlNum))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: La matrícula (N° de Control) es obligatoria.");
+                continue;
+            }
+
+            var cleanFirstName = StringSanitizer.SanitizeText(firstName);
+            if (string.IsNullOrWhiteSpace(cleanFirstName))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El nombre del estudiante es obligatorio.");
+                continue;
+            }
+
+            var cleanApellidos = StringSanitizer.SanitizeText(apellidosStr);
+            if (string.IsNullOrWhiteSpace(cleanApellidos))
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: Los apellidos del estudiante son obligatorios.");
+                continue;
+            }
 
             // Split surnames
             string lastName1 = "SN";
             string? lastName2 = null;
-            var parts = apellidosStr.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var parts = cleanApellidos.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length == 1)
             {
                 lastName1 = parts[0];
@@ -499,18 +536,19 @@ public class StudentService : IStudentService
                 lastName2 = parts.Last();
             }
 
-            // Resolve email (ensure valid institutional domain)
-            string cleanEmail = emailStr.Trim().ToLowerInvariant();
-            if (!InstitutionalEmail.IsValid(cleanEmail))
+            // Resolve and verify email (ensure valid institutional domain & DNS MX)
+            var emailVerification = await _emailVerificationService.ValidateAndVerifyEmailAsync(emailStr);
+            if (!emailVerification.IsSuccess)
             {
                 result.ErrorCount++;
-                result.Errors.Add($"Fila {rowNum}: El correo '{cleanEmail}' debe ser un correo institucional válido (@monclova.tecnm.mx).");
+                result.Errors.Add($"Fila {rowNum}: {emailVerification.ErrorMessage}");
                 continue;
             }
+            string cleanEmail = emailVerification.Data!;
 
             // Map Gender & Academic Semester
             var s = sexoStr.Trim().ToUpperInvariant();
-            string gender = s.StartsWith("M") ? "Masculino" : s.StartsWith("F") ? "Femenino" : sexoStr.Trim();
+            string gender = s.StartsWith("M") ? "Masculino" : s.StartsWith("F") ? "Femenino" : StringSanitizer.SanitizeText(sexoStr);
             int? periodId = parsedSem;
 
             var existingStudent = await _context.Students
@@ -520,9 +558,9 @@ public class StudentService : IStudentService
             if (existingStudent != null)
             {
                 // Actualizar datos del estudiante existente con la información corregida del archivo
-                existingStudent.FirstName = firstName.Trim();
-                existingStudent.LastName = lastName1.Trim();
-                existingStudent.LastName2 = lastName2?.Trim();
+                existingStudent.FirstName = cleanFirstName;
+                existingStudent.LastName = lastName1;
+                existingStudent.LastName2 = lastName2;
                 existingStudent.Gender = gender;
                 existingStudent.CareerId = careerId;
                 existingStudent.AcademicPeriodId = periodId;
@@ -571,9 +609,9 @@ public class StudentService : IStudentService
             {
                 UserId = createdUser.Id,
                 ControlNumber = cleanControlNum,
-                FirstName = firstName.Trim(),
-                LastName = lastName1.Trim(),
-                LastName2 = lastName2?.Trim(),
+                FirstName = cleanFirstName,
+                LastName = lastName1,
+                LastName2 = lastName2,
                 Gender = gender,
                 CareerId = careerId,
                 AcademicPeriodId = periodId,
