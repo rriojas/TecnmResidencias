@@ -213,6 +213,47 @@ public class StudentsController : ControllerBase
         var bytes = System.IO.File.ReadAllBytes(filePath);
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Plantilla_Alumnos.xlsx");
     }
+
+    [HttpPatch("{id}/block")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> Block(long id, [FromBody] BlockStudentDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto?.Reason))
+            return BadRequest(new { message = "La razón del bloqueo es obligatoria." });
+
+        var result = await _studentService.BlockStudentAsync(id, dto.Reason);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(new { message = "Estudiante bloqueado correctamente" });
+    }
+
+    [HttpPatch("{id}/unblock")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> Unblock(long id)
+    {
+        var result = await _studentService.UnblockStudentAsync(id);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(new { message = "Estudiante desbloqueado correctamente" });
+    }
+
+    [HttpGet("{id}/blocks")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead")]
+    public async Task<IActionResult> GetBlockHistory(long id)
+    {
+        var result = await _studentService.GetBlockHistoryAsync(id);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
+}
+
+public class BlockStudentDto
+{
+    public string Reason { get; set; } = string.Empty;
 }
 
 public class BatchAssignAdvisorDto

@@ -208,12 +208,32 @@ public class ProjectRepository : IProjectRepository
 
     public async Task UpdateWithObjectivesAsync(Project project)
     {
-        var oldObjectives = await _context.ProjectObjectives
-            .Where(o => o.ProjectId == project.Id)
-            .ToListAsync();
-        _context.ProjectObjectives.RemoveRange(oldObjectives);
+        var strategy = _context.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var oldObjectives = await _context.ProjectObjectives
+                    .Where(o => o.ProjectId == project.Id)
+                    .ToListAsync();
 
-        _context.Projects.Update(project);
-        await _context.SaveChangesAsync();
+                if (oldObjectives.Count > 0)
+                {
+                    _context.ProjectObjectives.RemoveRange(oldObjectives);
+                    await _context.SaveChangesAsync();
+                }
+
+                _context.Projects.Update(project);
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        });
     }
 }

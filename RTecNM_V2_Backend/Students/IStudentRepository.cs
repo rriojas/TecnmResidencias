@@ -12,4 +12,9 @@ public interface IStudentRepository
     Task<Student?> GetByUserIdAsync(long userId);
     Task<Student> AddAsync(Student student);
     Task UpdateAsync(Student student);
+
+    Task<StudentBlock?> GetActiveBlockAsync(long studentId);
+    Task<StudentBlock> AddBlockAsync(StudentBlock block);
+    Task UpdateBlockAsync(StudentBlock block);
+    Task<List<StudentBlock>> GetBlockHistoryAsync(long studentId);
 }

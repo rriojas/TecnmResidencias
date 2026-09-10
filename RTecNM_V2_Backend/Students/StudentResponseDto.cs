@@ -19,6 +19,14 @@ public class StudentResponseDto
     public decimal Gpa { get; set; }
     public bool IsPresentationLetterSent { get; set; }
     public DateTime? PresentationLetterSentAt { get; set; }
+
+    public bool HasComplementaryActivities { get; set; }
+    public bool HasSocialService { get; set; }
+    public bool HasSpecialRequirements { get; set; }
+
+    public bool IsBlocked { get; set; }
+    public string? BlockReason { get; set; }
+
     public bool IsActive { get; set; }
     public bool IsVisible { get; set; }
     public int DisplayOrder { get; set; }

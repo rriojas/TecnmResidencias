@@ -168,12 +168,18 @@ public class StudentService : IStudentService
             CareerId = dto.CareerId,
             AcademicPeriodId = dto.AcademicPeriodId,
             Gpa = dto.Gpa,
+            HasComplementaryActivities = dto.HasComplementaryActivities,
+            HasSocialService = dto.HasSocialService,
+            HasSpecialRequirements = dto.HasSpecialRequirements,
             IsActive = true,
             CreatedBy = _currentUser.UserId,
             User = createdUser
         };
 
         var createdStudent = await _studentRepository.AddAsync(newStudent);
+
+        // Check requirements and auto-block if any is false
+        await CheckAndApplyAutoBlockAsync(createdStudent);
 
         // Enqueue Welcome Email
         var loginUrl = "http://localhost:5085/auth/login";
@@ -188,6 +194,54 @@ public class StudentService : IStudentService
         return Result<StudentResponseDto>.Success(MapToResponseDto(createdStudent));
     }
 
+    private async Task CheckAndApplyAutoBlockAsync(Student student)
+    {
+        var failedRequirements = new List<string>();
+
+        if (!student.HasComplementaryActivities)
+            failedRequirements.Add("Actividades Complementarias");
+        if (!student.HasSocialService)
+            failedRequirements.Add("Servicio Social");
+        if (!student.HasSpecialRequirements)
+            failedRequirements.Add("Especiales");
+
+        var activeBlock = await _studentRepository.GetActiveBlockAsync(student.Id);
+
+        if (failedRequirements.Count > 0)
+        {
+            var reason = $"El estudiante no cumple con los siguientes requisitos obligatorios: {string.Join(", ", failedRequirements)}. No podrá acceder al sistema hasta regularizar su situación.";
+            if (activeBlock == null)
+            {
+                var block = new StudentBlock
+                {
+                    StudentId = student.Id,
+                    Reason = reason,
+                    BlockedBy = _currentUser.UserId,
+                    BlockedAt = DateTime.UtcNow,
+                    IsActive = true
+                };
+                await _studentRepository.AddBlockAsync(block);
+            }
+            else if (!activeBlock.Reason.StartsWith("[Bloqueo manual]"))
+            {
+                activeBlock.Reason = reason;
+                activeBlock.BlockedAt = DateTime.UtcNow;
+                activeBlock.BlockedBy = _currentUser.UserId;
+                await _studentRepository.UpdateBlockAsync(activeBlock);
+            }
+        }
+        else
+        {
+            if (activeBlock != null && !activeBlock.Reason.StartsWith("[Bloqueo manual]"))
+            {
+                activeBlock.IsActive = false;
+                activeBlock.UnblockedAt = DateTime.UtcNow;
+                activeBlock.UnblockedBy = _currentUser.UserId;
+                await _studentRepository.UpdateBlockAsync(activeBlock);
+            }
+        }
+    }
+
     public async Task<Result<StudentResponseDto>> UpdateAsync(long id, UpdateStudentDto dto)
     {
         var student = await _studentRepository.GetByIdAsync(id);
@@ -200,6 +254,9 @@ public class StudentService : IStudentService
         student.Curp = StringSanitizer.SanitizeCurp(dto.Curp);
         student.Gender = string.IsNullOrWhiteSpace(dto.Gender) ? null : StringSanitizer.SanitizeText(dto.Gender);
         student.AcademicPeriodId = dto.AcademicPeriodId;
+        student.HasComplementaryActivities = dto.HasComplementaryActivities;
+        student.HasSocialService = dto.HasSocialService;
+        student.HasSpecialRequirements = dto.HasSpecialRequirements;
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
             student.CareerId = _currentUser.CareerId.Value;
@@ -213,6 +270,10 @@ public class StudentService : IStudentService
         student.UpdatedBy = _currentUser.UserId;
 
         await _studentRepository.UpdateAsync(student);
+
+        // Re-check requirements on update
+        await CheckAndApplyAutoBlockAsync(student);
+
         return Result<StudentResponseDto>.Success(MapToResponseDto(student));
     }
 
@@ -414,13 +475,17 @@ public class StudentService : IStudentService
             return Result<BatchImportResultDto>.Failure("El archivo debe ser un documento Excel con extensión .xlsx o .xls.");
         }
 
-        var expectedColumns = new List<string>
+        var requiredColumns = new List<string>
         {
             "Matricula", "Apellidos", "Nombre", "Sexo", "Carrera", "Semestre", "Email"
         };
+        var optionalColumns = new List<string>
+        {
+            "Actividades Complementarias", "Servicio Social", "Especiales"
+        };
 
         using var stream = file.OpenReadStream();
-        var (isValid, errorMessage, rows) = ExcelHelper.ParseExcelFile(stream, expectedColumns);
+        var (isValid, errorMessage, rows) = ExcelHelper.ParseExcelFile(stream, requiredColumns, optionalColumns);
 
         if (!isValid)
         {
@@ -551,6 +616,40 @@ public class StudentService : IStudentService
             string gender = s.StartsWith("M") ? "Masculino" : s.StartsWith("F") ? "Femenino" : StringSanitizer.SanitizeText(sexoStr);
             int? periodId = parsedSem;
 
+            // Extraer y procesar las 3 columnas de requisitos para bloqueo
+            var compColPresent = HasRequirementColumnInFile(row, "Actividades Complementarias", "ActividadesComplementarias", "Complementarias", "ActComplementarias", "HasComplementaryActivities");
+            var socColPresent = HasRequirementColumnInFile(row, "Servicio Social", "ServicioSocial", "HasSocialService");
+            var specColPresent = HasRequirementColumnInFile(row, "Especiales", "Requisitos Especiales", "RequisitosEspeciales", "Cursos Especiales", "HasSpecialRequirements");
+
+            var compRaw = GetRequirementColumnValue(row, "Actividades Complementarias", "ActividadesComplementarias", "Complementarias", "ActComplementarias", "HasComplementaryActivities");
+            var socRaw = GetRequirementColumnValue(row, "Servicio Social", "ServicioSocial", "HasSocialService");
+            var specRaw = GetRequirementColumnValue(row, "Especiales", "Requisitos Especiales", "RequisitosEspeciales", "Cursos Especiales", "HasSpecialRequirements");
+
+            // Validar y parsear las 3 columnas de requisitos (1=Sí, 0=No)
+            var (isCompValid, reqComp) = TryParseRequirement(compRaw, false);
+            if (!isCompValid)
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El valor '{compRaw}' en Actividades Complementarias no es válido. Debe ser 1 (Sí) o 0 (No).");
+                continue;
+            }
+
+            var (isSocValid, reqSoc) = TryParseRequirement(socRaw, false);
+            if (!isSocValid)
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El valor '{socRaw}' en Servicio Social no es válido. Debe ser 1 (Sí) o 0 (No).");
+                continue;
+            }
+
+            var (isSpecValid, reqSpec) = TryParseRequirement(specRaw, false);
+            if (!isSpecValid)
+            {
+                result.ErrorCount++;
+                result.Errors.Add($"Fila {rowNum}: El valor '{specRaw}' en Especiales no es válido. Debe ser 1 (Sí) o 0 (No).");
+                continue;
+            }
+
             var existingStudent = await _context.Students
                 .Include(st => st.User)
                 .FirstOrDefaultAsync(st => st.ControlNumber.ToUpper() == cleanControlNum);
@@ -568,6 +667,10 @@ public class StudentService : IStudentService
                 existingStudent.UpdatedAt = DateTime.UtcNow;
                 existingStudent.UpdatedBy = _currentUser.UserId;
 
+                if (compColPresent) existingStudent.HasComplementaryActivities = reqComp;
+                if (socColPresent) existingStudent.HasSocialService = reqSoc;
+                if (specColPresent) existingStudent.HasSpecialRequirements = reqSpec;
+
                 if (existingStudent.User != null && !string.Equals(existingStudent.User.Email, cleanEmail, StringComparison.OrdinalIgnoreCase))
                 {
                     var emailOwner = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == cleanEmail && u.Id != existingStudent.UserId);
@@ -580,6 +683,9 @@ public class StudentService : IStudentService
                 }
 
                 await _studentRepository.UpdateAsync(existingStudent);
+                await CheckAndApplyAutoBlockAsync(existingStudent);
+
+                result.UpdatedCount++;
                 result.SuccessCount++;
                 continue;
             }
@@ -616,12 +722,18 @@ public class StudentService : IStudentService
                 CareerId = careerId,
                 AcademicPeriodId = periodId,
                 Gpa = 0.0m,
+                HasComplementaryActivities = compColPresent ? reqComp : false,
+                HasSocialService = socColPresent ? reqSoc : false,
+                HasSpecialRequirements = specColPresent ? reqSpec : false,
                 IsActive = true,
                 CreatedBy = _currentUser.UserId,
                 User = createdUser
             };
 
             await _studentRepository.AddAsync(newStudent);
+            await CheckAndApplyAutoBlockAsync(newStudent);
+
+            result.CreatedCount++;
             result.SuccessCount++;
 
             // Enqueue Welcome Email
@@ -636,6 +748,51 @@ public class StudentService : IStudentService
         }
 
         return Result<BatchImportResultDto>.Success(result);
+    }
+
+    private static (bool IsValid, bool Value) TryParseRequirement(string? rawValue, bool defaultValue = false)
+    {
+        if (string.IsNullOrWhiteSpace(rawValue)) return (true, defaultValue);
+        var clean = rawValue.Trim().ToLowerInvariant();
+        clean = clean.Replace("í", "i").Replace("á", "a").Replace("é", "e").Replace("ó", "o").Replace("ú", "u");
+        return clean switch
+        {
+            "1" or "1.0" or "si" or "s" or "true" or "verdadero" or "x" or "ok" or "cumple" or "liberado" or "aprobado" or "acreditado" => (true, true),
+            "0" or "0.0" or "no" or "n" or "false" or "falso" => (true, false),
+            _ => (false, false)
+        };
+    }
+
+    private static string? GetRequirementColumnValue(Dictionary<string, string> row, params string[] possibleKeys)
+    {
+        foreach (var key in possibleKeys)
+        {
+            var normKey = ExcelHelper.NormalizeColumnName(key);
+            foreach (var kvp in row)
+            {
+                if (ExcelHelper.NormalizeColumnName(kvp.Key) == normKey && !string.IsNullOrWhiteSpace(kvp.Value))
+                {
+                    return kvp.Value;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static bool HasRequirementColumnInFile(Dictionary<string, string> row, params string[] possibleKeys)
+    {
+        foreach (var key in possibleKeys)
+        {
+            var normKey = ExcelHelper.NormalizeColumnName(key);
+            foreach (var kvp in row)
+            {
+                if (ExcelHelper.NormalizeColumnName(kvp.Key) == normKey)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static long MapCareerNameToId(string? name)
@@ -817,8 +974,70 @@ public class StudentService : IStudentService
         };
     }
 
+    public async Task<Result<bool>> BlockStudentAsync(long studentId, string reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+            return Result<bool>.Failure("La razón del bloqueo es obligatoria.", 400);
+
+        var student = await _studentRepository.GetByIdAsync(studentId);
+        if (student is null)
+            return Result<bool>.Failure("Estudiante no encontrado", 404);
+
+        if (!_currentUser.IsInRole(UserRole.Admin))
+            return Result<bool>.Failure("Solo administradores pueden bloquear manualmente.", 403);
+
+        var existingBlock = await _studentRepository.GetActiveBlockAsync(studentId);
+        if (existingBlock != null)
+            return Result<bool>.Failure("El estudiante ya tiene un bloqueo activo.", 400);
+
+        var block = new StudentBlock
+        {
+            StudentId = studentId,
+            Reason = $"[Bloqueo manual] {reason}",
+            BlockedBy = _currentUser.UserId,
+            BlockedAt = DateTime.UtcNow,
+            IsActive = true
+        };
+
+        await _studentRepository.AddBlockAsync(block);
+        return Result<bool>.Success(true);
+    }
+
+    public async Task<Result<bool>> UnblockStudentAsync(long studentId)
+    {
+        var student = await _studentRepository.GetByIdAsync(studentId);
+        if (student is null)
+            return Result<bool>.Failure("Estudiante no encontrado", 404);
+
+        if (!_currentUser.IsInRole(UserRole.Admin))
+            return Result<bool>.Failure("Solo administradores pueden desbloquear.", 403);
+
+        var activeBlock = await _studentRepository.GetActiveBlockAsync(studentId);
+        if (activeBlock == null)
+            return Result<bool>.Failure("El estudiante no tiene un bloqueo activo.", 400);
+
+        activeBlock.IsActive = false;
+        activeBlock.UnblockedAt = DateTime.UtcNow;
+        activeBlock.UnblockedBy = _currentUser.UserId;
+
+        await _studentRepository.UpdateBlockAsync(activeBlock);
+        return Result<bool>.Success(true);
+    }
+
+    public async Task<Result<List<StudentBlock>>> GetBlockHistoryAsync(long studentId)
+    {
+        var student = await _studentRepository.GetByIdAsync(studentId);
+        if (student is null)
+            return Result<List<StudentBlock>>.Failure("Estudiante no encontrado", 404);
+
+        var history = await _studentRepository.GetBlockHistoryAsync(studentId);
+        return Result<List<StudentBlock>>.Success(history);
+    }
+
     private static StudentResponseDto MapToResponseDto(Student student)
     {
+        var activeBlock = student.Blocks?.FirstOrDefault(b => b.IsActive);
+
         return new StudentResponseDto
         {
             Id = student.Id,
@@ -838,6 +1057,14 @@ public class StudentService : IStudentService
             Gpa = student.Gpa,
             IsPresentationLetterSent = student.IsPresentationLetterSent,
             PresentationLetterSentAt = student.PresentationLetterSentAt,
+
+            HasComplementaryActivities = student.HasComplementaryActivities,
+            HasSocialService = student.HasSocialService,
+            HasSpecialRequirements = student.HasSpecialRequirements,
+
+            IsBlocked = activeBlock != null,
+            BlockReason = activeBlock?.Reason,
+
             IsActive = student.IsActive,
             IsVisible = student.IsVisible,
             DisplayOrder = student.DisplayOrder,

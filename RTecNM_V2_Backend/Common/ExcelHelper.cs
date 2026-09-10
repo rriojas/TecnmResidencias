@@ -1,12 +1,40 @@
+using System.Globalization;
+using System.Text;
 using MiniExcelLibs;
 
 namespace TecNM.Residency.Common;
 
 public static class ExcelHelper
 {
+    public static string NormalizeColumnName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return string.Empty;
+        var normalizedString = name.Trim().Normalize(NormalizationForm.FormD);
+        var stringBuilder = new StringBuilder();
+
+        foreach (var c in normalizedString)
+        {
+            var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
+            if (unicodeCategory != UnicodeCategory.NonSpacingMark && char.IsLetterOrDigit(c))
+            {
+                stringBuilder.Append(char.ToLowerInvariant(c));
+            }
+        }
+
+        return stringBuilder.ToString();
+    }
+
     public static (bool IsValid, string? ErrorMessage, List<Dictionary<string, string>> Rows) ParseExcelFile(
         Stream stream,
         List<string> expectedColumns)
+    {
+        return ParseExcelFile(stream, expectedColumns, null);
+    }
+
+    public static (bool IsValid, string? ErrorMessage, List<Dictionary<string, string>> Rows) ParseExcelFile(
+        Stream stream,
+        List<string> requiredColumns,
+        List<string>? optionalColumns)
     {
         var rows = new List<Dictionary<string, string>>();
         try
@@ -25,22 +53,39 @@ public static class ExcelHelper
             }
 
             var actualColumns = firstRow.Keys.Select(k => k.Trim()).ToList();
+            var actualNormalizedMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var col in actualColumns)
+            {
+                var norm = NormalizeColumnName(col);
+                if (!string.IsNullOrEmpty(norm) && !actualNormalizedMap.ContainsKey(norm))
+                {
+                    actualNormalizedMap[norm] = col;
+                }
+            }
 
-            // Strict column matching (case-insensitive and trimmed)
-            var expectedSet = expectedColumns.Select(c => c.Trim().ToLowerInvariant()).ToHashSet();
-            var actualSet = actualColumns.Select(c => c.Trim().ToLowerInvariant()).ToHashSet();
-
-            var missing = expectedColumns
-                .Where(c => !actualSet.Contains(c.Trim().ToLowerInvariant()))
-                .ToList();
+            var missing = new List<string>();
+            foreach (var req in requiredColumns)
+            {
+                var normReq = NormalizeColumnName(req);
+                if (!actualNormalizedMap.ContainsKey(normReq))
+                {
+                    missing.Add(req);
+                }
+            }
 
             if (missing.Count > 0)
             {
                 var errorMsg = $"El archivo Excel no contiene las columnas requeridas. " +
-                               $"Columnas esperadas: [{string.Join(", ", expectedColumns)}]. " +
+                               $"Columnas esperadas: [{string.Join(", ", requiredColumns)}]. " +
                                $"Columnas recibidas: [{string.Join(", ", actualColumns)}]. " +
                                $"Faltantes: [{string.Join(", ", missing)}].";
                 return (false, errorMsg, rows);
+            }
+
+            var allExpected = new List<string>(requiredColumns);
+            if (optionalColumns != null)
+            {
+                allExpected.AddRange(optionalColumns);
             }
 
             // Parse data rows into normalized dictionary
@@ -52,18 +97,32 @@ public static class ExcelHelper
                 var rowDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 bool hasData = false;
 
-                foreach (var key in expectedColumns)
+                // Also copy raw keys into rowDict for flexibility
+                foreach (var kvp in dict)
                 {
-                    var val = dict.FirstOrDefault(k => string.Equals(k.Key.Trim(), key.Trim(), StringComparison.OrdinalIgnoreCase)).Value;
-                    var strVal = val?.ToString()?.Replace("\u00A0", " ")?.Replace("\u200B", "")?.Trim() ?? string.Empty;
-                    rowDict[key.Trim()] = strVal;
-                    if (!string.IsNullOrWhiteSpace(strVal))
+                    var rawVal = kvp.Value?.ToString()?.Replace("\u00A0", " ")?.Replace("\u200B", "")?.Trim() ?? string.Empty;
+                    rowDict[kvp.Key.Trim()] = rawVal;
+                }
+
+                foreach (var col in allExpected)
+                {
+                    var normCol = NormalizeColumnName(col);
+                    if (actualNormalizedMap.TryGetValue(normCol, out var actualKey) && dict.TryGetValue(actualKey, out var val))
                     {
-                        hasData = true;
+                        var strVal = val?.ToString()?.Replace("\u00A0", " ")?.Replace("\u200B", "")?.Trim() ?? string.Empty;
+                        rowDict[col.Trim()] = strVal;
+                        if (!string.IsNullOrWhiteSpace(strVal))
+                        {
+                            hasData = true;
+                        }
+                    }
+                    else if (!rowDict.ContainsKey(col.Trim()))
+                    {
+                        rowDict[col.Trim()] = string.Empty;
                     }
                 }
 
-                if (hasData)
+                if (hasData || rowDict.Values.Any(v => !string.IsNullOrWhiteSpace(v)))
                 {
                     rows.Add(rowDict);
                 }

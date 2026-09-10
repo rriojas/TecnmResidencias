@@ -12,4 +12,7 @@ public class CreateStudentDto
     public string Email { get; set; } = string.Empty;
     public decimal Gpa { get; set; }
     public int? AcademicPeriodId { get; set; }
+    public bool HasComplementaryActivities { get; set; } = false;
+    public bool HasSocialService { get; set; } = false;
+    public bool HasSpecialRequirements { get; set; } = false;
 }

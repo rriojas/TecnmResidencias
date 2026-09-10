@@ -135,23 +135,21 @@ public class ProjectService : IProjectService
             CreatedBy = _currentUser.UserId
         };
 
-        if (dto.SpecificObjectives != null && dto.SpecificObjectives.Count > 0)
+        var normalizedObjs = dto.GetNormalizedObjectives();
+        if (normalizedObjs.Count > 0)
         {
             int number = 1;
-            foreach (var objText in dto.SpecificObjectives)
+            foreach (var objText in normalizedObjs)
             {
-                if (!string.IsNullOrWhiteSpace(objText))
+                project.Objectives.Add(new ProjectObjective
                 {
-                    project.Objectives.Add(new ProjectObjective
-                    {
-                        ObjectiveNumber = number++,
-                        Description = objText.Trim(),
-                        Status = "pending",
-                        IsActive = true,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    });
-                }
+                    ObjectiveNumber = number++,
+                    Description = objText,
+                    Status = "pending",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
             }
         }
 
@@ -194,27 +192,34 @@ public class ProjectService : IProjectService
         project.ProblemStatement = dto.ProblemStatement.Trim();
         project.Justification = dto.Justification.Trim();
         project.GeneralObjective = dto.GeneralObjective.Trim();
+        if (dto.CompanyId.HasValue && dto.CompanyId.Value > 0)
+        {
+            project.CompanyId = dto.CompanyId.Value;
+        }
+        if (dto.AdvisorId.HasValue)
+        {
+            project.AdvisorId = dto.AdvisorId.Value > 0 ? dto.AdvisorId.Value : null;
+        }
         project.UpdatedAt = DateTime.UtcNow;
         project.UpdatedBy = _currentUser.UserId;
 
         project.Objectives.Clear();
-        if (dto.SpecificObjectives != null && dto.SpecificObjectives.Count > 0)
+        var updateObjs = dto.GetNormalizedObjectives();
+        if (updateObjs.Count > 0)
         {
             int number = 1;
-            foreach (var objText in dto.SpecificObjectives)
+            foreach (var objText in updateObjs)
             {
-                if (!string.IsNullOrWhiteSpace(objText))
+                project.Objectives.Add(new ProjectObjective
                 {
-                    project.Objectives.Add(new ProjectObjective
-                    {
-                        ObjectiveNumber = number++,
-                        Description = objText.Trim(),
-                        Status = "pending",
-                        IsActive = true,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    });
-                }
+                    ProjectId = project.Id,
+                    ObjectiveNumber = number++,
+                    Description = objText,
+                    Status = "pending",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
             }
         }
 

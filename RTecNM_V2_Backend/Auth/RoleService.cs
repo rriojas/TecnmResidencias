@@ -124,20 +124,21 @@ public class RoleService : IRoleService
             var student = await _roleRepository.GetStudentByUserIdAsync(u.Id);
             if (student != null)
             {
-                dto.ControlNumber = student.ControlNumber;
-                dto.FirstName = student.FirstName;
-                dto.LastName = student.LastName;
-                dto.LastName2 = student.LastName2;
+                dto.ControlNumber = student.ControlNumber ?? dto.ControlNumber;
+                dto.FirstName = student.FirstName ?? dto.FirstName;
+                dto.LastName = student.LastName ?? dto.LastName;
+                dto.LastName2 = student.LastName2 ?? dto.LastName2;
                 dto.Curp = student.Curp;
                 dto.Gender = student.Gender;
-                dto.CareerId = student.CareerId;
+                dto.CareerId = student.CareerId > 0 ? student.CareerId : dto.CareerId;
                 dto.AcademicPeriodId = student.AcademicPeriodId;
+                if (!string.IsNullOrWhiteSpace(student.Phone)) dto.Phone = student.Phone;
             }
 
             var advisor = await _roleRepository.GetAdvisorByUserIdAsync(u.Id);
             if (advisor != null)
             {
-                dto.FullName = advisor.FullName;
+                dto.FullName = advisor.FullName ?? dto.FullName;
                 dto.Title = advisor.Title;
                 dto.DepartmentId = advisor.DepartmentId;
                 if (!string.IsNullOrWhiteSpace(advisor.Phone))
@@ -157,9 +158,9 @@ public class RoleService : IRoleService
             var careerHead = await _roleRepository.GetCareerHeadByUserIdAsync(u.Id);
             if (careerHead != null)
             {
-                dto.FullName = careerHead.FullName;
+                dto.FullName = careerHead.FullName ?? dto.FullName;
                 dto.Title = careerHead.Title;
-                dto.CareerId = careerHead.CareerId;
+                dto.CareerId = careerHead.CareerId > 0 ? careerHead.CareerId : dto.CareerId;
                 if (!string.IsNullOrWhiteSpace(careerHead.Phone))
                 {
                     dto.Phone = careerHead.Phone;
@@ -171,6 +172,11 @@ public class RoleService : IRoleService
                     dto.FirstName = parts[0];
                     if (parts.Length > 1) dto.LastName = parts[1];
                 }
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.Phone) && !string.IsNullOrWhiteSpace(u.Phone))
+            {
+                dto.Phone = u.Phone;
             }
 
             var effCareerId = dto.CareerId ?? dto.DepartmentId;
@@ -342,6 +348,12 @@ public class RoleService : IRoleService
                 IsActive = true,
                 IsVisible = true,
                 DisplayOrder = 0,
+                Phone = dto.Phone?.Trim(),
+                FirstName = dto.FirstName?.Trim(),
+                LastName = dto.LastName?.Trim(),
+                LastName2 = dto.LastName2?.Trim(),
+                ControlNumber = dto.ControlNumber?.Trim(),
+                CareerId = dto.CareerId,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 CreatedBy = _currentUser.UserId
@@ -357,7 +369,7 @@ public class RoleService : IRoleService
 
             if (baseUserRole == UserRole.Student)
             {
-                await _roleRepository.EnsureStudentProfileAsync(created.Id, created.Email, dto.ControlNumber, dto.FirstName, dto.LastName, dto.LastName2, dto.Curp, dto.Gender, dto.CareerId, dto.AcademicPeriodId, _currentUser.UserId, _currentUser.UserId);
+                await _roleRepository.EnsureStudentProfileAsync(created.Id, created.Email, dto.ControlNumber, dto.FirstName, dto.LastName, dto.LastName2, dto.Curp, dto.Gender, dto.CareerId, dto.AcademicPeriodId, dto.Phone, _currentUser.UserId, _currentUser.UserId);
             }
 
             if (baseUserRole == UserRole.Advisor || baseUserRole == UserRole.Academic)
@@ -417,6 +429,11 @@ public class RoleService : IRoleService
                 }
             }
 
+            if (string.IsNullOrWhiteSpace(responseDto.Phone))
+            {
+                responseDto.Phone = created.Phone ?? dto.Phone;
+            }
+
             return Result<UserRoleManagementDto>.Success(responseDto);
         }
         catch (Exception ex)
@@ -470,6 +487,13 @@ public class RoleService : IRoleService
             }
         }
 
+        user.Phone = dto.Phone?.Trim();
+        user.FirstName = dto.FirstName?.Trim();
+        user.LastName = dto.LastName?.Trim();
+        user.LastName2 = dto.LastName2?.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.ControlNumber)) user.ControlNumber = dto.ControlNumber.Trim();
+        if (dto.CareerId.HasValue && dto.CareerId.Value > 0) user.CareerId = dto.CareerId.Value;
+
         if (!string.IsNullOrWhiteSpace(dto.NewPassword))
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
 
@@ -489,7 +513,7 @@ public class RoleService : IRoleService
 
             if (updated.Role == UserRole.Student)
             {
-                await _roleRepository.EnsureStudentProfileAsync(updated.Id, updated.Email, dto.ControlNumber, dto.FirstName, dto.LastName, dto.LastName2, dto.Curp, dto.Gender, dto.CareerId, dto.AcademicPeriodId, _currentUser.UserId, _currentUser.UserId);
+                await _roleRepository.EnsureStudentProfileAsync(updated.Id, updated.Email, dto.ControlNumber, dto.FirstName, dto.LastName, dto.LastName2, dto.Curp, dto.Gender, dto.CareerId, dto.AcademicPeriodId, dto.Phone, _currentUser.UserId, _currentUser.UserId);
             }
 
             if (updated.Role == UserRole.Advisor || updated.Role == UserRole.Academic)
@@ -549,6 +573,11 @@ public class RoleService : IRoleService
                 }
             }
 
+            if (string.IsNullOrWhiteSpace(responseDto.Phone))
+            {
+                responseDto.Phone = updated.Phone ?? dto.Phone;
+            }
+
             return Result<UserRoleManagementDto>.Success(responseDto);
         }
         catch (Exception ex)
@@ -578,6 +607,13 @@ public class RoleService : IRoleService
         IsActive = u.IsActive,
         IsVisible = u.IsVisible,
         DisplayOrder = u.DisplayOrder,
+        Phone = u.Phone,
+        FirstName = u.FirstName,
+        LastName = u.LastName,
+        LastName2 = u.LastName2,
+        ControlNumber = u.ControlNumber,
+        CareerId = u.CareerId,
+        FullName = !string.IsNullOrWhiteSpace(u.FirstName) ? $"{u.FirstName} {u.LastName} {u.LastName2}".Trim() : null,
         CreatedAt = u.CreatedAt,
         UpdatedAt = u.UpdatedAt,
         CreatedBy = u.CreatedBy,

@@ -29,7 +29,7 @@ public interface IRoleRepository
     Task<List<UserOptionDto>> GetUserOptionsAsync();
     Task<List<Role>> GetAllRolesForExportAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false);
     Task<List<User>> GetAllUsersForExportAsync(string? search, string? roleFilter, string? sortBy, string? sortDir, bool includeInactive = false);
-    Task EnsureStudentProfileAsync(long userId, string email, string? controlNum, string? firstName, string? lastName, string? lastName2, string? curp, string? gender, long? careerId, int? academicPeriodId, long? createdByUserId, long? updatedByUserId);
+    Task EnsureStudentProfileAsync(long userId, string email, string? controlNum, string? firstName, string? lastName, string? lastName2, string? curp, string? gender, long? careerId, int? academicPeriodId, string? phone, long? createdByUserId, long? updatedByUserId);
     Task EnsureAdvisorProfileAsync(long userId, string email, string? fullName, string? title, long? departmentId, string? phone, int? advisorType, long? createdByUserId, long? updatedByUserId);
     Task EnsureCareerHeadProfileAsync(long userId, string email, string? fullName, string? title, long careerId, string? phone, long? createdByUserId, long? updatedByUserId);
     Task CleanupProfilesForUserAsync(long userId, UserRole role);

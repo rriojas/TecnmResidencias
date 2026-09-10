@@ -155,14 +155,24 @@ public class RoleRepository : IRoleRepository
         {
             var term = search.Trim().ToLowerInvariant();
             q = q.Where(u => u.Email.ToLower().Contains(term)
-                || _context.Students.Any(s => s.UserId == u.Id && ((s.FirstName + " " + s.LastName + " " + (s.LastName2 ?? "")).ToLower().Contains(term) || s.ControlNumber.ToLower().Contains(term)))
-                || _context.Advisors.Any(a => a.UserId == u.Id && (a.FullName.ToLower().Contains(term) || (a.Phone != null && a.Phone.Contains(term)))));
+                || (u.Phone != null && u.Phone.Contains(term))
+                || (u.ControlNumber != null && u.ControlNumber.ToLower().Contains(term))
+                || ((u.FirstName + " " + (u.LastName ?? "") + " " + (u.LastName2 ?? "")).ToLower().Contains(term))
+                || _context.Students.Any(s => s.UserId == u.Id && (((s.FirstName + " " + s.LastName + " " + (s.LastName2 ?? "")).ToLower().Contains(term)) || s.ControlNumber.ToLower().Contains(term) || (s.Phone != null && s.Phone.Contains(term))))
+                || _context.Advisors.Any(a => a.UserId == u.Id && (a.FullName.ToLower().Contains(term) || (a.Phone != null && a.Phone.Contains(term))))
+                || _context.CareerHeads.Any(c => c.UserId == u.Id && (c.FullName.ToLower().Contains(term) || (c.Phone != null && c.Phone.Contains(term)))));
         }
 
         if (roleFilter == "with_role")
             q = q.Where(u => u.UserRoles.Any(ur => ur.IsActive));
         else if (roleFilter == "without_role")
             q = q.Where(u => !u.UserRoles.Any(ur => ur.IsActive));
+        else if (!string.IsNullOrWhiteSpace(roleFilter) && roleFilter != "all")
+        {
+            var rf = roleFilter.Trim().ToLowerInvariant();
+            q = q.Where(u => u.UserRoles.Any(ur => ur.IsActive && ur.Role != null && (ur.Role.Code.ToLower() == rf || ur.Role.Name.ToLower().Contains(rf)))
+                || u.Role.ToString().ToLower() == rf);
+        }
 
         q = q.ApplySort(query.SortBy, query.SortDir,
             new[] { "Email", "CreatedAt" },
@@ -184,14 +194,24 @@ public class RoleRepository : IRoleRepository
         {
             var term = search.Trim().ToLowerInvariant();
             q = q.Where(u => u.Email.ToLower().Contains(term)
-                || _context.Students.Any(s => s.UserId == u.Id && ((s.FirstName + " " + s.LastName + " " + (s.LastName2 ?? "")).ToLower().Contains(term) || s.ControlNumber.ToLower().Contains(term)))
-                || _context.Advisors.Any(a => a.UserId == u.Id && (a.FullName.ToLower().Contains(term) || (a.Phone != null && a.Phone.Contains(term)))));
+                || (u.Phone != null && u.Phone.Contains(term))
+                || (u.ControlNumber != null && u.ControlNumber.ToLower().Contains(term))
+                || ((u.FirstName + " " + (u.LastName ?? "") + " " + (u.LastName2 ?? "")).ToLower().Contains(term))
+                || _context.Students.Any(s => s.UserId == u.Id && (((s.FirstName + " " + s.LastName + " " + (s.LastName2 ?? "")).ToLower().Contains(term)) || s.ControlNumber.ToLower().Contains(term) || (s.Phone != null && s.Phone.Contains(term))))
+                || _context.Advisors.Any(a => a.UserId == u.Id && (a.FullName.ToLower().Contains(term) || (a.Phone != null && a.Phone.Contains(term))))
+                || _context.CareerHeads.Any(c => c.UserId == u.Id && (c.FullName.ToLower().Contains(term) || (c.Phone != null && c.Phone.Contains(term)))));
         }
 
         if (roleFilter == "with_role")
             q = q.Where(u => u.UserRoles.Any(ur => ur.IsActive));
         else if (roleFilter == "without_role")
             q = q.Where(u => !u.UserRoles.Any(ur => ur.IsActive));
+        else if (!string.IsNullOrWhiteSpace(roleFilter) && roleFilter != "all")
+        {
+            var rf = roleFilter.Trim().ToLowerInvariant();
+            q = q.Where(u => u.UserRoles.Any(ur => ur.IsActive && ur.Role != null && (ur.Role.Code.ToLower() == rf || ur.Role.Name.ToLower().Contains(rf)))
+                || u.Role.ToString().ToLower() == rf);
+        }
 
         return await q.ToListAsync();
     }
@@ -391,7 +411,7 @@ public class RoleRepository : IRoleRepository
         return await q.Take(1000).ToListAsync();
     }
 
-    public async Task EnsureStudentProfileAsync(long userId, string email, string? controlNum, string? firstName, string? lastName, string? lastName2, string? curp, string? gender, long? careerId, int? academicPeriodId, long? createdByUserId, long? updatedByUserId)
+    public async Task EnsureStudentProfileAsync(long userId, string email, string? controlNum, string? firstName, string? lastName, string? lastName2, string? curp, string? gender, long? careerId, int? academicPeriodId, string? phone, long? createdByUserId, long? updatedByUserId)
     {
         var existingStudent = await _context.Students.FirstOrDefaultAsync(s => s.UserId == userId);
         var namePart = StringSanitizer.SanitizeEmail(email).Split('@')[0];
@@ -408,6 +428,7 @@ public class RoleRepository : IRoleRepository
                 LastName2 = string.IsNullOrWhiteSpace(lastName2) ? null : StringSanitizer.SanitizeText(lastName2),
                 Curp = StringSanitizer.SanitizeCurp(curp),
                 Gender = string.IsNullOrWhiteSpace(gender) ? null : StringSanitizer.SanitizeText(gender),
+                Phone = string.IsNullOrWhiteSpace(phone) ? null : StringSanitizer.SanitizeText(phone),
                 CareerId = careerId > 0 ? careerId.Value : 1,
                 AcademicPeriodId = academicPeriodId,
                 IsActive = true,
@@ -425,6 +446,7 @@ public class RoleRepository : IRoleRepository
             if (lastName2 != null) existingStudent.LastName2 = string.IsNullOrWhiteSpace(lastName2) ? null : StringSanitizer.SanitizeText(lastName2);
             if (curp != null) existingStudent.Curp = StringSanitizer.SanitizeCurp(curp);
             if (gender != null) existingStudent.Gender = string.IsNullOrWhiteSpace(gender) ? null : StringSanitizer.SanitizeText(gender);
+            if (phone != null) existingStudent.Phone = string.IsNullOrWhiteSpace(phone) ? null : StringSanitizer.SanitizeText(phone);
             if (academicPeriodId.HasValue) existingStudent.AcademicPeriodId = academicPeriodId.Value;
             if (careerId > 0) existingStudent.CareerId = careerId.Value;
             existingStudent.UpdatedAt = DateTime.UtcNow;

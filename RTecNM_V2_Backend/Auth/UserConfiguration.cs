@@ -64,6 +64,29 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasDefaultValue(0)
             .IsRequired();
 
+        builder.Property(u => u.Phone)
+            .HasColumnName("phone")
+            .HasMaxLength(30);
+
+        builder.Property(u => u.FirstName)
+            .HasColumnName("first_name")
+            .HasMaxLength(100);
+
+        builder.Property(u => u.LastName)
+            .HasColumnName("last_name")
+            .HasMaxLength(100);
+
+        builder.Property(u => u.LastName2)
+            .HasColumnName("last_name_2")
+            .HasMaxLength(100);
+
+        builder.Property(u => u.ControlNumber)
+            .HasColumnName("control_number")
+            .HasMaxLength(20);
+
+        builder.Property(u => u.CareerId)
+            .HasColumnName("career_id");
+
         builder.Property(u => u.CreatedBy)
             .HasColumnName("created_by");
 

@@ -10,4 +10,7 @@ public class UpdateStudentDto
     public long CareerId { get; set; }
     public decimal Gpa { get; set; }
     public int? AcademicPeriodId { get; set; }
+    public bool HasComplementaryActivities { get; set; }
+    public bool HasSocialService { get; set; }
+    public bool HasSpecialRequirements { get; set; }
 }

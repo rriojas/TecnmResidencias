@@ -57,7 +57,11 @@ public class AuthService : IAuthService
                 .Select(s => new {
                     FullName = (s.FirstName + " " + s.LastName + (string.IsNullOrWhiteSpace(s.LastName2) ? "" : " " + s.LastName2)).Trim(),
                     s.ControlNumber,
-                    s.CareerId
+                    s.CareerId,
+                    s.HasComplementaryActivities,
+                    s.HasSocialService,
+                    s.HasSpecialRequirements,
+                    Blocks = s.Blocks.Where(b => b.IsActive).Select(b => b.Reason).ToList()
                 })
                 .FirstOrDefaultAsync();
 
@@ -66,6 +70,13 @@ public class AuthService : IAuthService
                 fullName = student.FullName;
                 controlNumber = student.ControlNumber;
                 careerId = student.CareerId;
+
+                // Check for active block
+                if (student.Blocks != null && student.Blocks.Count > 0)
+                {
+                    var blockReason = student.Blocks.First();
+                    return Result<AuthTokenResponseDto>.Failure(blockReason, 403);
+                }
             }
         }
         else if (user.Role == UserRole.Advisor)

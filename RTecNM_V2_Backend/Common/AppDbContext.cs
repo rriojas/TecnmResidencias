@@ -23,6 +23,7 @@ public class AppDbContext : DbContext
     public DbSet<UserRoleAssignment> UserRoles => Set<UserRoleAssignment>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<Student> Students => Set<Student>();
+    public DbSet<StudentBlock> StudentBlocks => Set<StudentBlock>();
     public DbSet<Advisor> Advisors => Set<Advisor>();
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<CompanyAgreement> CompanyAgreements => Set<CompanyAgreement>();
@@ -50,6 +51,7 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new UserRoleAssignmentConfiguration());
         modelBuilder.ApplyConfiguration(new RolePermissionConfiguration());
         modelBuilder.ApplyConfiguration(new StudentConfiguration());
+        modelBuilder.ApplyConfiguration(new StudentBlockConfiguration());
         modelBuilder.ApplyConfiguration(new AdvisorConfiguration());
         modelBuilder.ApplyConfiguration(new CareerHeadConfiguration());
         modelBuilder.ApplyConfiguration(new CompanyConfiguration());

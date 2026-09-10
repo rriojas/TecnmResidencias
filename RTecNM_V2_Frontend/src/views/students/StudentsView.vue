@@ -75,6 +75,9 @@ const form = ref({
   careerId: 1,
   academicPeriodId: 1,
   gpa: '',
+  hasComplementaryActivities: false,
+  hasSocialService: false,
+  hasSpecialRequirements: false,
 })
 
 const canCreate = computed(() => {
@@ -134,7 +137,15 @@ async function handleImportSubmit() {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     importResult.value = res.data
-    showAlert(`Importación finalizada. ${res.data.successCount} estudiantes creados.`, 'success')
+    const created = res.data.createdCount ?? 0
+    const updated = res.data.updatedCount ?? 0
+    if (updated > 0 && created > 0) {
+      showAlert(`Importación finalizada: ${created} nuevos registrados y ${updated} actualizados.`, 'success')
+    } else if (updated > 0) {
+      showAlert(`Importación finalizada: ${updated} estudiantes actualizados exitosamente.`, 'success')
+    } else {
+      showAlert(`Importación finalizada. ${created || res.data.successCount} estudiantes registrados.`, 'success')
+    }
     loadStudents()
   } catch (err) {
     importError.value =
@@ -264,6 +275,9 @@ function openCreateModal() {
     careerId: 1,
     academicPeriodId: 1,
     gpa: '',
+    hasComplementaryActivities: false,
+    hasSocialService: false,
+    hasSpecialRequirements: false,
   }
   formError.value = ''
   isModalOpen.value = true
@@ -286,6 +300,9 @@ async function openEditModal(student) {
       careerId: s.careerId || 1,
       academicPeriodId: s.academicPeriodId || 1,
       gpa: s.gpa != null ? s.gpa : '',
+      hasComplementaryActivities: s.hasComplementaryActivities || false,
+      hasSocialService: s.hasSocialService || false,
+      hasSpecialRequirements: s.hasSpecialRequirements || false,
     }
     formError.value = ''
     isModalOpen.value = true
@@ -333,6 +350,9 @@ async function handleSubmit() {
         careerId: Number(form.value.careerId),
         academicPeriodId: form.value.academicPeriodId ? Number(form.value.academicPeriodId) : undefined,
         gpa: form.value.gpa !== '' ? Number(form.value.gpa) : undefined,
+        hasComplementaryActivities: form.value.hasComplementaryActivities,
+        hasSocialService: form.value.hasSocialService,
+        hasSpecialRequirements: form.value.hasSpecialRequirements,
       })
       showAlert('Estudiante actualizado exitosamente.', 'success')
     } else {
@@ -347,6 +367,9 @@ async function handleSubmit() {
         careerId: Number(form.value.careerId),
         academicPeriodId: form.value.academicPeriodId ? Number(form.value.academicPeriodId) : undefined,
         gpa: form.value.gpa !== '' ? Number(form.value.gpa) : undefined,
+        hasComplementaryActivities: form.value.hasComplementaryActivities,
+        hasSocialService: form.value.hasSocialService,
+        hasSpecialRequirements: form.value.hasSpecialRequirements,
       })
       showAlert('Estudiante registrado exitosamente.', 'success')
     }
@@ -386,6 +409,31 @@ async function handleReactivate(student) {
     loadStudents()
   } catch (err) {
     showAlert(err.response?.data?.message || 'Error al reactivar estudiante.', 'danger')
+  }
+}
+
+async function handleBlockStudent(student) {
+  const reason = prompt('Ingrese la razón del bloqueo (obligatorio):')
+  if (!reason || !reason.trim()) {
+    showAlert('La razón del bloqueo es obligatoria.', 'danger')
+    return
+  }
+  try {
+    await apiClient.patch(`/v1/students/${student.id}/block`, { reason: reason.trim() })
+    showAlert('Estudiante bloqueado correctamente.', 'success')
+    loadStudents()
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al bloquear estudiante.', 'danger')
+  }
+}
+
+async function handleUnblockStudent(student) {
+  try {
+    await apiClient.patch(`/v1/students/${student.id}/unblock`)
+    showAlert('Estudiante desbloqueado correctamente.', 'success')
+    loadStudents()
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al desbloquear estudiante.', 'danger')
   }
 }
 
@@ -789,6 +837,24 @@ onMounted(() => {
                   >
                     Reactivar
                   </button>
+                  
+                  <!-- Bloqueo manual solo para admin -->
+                  <button
+                    v-if="authStore.isAdmin && !s.isBlocked"
+                    type="button"
+                    class="tecnm-btn tecnm-btn-warning tecnm-btn-sm"
+                    @click="handleBlockStudent(s)"
+                  >
+                    Bloquear
+                  </button>
+                  <button
+                    v-if="authStore.isAdmin && s.isBlocked"
+                    type="button"
+                    class="tecnm-btn tecnm-btn-success tecnm-btn-sm"
+                    @click="handleUnblockStudent(s)"
+                  >
+                    Desbloquear
+                  </button>
                 </td>
               </tr>
             </tbody>
@@ -977,20 +1043,44 @@ onMounted(() => {
               </select>
             </div>
 
-            <div class="tecnm-form-group">
-              <label for="gpa" class="tecnm-label">Promedio General</label>
-              <input
-                id="gpa"
-                v-model="form.gpa"
-                type="number"
-                step="0.1"
-                min="0"
-                max="100"
-                class="tecnm-form-control"
-                placeholder="92.5"
-                :disabled="isSubmitting"
-              />
+
+            <!-- Requisitos de bloqueo automático -->
+            <div class="tecnm-form-group tecnm-form-group-full">
+              <fieldset class="tecnm-fieldset">
+                <legend class="tecnm-legend">Requisitos de Ingreso (Si alguno es NO, el alumno quedará BLOQUEADO al registrarse)</legend>
+                <div class="tecnm-checkbox-group">
+                  <label class="tecnm-checkbox-label">
+                    <input
+                      type="checkbox"
+                      v-model="form.hasComplementaryActivities"
+                      class="tecnm-checkbox-input"
+                      :disabled="isSubmitting"
+                    />
+                    <span class="tecnm-checkbox-text">Actividades Complementarias</span>
+                  </label>
+                  <label class="tecnm-checkbox-label">
+                    <input
+                      type="checkbox"
+                      v-model="form.hasSocialService"
+                      class="tecnm-checkbox-input"
+                      :disabled="isSubmitting"
+                    />
+                    <span class="tecnm-checkbox-text">Servicio Social</span>
+                  </label>
+                  <label class="tecnm-checkbox-label">
+                    <input
+                      type="checkbox"
+                      v-model="form.hasSpecialRequirements"
+                      class="tecnm-checkbox-input"
+                      :disabled="isSubmitting"
+                    />
+                    <span class="tecnm-checkbox-text">Especiales</span>
+                  </label>
+                </div>
+                <p class="tecnm-form-hint">⚠ Si desmarca cualquiera, el estudiante se creará pero NO podrá iniciar sesión hasta cumplirlos.</p>
+              </fieldset>
             </div>
+          
           </div>
 
           <div class="tecnm-modal-footer">
@@ -1046,7 +1136,7 @@ onMounted(() => {
                   <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                 </svg>
                 <span>Especificación de Columnas</span>
-                <span style="font-size: 0.8rem; color: #b91c1c; font-weight: 600;">(Todos los campos son obligatorios sin excepción)</span>
+                <span style="font-size: 0.8rem; color: #475569; font-weight: 600;">(Matrícula a Email requeridos. Columnas de requisitos son opcionales para control de bloqueo)</span>
               </span>
               <button
                 type="button"
@@ -1071,7 +1161,7 @@ onMounted(() => {
                 <tbody>
                   <tr>
                     <td style="padding: 0.35rem 0.6rem;"><code>Matricula</code></td>
-                    <td style="padding: 0.35rem 0.6rem;">N° de control oficial único</td>
+                    <td style="padding: 0.35rem 0.6rem;">N° de control oficial único (identificador principal)</td>
                     <td style="padding: 0.35rem 0.6rem;"><code>20051234</code></td>
                   </tr>
                   <tr>
@@ -1112,8 +1202,26 @@ onMounted(() => {
                     <td style="padding: 0.35rem 0.6rem;">Correo institucional del estudiante (@monclova.tecnm.mx)</td>
                     <td style="padding: 0.35rem 0.6rem;"><code>20051234@monclova.tecnm.mx</code></td>
                   </tr>
+                  <tr style="background: #fdf6ec;">
+                    <td style="padding: 0.35rem 0.6rem;"><code>Actividades Complementarias</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">Requisito de 5 actividades complementarias liberadas</td>
+                    <td style="padding: 0.35rem 0.6rem;"><strong><code>1</code></strong> (Sí / Cumple) &bull; <strong><code>0</code></strong> (No / No cumple)</td>
+                  </tr>
+                  <tr style="background: #fdf6ec;">
+                    <td style="padding: 0.35rem 0.6rem;"><code>Servicio Social</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">Requisito de servicio social liberado</td>
+                    <td style="padding: 0.35rem 0.6rem;"><strong><code>1</code></strong> (Sí / Cumple) &bull; <strong><code>0</code></strong> (No / No cumple)</td>
+                  </tr>
+                  <tr style="background: #fdf6ec;">
+                    <td style="padding: 0.35rem 0.6rem;"><code>Especiales</code></td>
+                    <td style="padding: 0.35rem 0.6rem;">Situación regular (sin adeudo de cursos especiales)</td>
+                    <td style="padding: 0.35rem 0.6rem;"><strong><code>1</code></strong> (Sí / Cumple) &bull; <strong><code>0</code></strong> (No / No cumple)</td>
+                  </tr>
                 </tbody>
               </table>
+            </div>
+            <div style="margin-top: 0.5rem; font-size: 0.78rem; color: #64748b; line-height: 1.35;">
+              ℹ <em>Si un alumno ya está registrado (matrícula repetida), sus datos y los 3 requisitos se actualizarán. Si cumple los 3 requisitos (<code>SI</code>), su bloqueo automático se desactivará permitiéndole el acceso.</em>
             </div>
           </div>
 
@@ -1125,8 +1233,9 @@ onMounted(() => {
             <strong>Resumen de Importación:</strong>
             <ul>
               <li>Filas procesadas: {{ importResult.totalRows }}</li>
-              <li>Estudiantes registrados: {{ importResult.successCount }}</li>
-              <li>Omitidos (Duplicados): {{ importResult.skippedCount }}</li>
+              <li>Nuevos registrados: {{ importResult.createdCount ?? importResult.successCount }}</li>
+              <li>Existentes actualizados: {{ importResult.updatedCount ?? 0 }}</li>
+              <li>Omitidos (Cuentas en conflicto): {{ importResult.skippedCount }}</li>
               <li>Errores de fila: {{ importResult.errorCount }}</li>
             </ul>
             <div v-if="importResult.errors && importResult.errors.length > 0" style="margin-top: 0.5rem; max-height: 120px; overflow-y: auto;">

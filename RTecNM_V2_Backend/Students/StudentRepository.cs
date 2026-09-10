@@ -172,4 +172,33 @@ public class StudentRepository : IStudentRepository
         _context.Students.Update(student);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<StudentBlock?> GetActiveBlockAsync(long studentId)
+    {
+        return await _context.StudentBlocks
+            .Where(b => b.StudentId == studentId && b.IsActive)
+            .OrderByDescending(b => b.BlockedAt)
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<StudentBlock> AddBlockAsync(StudentBlock block)
+    {
+        await _context.StudentBlocks.AddAsync(block);
+        await _context.SaveChangesAsync();
+        return block;
+    }
+
+    public async Task UpdateBlockAsync(StudentBlock block)
+    {
+        _context.StudentBlocks.Update(block);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<List<StudentBlock>> GetBlockHistoryAsync(long studentId)
+    {
+        return await _context.StudentBlocks
+            .Where(b => b.StudentId == studentId)
+            .OrderByDescending(b => b.BlockedAt)
+            .ToListAsync();
+    }
 }

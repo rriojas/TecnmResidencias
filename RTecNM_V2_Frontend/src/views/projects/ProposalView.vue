@@ -291,10 +291,8 @@ async function handleProposalSubmit() {
     problemStatement: form.value.problemStatement.trim(),
     justification: form.value.justification.trim(),
     generalObjective: form.value.generalObjective.trim(),
-    objectives: validObjs.map((desc, idx) => ({
-      sequence: idx + 1,
-      description: desc,
-    })),
+    specificObjectives: validObjs,
+    objectives: validObjs,
   }
 
   try {

@@ -25,6 +25,9 @@ public static class ExcelTemplateSeeder
         studentTable.Columns.Add("Carrera");
         studentTable.Columns.Add("Semestre");
         studentTable.Columns.Add("Email");
+        studentTable.Columns.Add("Actividades Complementarias");
+        studentTable.Columns.Add("Servicio Social");
+        studentTable.Columns.Add("Especiales");
 
         MiniExcel.SaveAs(studentTemplatePath, studentTable, overwriteFile: true);
         logger.LogInformation("Generada plantilla limpia para estudiantes en: {Path}", studentTemplatePath);

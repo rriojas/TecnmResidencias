@@ -52,6 +52,10 @@ public class StudentConfiguration : IEntityTypeConfiguration<Student>
             .HasColumnName("gender")
             .HasMaxLength(20);
 
+        builder.Property(s => s.Phone)
+            .HasColumnName("phone")
+            .HasMaxLength(30);
+
         builder.Property(s => s.CareerId)
             .HasColumnName("career_id")
             .IsRequired();
@@ -77,6 +81,21 @@ public class StudentConfiguration : IEntityTypeConfiguration<Student>
 
         builder.Property(s => s.PresentationLetterSentAt)
             .HasColumnName("presentation_letter_sent_at");
+
+        builder.Property(s => s.HasComplementaryActivities)
+            .HasColumnName("has_complementary_activities")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(s => s.HasSocialService)
+            .HasColumnName("has_social_service")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(s => s.HasSpecialRequirements)
+            .HasColumnName("has_special_requirements")
+            .HasDefaultValue(false)
+            .IsRequired();
 
         builder.Property(s => s.IsActive)
             .HasColumnName("is_active")
@@ -122,5 +141,10 @@ public class StudentConfiguration : IEntityTypeConfiguration<Student>
             .WithMany()
             .HasForeignKey(s => s.AdvisorId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasMany(s => s.Blocks)
+            .WithOne(b => b.Student)
+            .HasForeignKey(b => b.StudentId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

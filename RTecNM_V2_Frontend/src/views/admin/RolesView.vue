@@ -365,7 +365,9 @@ function openEditUserModal(u) {
   }
 
   const currentRoleId =
-    u.assignedRoles && u.assignedRoles.length > 0 ? u.assignedRoles[0].id : ''
+    u.assignedRoles && u.assignedRoles.length > 0
+      ? u.assignedRoles[0].id
+      : roleOptions.value.find((r) => r.code === u.role)?.id || ''
 
   userForm.value = {
     userId: u.userId,
@@ -755,6 +757,13 @@ onMounted(async () => {
             <option value="all">Todos los roles</option>
             <option value="with_role">Con Rol Asignado</option>
             <option value="without_role">Sin Rol Asignado</option>
+            <option
+              v-for="r in roleOptions"
+              :key="r.id"
+              :value="r.code"
+            >
+              {{ r.name }}
+            </option>
           </select>
 
           <select
@@ -892,6 +901,12 @@ onMounted(async () => {
                       class="tecnm-badge tecnm-badge-approved"
                     >
                       SuperAdministrador
+                    </span>
+                    <span
+                      v-else-if="u.role"
+                      class="tecnm-badge tecnm-badge-approved"
+                    >
+                      {{ roleOptions.find(r => r.code === u.role)?.name || u.role }}
                     </span>
                     <span
                       v-else

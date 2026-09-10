@@ -20,4 +20,8 @@ public interface IStudentService
     Task<Result<int>> SendMassPresentationLettersAsync();
     Task<Result<bool>> SendPresentationLetterAsync(long studentId);
     Task<Result<byte[]>> GetPresentationLetterPdfAsync(long studentId);
+
+    Task<Result<bool>> BlockStudentAsync(long studentId, string reason);
+    Task<Result<bool>> UnblockStudentAsync(long studentId);
+    Task<Result<List<StudentBlock>>> GetBlockHistoryAsync(long studentId);
 }
