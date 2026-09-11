@@ -75,25 +75,28 @@ const isAdminActive = computed(() => {
 const showStudents = computed(() =>
   !authStore.hasRole('student') &&
   (authStore.isAdmin ||
+   authStore.isCoordinator ||
    authStore.hasPermission('students.manage') ||
    authStore.hasPermission('students.profile.view'))
 )
 
 const showAdvisors = computed(() =>
   authStore.isAdmin ||
+  authStore.isCoordinator ||
   authStore.hasPermission('advisors.manage') ||
   authStore.isCareerHead
 )
 
 const showAdvisorAssignments = computed(() =>
   authStore.isAdmin ||
-  authStore.hasRole('admin', 'departmenthead', 'academic', 'jefecarrera', 'careerhead')
+  authStore.isCoordinator ||
+  authStore.hasRole('admin', 'departmenthead', 'academic', 'jefecarrera', 'careerhead', 'coordinadora', 'coordinator')
 )
 
 const showCompanies = computed(() =>
   !authStore.hasRole('student') &&
-  !authStore.isCareerHead &&
   (authStore.isAdmin ||
+   authStore.isCoordinator ||
    authStore.hasPermission('companies.view') ||
    authStore.hasPermission('companies.manage'))
 )
@@ -105,17 +108,20 @@ const showAcademicaGroup = computed(() =>
 
 const showProposal = computed(() =>
   authStore.isAdmin ||
+  authStore.isCoordinator ||
   authStore.hasPermission('projects.proposals')
 )
 
 const showReview = computed(() =>
   authStore.isAdmin ||
+  authStore.isCoordinator ||
   authStore.isCareerHead ||
   authStore.hasPermission('projects.review')
 )
 
 const showSchedule = computed(() =>
   authStore.isAdmin ||
+  authStore.isCoordinator ||
   authStore.hasPermission('activities.schedule')
 )
 
@@ -125,17 +131,20 @@ const showResidenciaGroup = computed(() =>
 
 const showAdvisories = computed(() =>
   authStore.isAdmin ||
+  authStore.isCoordinator ||
   authStore.hasPermission('evaluations.advisories')
 )
 
 const showGrading = computed(() =>
   authStore.isAdmin ||
+  authStore.isCoordinator ||
   authStore.hasPermission('evaluations.grading') ||
   authStore.hasPermission('evaluations.summary.view')
 )
 
 const showDocuments = computed(() =>
   authStore.isAdmin ||
+  authStore.isCoordinator ||
   authStore.hasPermission('documents.digital')
 )
 
@@ -152,13 +161,13 @@ const showEvaluacionGroup = computed(() =>
 
 const showReports = computed(() =>
   !authStore.hasRole('vinculacion') &&
-  (authStore.isAdmin || authStore.hasPermission('admin.reports'))
+  (authStore.isAdmin || authStore.isCoordinator || authStore.hasPermission('admin.reports'))
 )
 
 const showRoles = computed(() => authStore.isAdmin)
 
 const showSettings = computed(() => authStore.isAdmin)
-const showCareers = computed(() => authStore.isAdmin || authStore.hasPermission('admin.careers'))
+const showCareers = computed(() => authStore.isAdmin)
 
 const showAdminGroup = computed(() =>
   showReports.value || showRoles.value || showCareers.value || showSettings.value

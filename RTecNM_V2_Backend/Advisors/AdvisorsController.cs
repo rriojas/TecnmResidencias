@@ -34,7 +34,7 @@ public class AdvisorsController : ControllerBase
     }
 
     [HttpGet("export")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
     public async Task<IActionResult> ExportPdf([FromQuery] string? search, [FromQuery] string? sortBy, [FromQuery] string? sortDir, [FromQuery] bool includeInactive = false)
     {
         var result = await _advisorService.ExportPdfAsync(search, sortBy, sortDir, includeInactive);
@@ -65,7 +65,7 @@ public class AdvisorsController : ControllerBase
     }
 
     [HttpGet("{id:long}/residents")]
-    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
     public async Task<IActionResult> GetAdvisorResidents(long id)
     {
         var result = await _advisorService.GetAdvisorResidentsAsync(id);
@@ -113,7 +113,7 @@ public class AdvisorsController : ControllerBase
     }
 
     [HttpGet("import/template")]
-    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
     public IActionResult DownloadExcelTemplate()
     {
         var filePath = Path.Combine(_env.ContentRootPath, "uploads", "templates", "excel", "Plantilla_Asesores.xlsx");

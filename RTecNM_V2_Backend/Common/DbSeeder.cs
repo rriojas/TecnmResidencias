@@ -128,7 +128,7 @@ public static class DbSeeder
         var existingUserRoles = await db.UserRoles.ToListAsync();
         var existingRolePerms = await db.RolePermissions.ToListAsync();
 
-        var validRoleCodes = new HashSet<string> { "admin", "academico", "vinculacion", "director", "advisor", "student", "jefecarrera" };
+        var validRoleCodes = new HashSet<string> { "admin", "academico", "vinculacion", "director", "advisor", "student", "jefecarrera", "coordinadora" };
         var obsoleteRoles = existingRoles.Where(r => !validRoleCodes.Contains(r.Code)).ToList();
         foreach (var obs in obsoleteRoles)
         {
@@ -233,13 +233,21 @@ public static class DbSeeder
             "companies.view"
         };
 
+        var coordinatorSlugs = new HashSet<string>
+        {
+            "students.profile.view", "advisors.manage", "companies.view", "projects.proposals",
+            "projects.review", "activities.schedule", "evaluations.advisories", "advisories.session.view",
+            "evaluations.grading", "evaluations.summary.view", "documents.digital", "admin.reports", "reports.export.excel"
+        };
+
         foreach (var role in existingRoles)
         {
             HashSet<string> allowedSlugs;
             if (role.Code == "admin") allowedSlugs = existingPerms.Select(p => p.Slug).ToHashSet();
             else if (role.Code == "academico") allowedSlugs = academicSlugs;
             else if (role.Code == "vinculacion") allowedSlugs = vinculacionSlugs;
-            else if (role.Code == "director" || role.Code == "coordinadora") allowedSlugs = directorSlugs;
+            else if (role.Code == "director") allowedSlugs = directorSlugs;
+            else if (role.Code == "coordinadora") allowedSlugs = coordinatorSlugs;
             else if (role.Code == "advisor") allowedSlugs = advisorSlugs;
             else if (role.Code == "student") allowedSlugs = studentSlugs;
             else if (role.Code == "jefecarrera") allowedSlugs = jefeCarreraSlugs;
@@ -429,6 +437,7 @@ public static class DbSeeder
                 UserRole.Director => "director",
                 UserRole.Advisor => "advisor",
                 UserRole.CareerHead => "jefecarrera",
+                UserRole.Coordinator => "coordinadora",
                 _ => "student"
             };
 
@@ -1118,6 +1127,31 @@ public static class DbSeeder
                     UpdatedAt = DateTime.UtcNow
                 }
             );
+            await db.SaveChangesAsync();
+        }
+
+        // Sembrado Idempotente de la empresa institucional para Acreditación InnovaTecNM
+        var monclovaTec = await db.Companies.FirstOrDefaultAsync(c =>
+            c.Name == "INSTITUTO TECNOLOGICO SUPERIOR DE MONCLOVA" ||
+            (c.LegalName != null && c.LegalName == "INSTITUTO TECNOLOGICO SUPERIOR DE MONCLOVA") ||
+            c.Name.Contains("SUPERIOR DE MONCLOVA"));
+
+        if (monclovaTec == null)
+        {
+            db.Companies.Add(new Company
+            {
+                Name = "INSTITUTO TECNOLOGICO SUPERIOR DE MONCLOVA",
+                LegalName = "Instituto Tecnológico Superior de Monclova",
+                Rfc = "ITM980101AA1",
+                Sector = "Educación Superior / Público",
+                Address = "Av. Tecnológico s/n, Col. Tecnológico, Monclova, Coahuila",
+                ContactName = "Jefatura de Vinculación y Residencias",
+                ContactEmail = "vinculacion@monclova.tecnm.mx",
+                ContactPhone = "866-639-1400",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            });
             await db.SaveChangesAsync();
         }
 

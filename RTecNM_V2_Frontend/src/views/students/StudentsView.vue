@@ -559,6 +559,17 @@ async function handleDownloadStudentTemplate() {
 
 const careersOptions = ref([])
 
+const filteredCareers = computed(() => {
+  if (authStore.isCoordinator && authStore.userCareerIds.length > 0) {
+    const res = {}
+    authStore.userCareerIds.forEach(id => {
+      if (CAREERS[id]) res[id] = CAREERS[id]
+    })
+    return res
+  }
+  return CAREERS
+})
+
 async function loadCareersOptions() {
   try {
     const res = await apiClient.get('/v1/careers/all')
@@ -658,8 +669,8 @@ onMounted(() => {
             style="min-width: 230px; font-size: 0.85rem;"
             @change="onCareerFilterChange"
           >
-            <option value="all">Todas las Carreras</option>
-            <option v-for="(name, id) in CAREERS" :key="id" :value="id">
+            <option value="all">{{ authStore.isCoordinator ? 'Mis Carreras Asignadas' : 'Todas las Carreras' }}</option>
+            <option v-for="(name, id) in filteredCareers" :key="id" :value="id">
               {{ name }}
             </option>
           </select>

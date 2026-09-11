@@ -491,6 +491,14 @@ public class ProjectService : IProjectService
             return Result<bool>.Failure("No tiene acceso a este anteproyecto.", 403);
         }
 
+        if (_currentUser.IsInRole(UserRole.Coordinator))
+        {
+            if (project.Student != null && _currentUser.CareerIds.Contains(project.Student.CareerId))
+                return Result<bool>.Success(true);
+
+            return Result<bool>.Failure("No tiene acceso a este anteproyecto de otra carrera.", 403);
+        }
+
         return Result<bool>.Failure("No autorizado.", 403);
     }
 
@@ -781,42 +789,36 @@ public class ProjectService : IProjectService
             ? $"Acreditación de Residencia por {eventDisplayName}"
             : dto.ProjectTitle.Trim();
 
-        // Resolver empresa vinculada institucional
+        // Resolver empresa vinculada institucional: INSTITUTO TECNOLOGICO SUPERIOR DE MONCLOVA
         long companyId = 0;
-        if (dto.CompanyId.HasValue && dto.CompanyId.Value > 0)
+        var allCompanies = await _companyRepository.GetAllAsync();
+        var itmCompany = allCompanies.FirstOrDefault(c =>
+            c.Name.Equals("INSTITUTO TECNOLOGICO SUPERIOR DE MONCLOVA", StringComparison.OrdinalIgnoreCase) ||
+            (c.LegalName != null && c.LegalName.Equals("INSTITUTO TECNOLOGICO SUPERIOR DE MONCLOVA", StringComparison.OrdinalIgnoreCase)) ||
+            c.Name.Contains("SUPERIOR DE MONCLOVA", StringComparison.OrdinalIgnoreCase));
+
+        if (itmCompany != null)
         {
-            var specifiedCompany = await _companyRepository.GetByIdAsync(dto.CompanyId.Value);
-            if (specifiedCompany != null && specifiedCompany.IsActive)
-                companyId = specifiedCompany.Id;
+            companyId = itmCompany.Id;
         }
-
-        if (companyId == 0)
+        else
         {
-            var allCompanies = await _companyRepository.GetAllAsync();
-            var matchedCompany = allCompanies.FirstOrDefault(c => c.Name.Contains("TecNM", StringComparison.OrdinalIgnoreCase) || c.Name.Contains("InnovaTec", StringComparison.OrdinalIgnoreCase))
-                                ?? allCompanies.FirstOrDefault(c => c.IsActive)
-                                ?? allCompanies.FirstOrDefault();
-
-            if (matchedCompany != null)
+            var institutional = new Company
             {
-                companyId = matchedCompany.Id;
-            }
-            else
-            {
-                var institutional = new Company
-                {
-                    Name = "Tecnológico Nacional de México",
-                    LegalName = "Instituto Tecnológico Superior de Monclova",
-                    Rfc = "TECNM010101AA1",
-                    ContactName = "Jefatura de Vinculación",
-                    ContactEmail = "vinculacion@monclova.tecnm.mx",
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-                await _companyRepository.AddAsync(institutional);
-                companyId = institutional.Id;
-            }
+                Name = "INSTITUTO TECNOLOGICO SUPERIOR DE MONCLOVA",
+                LegalName = "Instituto Tecnológico Superior de Monclova",
+                Rfc = "ITM980101AA1",
+                Sector = "Educación Superior / Público",
+                Address = "Av. Tecnológico s/n, Col. Tecnológico, Monclova, Coahuila",
+                ContactName = "Jefatura de Vinculación y Residencias",
+                ContactEmail = "vinculacion@monclova.tecnm.mx",
+                ContactPhone = "866-639-1400",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            await _companyRepository.AddAsync(institutional);
+            companyId = institutional.Id;
         }
 
         var project = new Project

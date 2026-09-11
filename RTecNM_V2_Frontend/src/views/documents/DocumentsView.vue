@@ -832,7 +832,8 @@ onMounted(() => {
               </tr>
               <tr v-else-if="documents.length === 0">
                 <td colspan="6" class="tecnm-table-empty">
-                  <span v-if="isProjectCompleted">No hay documentos registrados en este expediente concluido.</span>
+                  <span v-if="isProjectCompleted && !isAccreditationProject">No hay documentos registrados en este expediente concluido.</span>
+                  <span v-else-if="isAccreditationProject && !isAccreditationDenied">La acreditación por InnovaTecNM Nacional no requiere entrega de documentos ordinarios adicionales.</span>
                   <span v-else-if="isProjectPending">El expediente se habilitará una vez aprobado el anteproyecto.</span>
                   <span v-else>No hay documentos registrados para este proyecto. Haga clic en "+ Subir Documento".</span>
                 </td>

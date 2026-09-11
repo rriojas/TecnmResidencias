@@ -99,7 +99,7 @@ public class EvaluationsController : ControllerBase
     }
 
     [HttpGet("sessions")]
-    [Authorize(Roles = "admin,departmenthead,academic,academico,jefecarrera,careerhead")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,jefecarrera,careerhead,director,coordinadora,coordinator")]
     public async Task<IActionResult> GetAllSessions([FromQuery] PaginationQuery query, [FromQuery] long? projectId, [FromQuery] bool includeInactive = false)
     {
         var result = await _evaluationService.GetAllAdvisorySessionsPagedAsync(query, projectId, includeInactive);
@@ -110,7 +110,7 @@ public class EvaluationsController : ControllerBase
     }
 
     [HttpGet("sessions/export")]
-    [Authorize(Roles = "admin,departmenthead,academic,academico,jefecarrera,careerhead")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,jefecarrera,careerhead,director,coordinadora,coordinator")]
     public async Task<IActionResult> ExportSessionsPdf([FromQuery] long? projectId, [FromQuery] string? search, [FromQuery] string? sortBy, [FromQuery] string? sortDir, [FromQuery] bool includeInactive = false)
     {
         var result = await _evaluationService.ExportSessionsPdfAsync(projectId, search, sortBy, sortDir, includeInactive);
@@ -135,7 +135,7 @@ public class EvaluationsController : ControllerBase
     }
 
     [HttpGet("timeline")]
-    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
     public async Task<IActionResult> GetTimeline([FromQuery] AdvisoryTimelineQuery query)
     {
         var result = await _evaluationService.GetAdvisoryTimelinePagedAsync(query);
@@ -146,7 +146,7 @@ public class EvaluationsController : ControllerBase
     }
 
     [HttpGet("timeline/health")]
-    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
     public async Task<IActionResult> GetTimelineHealth([FromQuery] long? careerId)
     {
         var result = await _evaluationService.GetAdvisorsHealthStatusAsync(careerId);
@@ -168,7 +168,7 @@ public class EvaluationsController : ControllerBase
     }
 
     [HttpGet("timeline/export")]
-    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
     public async Task<IActionResult> ExportTimelinePdf([FromQuery] AdvisoryTimelineQuery query)
     {
         var result = await _evaluationService.ExportTimelinePdfAsync(query);

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
 
 namespace TecNM.Residency.Admin;
@@ -6,20 +7,32 @@ namespace TecNM.Residency.Admin;
 public class ReportGeneratorService : IReportGeneratorService
 {
     private readonly AppDbContext _context;
+    private readonly ICurrentUserService _currentUser;
 
-    public ReportGeneratorService(AppDbContext context)
+    public ReportGeneratorService(AppDbContext context, ICurrentUserService currentUser)
     {
         _context = context;
+        _currentUser = currentUser;
     }
 
     public async Task<Result<PaginatedResult<ReleasableProjectDto>>> GetReleasableProjectsAsync(PaginationQuery query)
     {
-        var projects = await _context.Projects
+        var projectsQuery = _context.Projects
             .Include(p => p.Student)
                 .ThenInclude(s => s!.User)
             .Include(p => p.Advisor)
-            .Where(p => p.IsActive)
-            .ToListAsync();
+            .Where(p => p.IsActive);
+
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            projectsQuery = projectsQuery.Where(p => p.Student != null && p.Student.CareerId == _currentUser.CareerId.Value);
+        }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            projectsQuery = projectsQuery.Where(p => p.Student != null && _currentUser.CareerIds.Contains(p.Student.CareerId));
+        }
+
+        var projects = await projectsQuery.ToListAsync();
 
         // The total number of evaluation periods is always 3: partial_1, partial_2, final.
         // The average must be calculated over 3 regardless of how many have been graded.

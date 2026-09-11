@@ -356,6 +356,7 @@ onMounted(() => {
           <span>Abrir búsqueda</span>
         </button>
         <button
+          v-if="!authStore.isReadOnly"
           type="button"
           class="tecnm-btn tecnm-btn-primary"
           @click="openBatchModal"
@@ -444,7 +445,11 @@ onMounted(() => {
                 <td>{{ s.fullName || `${s.firstName} ${s.lastName}` }}</td>
                 <td>{{ s.career || 'N/A' }}</td>
                 <td style="min-width: 290px; max-width: 360px;">
+                  <span v-if="authStore.isReadOnly" class="tecnm-text-sub" style="font-weight: 500;">
+                    {{ s.advisorName || 'Sin Asesor Asignado' }}
+                  </span>
                   <TecnmAutocomplete
+                    v-else
                     :key="`${s.id}-${s.advisorId || 'none'}`"
                     :model-value="s.advisorId"
                     endpoint="/v1/advisors"

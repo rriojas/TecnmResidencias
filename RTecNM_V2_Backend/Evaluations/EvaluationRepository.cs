@@ -96,6 +96,10 @@ public class EvaluationRepository : IEvaluationRepository
             && session.Project?.Student != null && session.Project.Student.CareerId != _currentUser.CareerId.Value)
             return null;
 
+        if (session != null && _currentUser.Role == UserRole.Coordinator
+            && session.Project?.Student != null && !_currentUser.CareerIds.Contains(session.Project.Student.CareerId))
+            return null;
+
         return session;
     }
 
@@ -133,6 +137,10 @@ public class EvaluationRepository : IEvaluationRepository
         {
             q = q.Where(s => s.Project != null && s.Project.Student != null && s.Project.Student.CareerId == _currentUser.CareerId.Value);
         }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            q = q.Where(s => s.Project != null && s.Project.Student != null && _currentUser.CareerIds.Contains(s.Project.Student.CareerId));
+        }
 
         if (!includeInactive)
             q = q.Where(s => s.IsActive);
@@ -162,6 +170,10 @@ public class EvaluationRepository : IEvaluationRepository
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
             q = q.Where(s => s.Project != null && s.Project.Student != null && s.Project.Student.CareerId == _currentUser.CareerId.Value);
+        }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            q = q.Where(s => s.Project != null && s.Project.Student != null && _currentUser.CareerIds.Contains(s.Project.Student.CareerId));
         }
 
         if (!includeInactive)
@@ -196,6 +208,10 @@ public class EvaluationRepository : IEvaluationRepository
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
             q = q.Where(s => s.Project != null && s.Project.Student != null && s.Project.Student.CareerId == _currentUser.CareerId.Value);
+        }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            q = q.Where(s => s.Project != null && s.Project.Student != null && _currentUser.CareerIds.Contains(s.Project.Student.CareerId));
         }
 
         if (!includeInactive)
@@ -233,6 +249,17 @@ public class EvaluationRepository : IEvaluationRepository
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
             q = q.Where(s => s.Project != null && s.Project.Student != null && s.Project.Student.CareerId == _currentUser.CareerId.Value);
+        }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            if (query.CareerId.HasValue && _currentUser.CareerIds.Contains(query.CareerId.Value))
+            {
+                q = q.Where(s => s.Project != null && s.Project.Student != null && s.Project.Student.CareerId == query.CareerId.Value);
+            }
+            else
+            {
+                q = q.Where(s => s.Project != null && s.Project.Student != null && _currentUser.CareerIds.Contains(s.Project.Student.CareerId));
+            }
         }
         else if (query.CareerId.HasValue && query.CareerId.Value > 0)
         {
@@ -311,6 +338,17 @@ public class EvaluationRepository : IEvaluationRepository
         {
             effectiveCareerId = _currentUser.CareerId.Value;
         }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            if (careerId.HasValue && _currentUser.CareerIds.Contains(careerId.Value))
+            {
+                effectiveCareerId = careerId.Value;
+            }
+            else
+            {
+                effectiveCareerId = null;
+            }
+        }
 
         // Proyectos operativos activos (con dictamen aprobado, en progreso o completado)
         var operationalProjects = await _context.Projects
@@ -331,6 +369,10 @@ public class EvaluationRepository : IEvaluationRepository
         if (effectiveCareerId.HasValue && effectiveCareerId.Value > 0)
         {
             studentsQuery = studentsQuery.Where(s => s.CareerId == effectiveCareerId.Value);
+        }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            studentsQuery = studentsQuery.Where(s => _currentUser.CareerIds.Contains(s.CareerId));
         }
 
         var activeStudents = await studentsQuery.ToListAsync();
@@ -357,6 +399,10 @@ public class EvaluationRepository : IEvaluationRepository
         if (effectiveCareerId.HasValue && effectiveCareerId.Value > 0)
         {
             sessionQuery = sessionQuery.Where(s => s.Project != null && s.Project.Student != null && s.Project.Student.CareerId == effectiveCareerId.Value);
+        }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            sessionQuery = sessionQuery.Where(s => s.Project != null && s.Project.Student != null && _currentUser.CareerIds.Contains(s.Project.Student.CareerId));
         }
 
         var allSessions = await sessionQuery.ToListAsync();
@@ -583,6 +629,13 @@ public class EvaluationRepository : IEvaluationRepository
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
             if (session.Project?.Student == null || session.Project.Student.CareerId != _currentUser.CareerId.Value)
+            {
+                return false;
+            }
+        }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            if (session.Project?.Student == null || !_currentUser.CareerIds.Contains(session.Project.Student.CareerId))
             {
                 return false;
             }

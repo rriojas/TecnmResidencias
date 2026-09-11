@@ -337,6 +337,10 @@ public class AdvisorService : IAdvisorService
         {
             query = query.Where(s => s.CareerId == _currentUser.CareerId.Value);
         }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            query = query.Where(s => _currentUser.CareerIds.Contains(s.CareerId));
+        }
 
         var students = await query.ToListAsync();
         var studentIds = students.Select(s => s.Id).ToList();

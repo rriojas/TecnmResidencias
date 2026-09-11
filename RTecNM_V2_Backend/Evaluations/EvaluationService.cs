@@ -37,14 +37,16 @@ public class EvaluationService : IEvaluationService
         _currentUser.IsInRole(UserRole.Vinculacion) ||
         _currentUser.IsInRole(UserRole.Director) ||
         _currentUser.IsInRole(UserRole.DepartmentHead) ||
-        _currentUser.IsInRole(UserRole.CareerHead);
+        _currentUser.IsInRole(UserRole.CareerHead) ||
+        _currentUser.IsInRole(UserRole.Coordinator);
 
     private bool IsAuthorizedForTimeline() =>
         _currentUser.IsInRole(UserRole.Admin) ||
         _currentUser.IsInRole(UserRole.DepartmentHead) ||
         _currentUser.IsInRole(UserRole.CareerHead) ||
         _currentUser.IsInRole(UserRole.Academic) ||
-        _currentUser.IsInRole(UserRole.Director);
+        _currentUser.IsInRole(UserRole.Director) ||
+        _currentUser.IsInRole(UserRole.Coordinator);
 
     public async Task<Result<EvaluationResponseDto>> GradeEvaluationAsync(GradeEvaluationDto dto)
     {

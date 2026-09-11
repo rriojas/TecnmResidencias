@@ -188,10 +188,25 @@ public class AuthService : IAuthService
             };
         }
 
-        return await _context.UserRoles
+        var perms = await _context.UserRoles
             .Where(ur => ur.UserId == user.Id && ur.IsActive && ur.Role!.IsActive)
             .SelectMany(ur => ur.Role!.RolePermissions)
             .Where(rp => rp.IsActive && rp.Permission!.IsActive && rp.Permission!.Module!.IsActive)
+            .Select(rp => rp.Permission!.Slug)
+            .Distinct()
+            .ToListAsync();
+
+        if (perms.Count > 0) return perms;
+
+        var roleCode = user.Role switch
+        {
+            UserRole.CareerHead => "jefecarrera",
+            UserRole.Coordinator => "coordinadora",
+            _ => user.Role.ToString().ToLowerInvariant()
+        };
+
+        return await _context.RolePermissions
+            .Where(rp => rp.Role != null && rp.Role.Code == roleCode && rp.Role.IsActive && rp.IsActive && rp.Permission!.IsActive && rp.Permission!.Module!.IsActive)
             .Select(rp => rp.Permission!.Slug)
             .Distinct()
             .ToListAsync();

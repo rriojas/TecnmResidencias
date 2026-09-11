@@ -191,7 +191,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpGet("{id:long}/presentation-letter/pdf")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,director,student")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,director,student,coordinadora,coordinator")]
     public async Task<IActionResult> DownloadPresentationLetterPdf(long id)
     {
         var result = await _studentService.GetPresentationLetterPdfAsync(id);
@@ -240,7 +240,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpGet("{id}/blocks")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
     public async Task<IActionResult> GetBlockHistory(long id)
     {
         var result = await _studentService.GetBlockHistoryAsync(id);

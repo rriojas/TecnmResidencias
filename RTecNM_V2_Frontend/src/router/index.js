@@ -29,7 +29,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Estudiantes - Sistema de Residencias',
-      roles: ['admin', 'vinculacion', 'departmenthead', 'academic', 'advisor', 'asesor', 'director', 'jefecarrera', 'careerhead'],
+      roles: ['admin', 'vinculacion', 'departmenthead', 'academic', 'advisor', 'asesor', 'director', 'jefecarrera', 'careerhead', 'coordinadora', 'coordinator'],
       permission: 'students.profile.view',
       navActive: 'students',
     },
@@ -41,7 +41,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Perfil de Estudiante - Sistema de Residencias',
-      roles: ['admin', 'vinculacion', 'departmenthead', 'academic', 'director', 'jefecarrera', 'careerhead', 'student'],
+      roles: ['admin', 'vinculacion', 'departmenthead', 'academic', 'director', 'jefecarrera', 'careerhead', 'coordinadora', 'coordinator', 'student'],
       navActive: 'students',
     },
   },
@@ -52,7 +52,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Asesores - Sistema de Residencias',
-      roles: ['admin', 'vinculacion', 'departmenthead', 'academic', 'director', 'jefecarrera', 'careerhead'],
+      roles: ['admin', 'vinculacion', 'departmenthead', 'academic', 'director', 'jefecarrera', 'careerhead', 'coordinadora', 'coordinator'],
       permission: 'advisors.manage',
       navActive: 'advisors',
     },
@@ -64,7 +64,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Asignación de Asesores - Sistema de Residencias',
-      roles: ['admin', 'departmenthead', 'academic', 'jefecarrera', 'careerhead'],
+      roles: ['admin', 'departmenthead', 'academic', 'jefecarrera', 'careerhead', 'coordinadora', 'coordinator'],
       permission: 'advisors.manage',
       navActive: 'advisor-assignments',
     },
@@ -76,7 +76,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Empresas Receptoras - Sistema de Residencias',
-      roles: ['admin', 'vinculacion', 'departmenthead', 'academic', 'director'],
+      roles: ['admin', 'vinculacion', 'departmenthead', 'academic', 'director', 'coordinadora', 'coordinator'],
       permission: 'companies.view',
       navActive: 'companies',
     },
@@ -88,7 +88,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Solicitud de Anteproyecto - Sistema de Residencias',
-      roles: ['admin', 'vinculacion', 'departmenthead', 'advisor', 'director', 'student'],
+      roles: ['admin', 'vinculacion', 'departmenthead', 'advisor', 'director', 'jefecarrera', 'careerhead', 'coordinadora', 'coordinator', 'student'],
       permission: 'projects.proposals',
       navActive: 'proposal',
     },
@@ -100,7 +100,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Anteproyectos de Residencia - Sistema de Residencias',
-      roles: ['admin', 'vinculacion', 'departmenthead', 'advisor', 'director', 'jefecarrera', 'careerhead'],
+      roles: ['admin', 'vinculacion', 'departmenthead', 'advisor', 'director', 'jefecarrera', 'careerhead', 'coordinadora', 'coordinator'],
       permission: 'projects.review',
       navActive: 'review',
     },
@@ -134,7 +134,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Supervisión de Asesorías - Sistema de Residencias',
-      roles: ['admin', 'departmenthead', 'academic', 'director', 'jefecarrera', 'careerhead'],
+      roles: ['admin', 'departmenthead', 'academic', 'director', 'jefecarrera', 'careerhead', 'coordinadora', 'coordinator'],
       permission: 'evaluations.advisories',
       navActive: 'timeline',
     },
@@ -146,7 +146,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Evaluaciones - Sistema de Residencias',
-      roles: ['admin', 'departmenthead', 'academic', 'advisor', 'director', 'jefecarrera', 'careerhead'],
+      roles: ['admin', 'departmenthead', 'academic', 'advisor', 'director', 'jefecarrera', 'careerhead', 'coordinadora', 'coordinator'],
       permission: 'evaluations.summary.view',
       navActive: 'grading',
     },
@@ -169,7 +169,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Reportes y Liberación - Sistema de Residencias',
-      roles: ['admin', 'departmenthead', 'director'],
+      roles: ['admin', 'departmenthead', 'director', 'coordinadora', 'coordinator'],
       permission: 'admin.reports',
       navActive: 'reports',
     },

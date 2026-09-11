@@ -27,7 +27,7 @@ public class CompaniesController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,director,student")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,director,student,coordinadora,coordinator")]
     public async Task<IActionResult> GetAll([FromQuery] PaginationQuery query, [FromQuery] string? status, [FromQuery] bool includeInactive = false)
     {
         var isStudent = User.IsInRole("student");
@@ -52,7 +52,7 @@ public class CompaniesController : ControllerBase
     }
 
     [HttpGet("options")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,director,student")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,director,student,coordinadora,coordinator")]
     public async Task<IActionResult> GetOptions()
     {
         var isStudent = User.IsInRole("student");
@@ -65,7 +65,7 @@ public class CompaniesController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,director,student")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,director,student,coordinadora,coordinator")]
     public async Task<IActionResult> GetById(long id)
     {
         var result = await _companyService.GetByIdAsync(id);

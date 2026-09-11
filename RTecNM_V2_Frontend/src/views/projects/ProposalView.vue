@@ -49,6 +49,7 @@ const formError = ref('')
 
 const isDetailOpen = ref(false)
 const selectedProject = ref(null)
+const accreditationDoc = ref(null)
 
 // Initial items para autocompletes
 const initialStudent = ref(null)
@@ -281,9 +282,39 @@ async function openDetailModal(proposal) {
   try {
     const res = await apiClient.get(`/v1/projects/${proposal.id}`)
     selectedProject.value = res.data
+    accreditationDoc.value = null
+
+    if (isAccreditationType(res.data)) {
+      try {
+        const dRes = await apiClient.get(`/v1/documents?projectId=${proposal.id}`)
+        const docs = dRes.data?.items || []
+        const found = docs.find((d) => d.documentType === 'constancia_acreditacion' && d.isActive)
+        accreditationDoc.value = found || null
+      } catch {}
+    }
+
     isDetailOpen.value = true
   } catch {
     showAlert('No se pudieron cargar los detalles del anteproyecto.', 'danger')
+  }
+}
+
+async function downloadAccreditationDoc() {
+  if (!accreditationDoc.value?.id) return
+  try {
+    const res = await apiClient.get(`/v1/documents/${accreditationDoc.value.id}/download`, {
+      responseType: 'blob',
+    })
+    const url = window.URL.createObjectURL(new Blob([res.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', accreditationDoc.value.fileName || 'Constancia_InnovaTecNM.pdf')
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch {
+    showAlert('Error al descargar la constancia de acreditación.', 'danger')
   }
 }
 
@@ -632,7 +663,16 @@ onMounted(() => {
                 :key="p.id"
               >
                 <td>
-                  <strong>{{ p.title }}</strong>
+                  <div style="display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <strong>{{ p.title }}</strong>
+                    <span
+                      v-if="isAccreditationType(p)"
+                      class="tecnm-badge"
+                      style="font-size: 0.72rem; background-color: var(--tecnm-gold-accent, #C5A059); color: #fff; font-weight: 600;"
+                    >
+                      InnovaTecNM Nacional
+                    </span>
+                  </div>
                   <div
                     v-if="['rejected', 'rechazado'].includes((p.status||'').toLowerCase()) && p.reviewComments"
                     class="tecnm-text-muted"
@@ -972,9 +1012,18 @@ onMounted(() => {
           <!-- Cabecera de Estado y Metadatos -->
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--tecnm-spacing-md);">
             <div>
-              <h4 class="tecnm-field-label" style="margin-bottom: 0.25rem;">Título del Proyecto</h4>
-              <p class="tecnm-field-value tecnm-field-value-emphasis" style="margin-bottom: 0;">
-                {{ selectedProject.title }}
+              <h4 class="tecnm-field-label" style="margin-bottom: 0.25rem;">
+                {{ isAccreditationType(selectedProject) ? 'Nombre de la Solución (Evento)' : 'Título del Proyecto' }}
+              </h4>
+              <p class="tecnm-field-value tecnm-field-value-emphasis" style="margin-bottom: 0; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <span>{{ selectedProject.title }}</span>
+                <span
+                  v-if="isAccreditationType(selectedProject)"
+                  class="tecnm-badge"
+                  style="font-size: 0.72rem; background-color: var(--tecnm-gold-accent, #C5A059); color: #fff; font-weight: 600;"
+                >
+                  InnovaTecNM Nacional
+                </span>
               </p>
             </div>
             <div>
@@ -1041,43 +1090,99 @@ onMounted(() => {
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: var(--tecnm-spacing-md);">
-            <div>
-              <h4 class="tecnm-field-label">Empresa Receptora</h4>
-              <p class="tecnm-field-value">{{ selectedProject.companyName || '—' }}</p>
+          <!-- SECCIÓN ESPECIAL PARA ACREDITACIÓN INNOVATECNM NACIONAL -->
+          <template v-if="isAccreditationType(selectedProject)">
+            <div class="tecnm-alert tecnm-alert-info" style="margin-bottom: 1rem;">
+              <strong>Modalidad de Acreditación Directa (InnovaTecNM Nacional):</strong>
+              El estudiante tramitó su acreditación mediante el certamen nacional. La institución receptora vinculada es el <strong>{{ selectedProject.companyName || 'INSTITUTO TECNOLOGICO SUPERIOR DE MONCLOVA' }}</strong>. Al ser validado, la residencia profesional se acredita al 100%.
             </div>
-            <div>
-              <h4 class="tecnm-field-label">Asesor Interno Asignado</h4>
-              <p class="tecnm-field-value">{{ selectedProject.advisorName || '—' }}</p>
+
+            <!-- Card de Constancia Adjunta -->
+            <div class="tecnm-card" style="margin-bottom: 1.25rem; border: 1px solid var(--tecnm-border-color, #e2e8f0);">
+              <div class="tecnm-card-header" style="background: var(--tecnm-bg-light, #f8fafc); padding: 0.75rem 1rem;">
+                <h4 class="tecnm-card-title" style="font-size: 0.95rem; margin: 0;">
+                  Constancia Oficial de Acreditación
+                </h4>
+              </div>
+              <div class="tecnm-card-body" style="padding: 1rem;">
+                <div v-if="accreditationDoc" class="tecnm-d-flex tecnm-justify-between tecnm-align-center" style="gap: 1rem; flex-wrap: wrap;">
+                  <div>
+                    <div style="font-weight: 600; color: var(--tecnm-blue-primary, #1b396a);">
+                      {{ accreditationDoc.fileName }}
+                    </div>
+                    <div class="tecnm-text-sub" style="font-size: 0.8rem;">
+                      Subido: {{ formatTecNMDate(accreditationDoc.uploadedAt) }} &bull; Estado: <TecnmBadge :status="accreditationDoc.status" />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                    @click="downloadAccreditationDoc"
+                  >
+                    Descargar / Ver Constancia &rarr;
+                  </button>
+                </div>
+                <div v-else class="tecnm-text-muted" style="font-size: 0.875rem;">
+                  No se encontró archivo de constancia cargado en el expediente.
+                </div>
+              </div>
             </div>
-            <div>
-              <h4 class="tecnm-field-label">Tipo de Proyecto</h4>
-              <p class="tecnm-field-value">{{ selectedProject.projectType || 'Desarrollo Tecnológico' }}</p>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: var(--tecnm-spacing-md);">
+              <div>
+                <h4 class="tecnm-field-label">Institución Receptora</h4>
+                <p class="tecnm-field-value">{{ selectedProject.companyName || 'INSTITUTO TECNOLOGICO SUPERIOR DE MONCLOVA' }}</p>
+              </div>
+              <div>
+                <h4 class="tecnm-field-label">Modalidad de Acreditación</h4>
+                <p class="tecnm-field-value">InnovaTecNM Nacional (Exento de Asesor)</p>
+              </div>
+              <div>
+                <h4 class="tecnm-field-label">Fecha de Registro</h4>
+                <p class="tecnm-field-value">{{ formatTecNMDate(selectedProject.createdAt) }}</p>
+              </div>
             </div>
-            <div>
-              <h4 class="tecnm-field-label">Fecha de Registro</h4>
-              <p class="tecnm-field-value">{{ formatTecNMDate(selectedProject.createdAt) }}</p>
+          </template>
+
+          <template v-else>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: var(--tecnm-spacing-md);">
+              <div>
+                <h4 class="tecnm-field-label">Empresa Receptora</h4>
+                <p class="tecnm-field-value">{{ selectedProject.companyName || '—' }}</p>
+              </div>
+              <div>
+                <h4 class="tecnm-field-label">Asesor Interno Asignado</h4>
+                <p class="tecnm-field-value">{{ selectedProject.advisorName || '—' }}</p>
+              </div>
+              <div>
+                <h4 class="tecnm-field-label">Tipo de Proyecto</h4>
+                <p class="tecnm-field-value">{{ selectedProject.projectType || 'Desarrollo Tecnológico' }}</p>
+              </div>
+              <div>
+                <h4 class="tecnm-field-label">Fecha de Registro</h4>
+                <p class="tecnm-field-value">{{ formatTecNMDate(selectedProject.createdAt) }}</p>
+              </div>
             </div>
-          </div>
 
-          <h4 class="tecnm-field-label">Planteamiento del Problema</h4>
-          <p class="tecnm-field-value tecnm-field-value-box">{{ selectedProject.problemStatement || '—' }}</p>
+            <h4 class="tecnm-field-label">Planteamiento del Problema</h4>
+            <p class="tecnm-field-value tecnm-field-value-box">{{ selectedProject.problemStatement || '—' }}</p>
 
-          <h4 class="tecnm-field-label">Justificación</h4>
-          <p class="tecnm-field-value tecnm-field-value-box">{{ selectedProject.justification || '—' }}</p>
+            <h4 class="tecnm-field-label">Justificación</h4>
+            <p class="tecnm-field-value tecnm-field-value-box">{{ selectedProject.justification || '—' }}</p>
 
-          <h4 class="tecnm-field-label">Objetivo General</h4>
-          <p class="tecnm-field-value tecnm-field-value-emphasis">{{ selectedProject.generalObjective || '—' }}</p>
+            <h4 class="tecnm-field-label">Objetivo General</h4>
+            <p class="tecnm-field-value tecnm-field-value-emphasis">{{ selectedProject.generalObjective || '—' }}</p>
 
-          <h4 class="tecnm-field-label">Objetivos Específicos</h4>
-          <ul class="tecnm-field-list">
-            <li
-              v-for="(obj, idx) in selectedProject.objectives || []"
-              :key="idx"
-            >
-              {{ obj.description || obj }}
-            </li>
-          </ul>
+            <h4 class="tecnm-field-label">Objetivos Específicos</h4>
+            <ul class="tecnm-field-list">
+              <li
+                v-for="(obj, idx) in selectedProject.objectives || []"
+                :key="idx"
+              >
+                {{ obj.description || obj }}
+              </li>
+            </ul>
+          </template>
 
           <!-- Alerta de Observaciones del Dictamen -->
           <div v-if="selectedProject.reviewComments" style="margin-top: var(--tecnm-spacing-md);">

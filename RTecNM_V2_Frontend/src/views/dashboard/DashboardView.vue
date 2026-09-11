@@ -383,23 +383,13 @@ const studentTasks = computed(() => {
 
   // Caso especial: Residencia por InnovaTecNM Nacional
   if (isAccreditationProject.value) {
-    if (isAccreditationCompleted.value) {
-      tasks.push({ text: '¡Felicidades! Residencia Liberada al 100% por InnovaTecNM Nacional', href: '/documents', tag: 'Acreditado' })
-      tasks.push({ text: 'Consultar calificaciones oficiales en tu expediente digital', href: '/documents', tag: 'Expediente' })
-      return tasks
-    }
-    if (isAccreditationReturned.value) {
-      tasks.push({ text: 'Atender observaciones de tu constancia InnovaTecNM Nacional', href: '#', tag: 'Correcciones' })
-      return tasks
-    }
-    if (isAccreditationUnderReview.value) {
-      tasks.push({ text: 'Tu constancia oficial de InnovaTecNM Nacional está en dictamen por la Jefatura', href: '#', tag: 'En Dictamen' })
-      return tasks
-    }
     if (isAccreditationDenied.value) {
       tasks.push({ text: 'Acreditación no aprobada. Opciones ordinarias reactivadas', href: '/projects/proposal', tag: 'Reactivado' })
+      tasks.push({ text: 'Registrar solicitud de anteproyecto ordinario', href: '/projects/proposal', tag: 'Requerido' })
       return tasks
     }
+    // Para quienes tramitan por InnovaTecNM Nacional no se muestran ni se piden más tareas pendientes ni subidas
+    return []
   }
 
   // Flujo Ordinario tradicional:
@@ -1993,8 +1983,8 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- Card Tareas y Avisos -->
-          <div class="tecnm-card" style="margin-top: 1.5rem;">
+          <!-- Card Tareas y Avisos (Oculto para InnovaTecNM a menos que sea negado) -->
+          <div v-if="!isAccreditationProject || isAccreditationDenied" class="tecnm-card" style="margin-top: 1.5rem;">
             <div class="tecnm-card-header">
               <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="tecnm-header-icon tecnm-header-icon--gold" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">

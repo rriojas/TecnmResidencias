@@ -106,6 +106,17 @@ const CAREERS = {
 const selectedCareerFilter = ref('all')
 const searchTerm = ref('')
 
+const filteredCareers = computed(() => {
+  if (authStore.isCoordinator && authStore.userCareerIds.length > 0) {
+    const res = {}
+    authStore.userCareerIds.forEach(id => {
+      if (CAREERS[id]) res[id] = CAREERS[id]
+    })
+    return res
+  }
+  return CAREERS
+})
+
 const sortedProjects = computed(() => {
   let list = [...projects.value]
 
@@ -535,8 +546,8 @@ onMounted(() => {
             class="tecnm-form-control"
             style="min-width: 220px; font-size: 0.85rem;"
           >
-            <option value="all">Todas las Carreras</option>
-            <option v-for="(name, id) in CAREERS" :key="id" :value="id">
+            <option value="all">{{ authStore.isCoordinator ? 'Mis Carreras Asignadas' : 'Todas las Carreras' }}</option>
+            <option v-for="(name, id) in filteredCareers" :key="id" :value="id">
               {{ name }}
             </option>
           </select>

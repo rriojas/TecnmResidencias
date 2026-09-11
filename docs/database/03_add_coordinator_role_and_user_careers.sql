@@ -29,9 +29,20 @@ VALUES ('coordinadora', 'Coordinadora de Carrera', 'Acceso de solo lectura restr
 ON CONFLICT (code) DO UPDATE 
 SET name = EXCLUDED.name, description = EXCLUDED.description;
 
--- 3. Asignar al rol 'coordinadora' exactamente los mismos permisos de lectura que 'director'
+-- 3. Asignar al rol 'coordinadora' los permisos de todos los módulos excepto los sensibles de administración
 INSERT INTO role_permissions (role_id, permission_id, is_active)
-SELECT (SELECT id FROM roles WHERE code = 'coordinadora'), rp.permission_id, true
-FROM role_permissions rp
-WHERE rp.role_id = (SELECT id FROM roles WHERE code = 'director')
+SELECT (SELECT id FROM roles WHERE code = 'coordinadora'), p.id, true
+FROM permissions p
+WHERE p.slug IN (
+    'students.profile.view', 'advisors.manage', 'companies.view', 'projects.proposals',
+    'projects.review', 'activities.schedule', 'evaluations.advisories', 'advisories.session.view',
+    'evaluations.grading', 'evaluations.summary.view', 'documents.digital', 'admin.reports', 'reports.export.excel'
+)
 ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+-- Purgar cualquier permiso sensible asignado previamente
+DELETE FROM role_permissions
+WHERE role_id = (SELECT id FROM roles WHERE code = 'coordinadora')
+  AND permission_id IN (
+    SELECT id FROM permissions WHERE slug IN ('admin.roles', 'admin.careers', 'admin.settings', 'admin.users.manage')
+);
