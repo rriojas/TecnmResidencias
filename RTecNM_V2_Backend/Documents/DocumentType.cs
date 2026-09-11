@@ -10,6 +10,7 @@ public static class DocumentType
     public const string ManualUsuario = "manual_usuario";
     public const string ManualTecnico = "manual_tecnico";
     public const string Libranza = "libranza";
+    public const string ConstanciaAcreditacion = "constancia_acreditacion";
     public const string Otro = "otro";
 
     public static readonly HashSet<string> ValidTypes = new(StringComparer.OrdinalIgnoreCase)
@@ -22,6 +23,7 @@ public static class DocumentType
         ManualUsuario,
         ManualTecnico,
         Libranza,
+        ConstanciaAcreditacion,
         Otro
     };
 

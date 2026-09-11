@@ -6,6 +6,7 @@ import apiClient from '@/services/api'
 import TecnmBadge from '@/components/common/TecnmBadge.vue'
 import TecnmKpiCard from '@/components/common/TecnmKpiCard.vue'
 import AdvisorWorkloadModal from '@/components/advisors/AdvisorWorkloadModal.vue'
+import AccreditationModal from '@/components/projects/AccreditationModal.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -43,8 +44,27 @@ const companiesList = ref([])
 const selectedCareerFilter = ref(
   authStore.isCareerHead && authStore.userCareerId
     ? String(authStore.userCareerId)
+    : authStore.isCoordinator && authStore.userCareerIds.length > 0
+    ? String(authStore.userCareerIds[0])
     : 'all'
 )
+
+const availableDashboardCareers = computed(() => {
+  const base = careersList.value.length > 0 ? careersList.value : [
+    { id: 4, name: 'Ing. en Energías Renovables' },
+    { id: 1, name: 'Ing. Informática' },
+    { id: 3, name: 'Ing. Mecatrónica' },
+    { id: 2, name: 'Ing. Industrial' },
+    { id: 5, name: 'Ing. Electrónica' },
+    { id: 6, name: 'Ing. en Gestión Empresarial' },
+    { id: 7, name: 'Ing. Mecánica' }
+  ]
+  if (authStore.isCoordinator && authStore.userCareerIds.length > 0) {
+    const allowed = authStore.userCareerIds.map(Number)
+    return base.filter((c) => allowed.includes(Number(c.id)))
+  }
+  return base
+})
 
 // Datos para Estudiante
 const studentProfile = ref(null)
@@ -129,6 +149,7 @@ const welcomeTitle = computed(() => {
   const role = authStore.currentRole
   if (role === 'admin') return 'Panel de Administración General'
   if (role === 'jefecarrera') return 'Panel de Jefatura de Carrera'
+  if (role === 'coordinadora' || role === 'coordinator') return 'Panel de Coordinación de Carrera'
   if (role === 'departmenthead' || role === 'academic') return 'Panel de la División Académica'
   if (role === 'vinculacion') return 'Panel de Gestión Tecnológica y Vinculación'
   if (role === 'advisor') return 'Portal de Asesoría de Residencias'
@@ -141,6 +162,7 @@ const welcomeDescription = computed(() => {
   const role = authStore.currentRole
   if (role === 'admin') return 'Gestión institucional de alumnos, asesores, anteproyectos y reportes de residencia.'
   if (role === 'jefecarrera') return 'Asignación de asesores y seguimiento académico de los residentes de tu carrera.'
+  if (role === 'coordinadora' || role === 'coordinator') return 'Consulta de seguimiento académico y anteproyectos de tus carreras asignadas.'
   if (role === 'departmenthead' || role === 'academic') return 'Revisión y dictamen de anteproyectos, asignación de asesores y avance académico.'
   if (role === 'vinculacion') return 'Gestión de empresas receptoras, cartas de presentación, convenios y expedientes.'
   if (role === 'advisor') return 'Seguimiento de los residentes a tu cargo, validación de avances semanales y evaluaciones.'
@@ -152,7 +174,7 @@ const welcomeDescription = computed(() => {
 const isStaff = computed(() => {
   return (
     authStore.isAdmin ||
-    authStore.hasRole('departmenthead', 'director', 'vinculacion', 'academic', 'jefecarrera') ||
+    authStore.hasRole('departmenthead', 'director', 'vinculacion', 'academic', 'jefecarrera', 'coordinadora', 'coordinator') ||
     (authStore.currentRole !== 'student' && authStore.currentRole !== 'advisor')
   )
 })
@@ -228,6 +250,68 @@ const latestStudentProject = computed(() => {
   return sorted[0] || null
 })
 
+const isAccreditationModalOpen = ref(false)
+const isAccreditationResubmit = ref(false)
+
+function openAccreditationModal(resubmit = false) {
+  isAccreditationResubmit.value = resubmit
+  isAccreditationModalOpen.value = true
+}
+
+async function handleAccreditationSuccess() {
+  showAlert('¡Constancia de InnovaTecNM enviada a dictamen! Tu trámite está siendo analizado por la Jefatura de Carrera.', 'info')
+  await loadDashboard()
+}
+
+const isAccreditationProject = computed(() => {
+  if (!latestStudentProject.value) return false
+  const t = String(latestStudentProject.value.projectType || '').toLowerCase()
+  return t === 'acreditacion_hackatec' || t === 'acreditacion_innovatec'
+})
+
+const isAccreditationCompleted = computed(() => {
+  if (!isAccreditationProject.value) return false
+  const s = String(latestStudentProject.value?.status || '').toLowerCase()
+  return s === 'completed'
+})
+
+const isAccreditationReturned = computed(() => {
+  if (!isAccreditationProject.value) return false
+  const s = String(latestStudentProject.value?.status || '').toLowerCase()
+  return s === 'draft' && !!latestStudentProject.value?.reviewComments
+})
+
+const isAccreditationDenied = computed(() => {
+  if (!isAccreditationProject.value) return false
+  const s = String(latestStudentProject.value?.status || '').toLowerCase()
+  return s === 'rejected' || s === 'cancelled'
+})
+
+const isAccreditationUnderReview = computed(() => {
+  if (!isAccreditationProject.value) return false
+  const s = String(latestStudentProject.value?.status || '').toLowerCase()
+  return (s === 'under_review' || s === 'pending' || s === 'proposed') && !isAccreditationReturned.value
+})
+
+const isAccreditationActive = computed(() => {
+  return isAccreditationProject.value && !isAccreditationDenied.value
+})
+
+const accreditationStatusLabel = computed(() => {
+  if (!latestStudentProject.value) return ''
+  if (isAccreditationCompleted.value) return 'Acreditada y Liberada (100%)'
+  if (isAccreditationReturned.value) return 'Correcciones Requeridas'
+  if (isAccreditationDenied.value) return 'Acreditación No Aprobada'
+  return 'En Revisión por Jefatura'
+})
+
+const accreditationStatusBadgeClass = computed(() => {
+  if (isAccreditationCompleted.value) return 'tecnm-badge-approved'
+  if (isAccreditationReturned.value) return 'tecnm-badge-rejected'
+  if (isAccreditationDenied.value) return 'tecnm-badge-rejected'
+  return 'tecnm-badge-pending'
+})
+
 const studentProgressPercent = computed(() => {
   return Math.min(100, Math.round((completedWeeksCount.value / TOTAL_WEEKS) * 100))
 })
@@ -293,10 +377,32 @@ const studentFullName = computed(() => {
 const studentTasks = computed(() => {
   const tasks = []
   if (!latestStudentProject.value) {
-    tasks.push({ text: 'Registrar tu solicitud de anteproyecto', href: '/projects/proposal', tag: 'Requerido' })
+    tasks.push({ text: 'Registrar tu solicitud de anteproyecto o tramitar por InnovaTecNM', href: '/projects/proposal', tag: 'Requerido' })
     return tasks
   }
 
+  // Caso especial: Residencia por InnovaTecNM Nacional
+  if (isAccreditationProject.value) {
+    if (isAccreditationCompleted.value) {
+      tasks.push({ text: '¡Felicidades! Residencia Liberada al 100% por InnovaTecNM Nacional', href: '/documents', tag: 'Acreditado' })
+      tasks.push({ text: 'Consultar calificaciones oficiales en tu expediente digital', href: '/documents', tag: 'Expediente' })
+      return tasks
+    }
+    if (isAccreditationReturned.value) {
+      tasks.push({ text: 'Atender observaciones de tu constancia InnovaTecNM Nacional', href: '#', tag: 'Correcciones' })
+      return tasks
+    }
+    if (isAccreditationUnderReview.value) {
+      tasks.push({ text: 'Tu constancia oficial de InnovaTecNM Nacional está en dictamen por la Jefatura', href: '#', tag: 'En Dictamen' })
+      return tasks
+    }
+    if (isAccreditationDenied.value) {
+      tasks.push({ text: 'Acreditación no aprobada. Opciones ordinarias reactivadas', href: '/projects/proposal', tag: 'Reactivado' })
+      return tasks
+    }
+  }
+
+  // Flujo Ordinario tradicional:
   const s = (latestStudentProject.value.status || '').toLowerCase()
   if (s === 'completed') {
     tasks.push({ text: 'Consultar calificaciones oficiales finales', href: '/evaluations/grading', tag: 'Acreditado' })
@@ -521,9 +627,9 @@ onMounted(() => {
             class="tecnm-filter-select"
             aria-label="Filtrar por Carrera"
           >
-            <option value="all">Todas las Carreras</option>
+            <option v-if="!authStore.isCoordinator" value="all">Todas las Carreras</option>
             <option
-              v-for="c in (careersList.length > 0 ? careersList : [{id:4,name:'Ing. en Energías Renovables'},{id:1,name:'Ing. Informática'},{id:3,name:'Ing. Mecatrónica'},{id:2,name:'Ing. Industrial'},{id:5,name:'Ing. Electrónica'},{id:6,name:'Ing. en Gestión Empresarial'},{id:7,name:'Ing. Mecánica'}])"
+              v-for="c in availableDashboardCareers"
               :key="c.id"
               :value="String(c.id)"
             >
@@ -824,9 +930,9 @@ onMounted(() => {
       </TecnmKpiCard>
     </div>
 
-    <!-- D. KPIs PARA DIRECTOR -->
+    <!-- D. KPIs PARA DIRECTOR Y COORDINADORA -->
     <div
-      v-else-if="authStore.currentRole === 'director'"
+      v-else-if="authStore.currentRole === 'director' || authStore.isCoordinator"
       class="tecnm-kpis-grid tecnm-kpis-grid--4"
     >
       <TecnmKpiCard
@@ -1474,9 +1580,9 @@ onMounted(() => {
         </template>
 
         <!-- ======================================================== -->
-        <!-- VISTA DIRECTOR: Resumen Ejecutivo Institucional -->
+        <!-- VISTA DIRECTOR / COORDINADORA: Resumen Ejecutivo Institucional -->
         <!-- ======================================================== -->
-        <template v-else-if="authStore.currentRole === 'director'">
+        <template v-else-if="authStore.currentRole === 'director' || authStore.isCoordinator">
           <div class="tecnm-card">
             <div class="tecnm-card-header">
               <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
@@ -1633,8 +1739,124 @@ onMounted(() => {
         <!-- VISTA ESTUDIANTE: Stepper de Avance y Formatos -->
         <!-- ======================================================== -->
         <template v-else-if="authStore.currentRole === 'student'">
-          <!-- Stepper de Avance del Anteproyecto -->
-          <div v-if="projectStepInfo" class="tecnm-card">
+          <!-- ======================================================== -->
+          <!-- CARD ESPECIAL: Acreditación InnovaTecNM Nacional -->
+          <!-- ======================================================== -->
+          <div v-if="isAccreditationProject" class="tecnm-card tecnm-mb-3">
+            <div class="tecnm-card-header">
+              <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="tecnm-header-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.496m5.007 0V5.625c0-.621-.504-1.125-1.125-1.125H9.496c-.621 0-1.125.504-1.125 1.125v6.75" />
+                </svg>
+                <h3 class="tecnm-card-title">Acreditación por InnovaTecNM Nacional</h3>
+              </div>
+              <span class="tecnm-badge" :class="accreditationStatusBadgeClass">
+                {{ accreditationStatusLabel }}
+              </span>
+            </div>
+            <div class="tecnm-card-body">
+              <div class="tecnm-mb-3">
+                <span class="tecnm-field-label">Modalidad de Residencia:</span>
+                <span class="tecnm-field-value-emphasis">
+                  InnovaTecNM a Nivel Nacional
+                </span>
+                <div class="tecnm-mt-2">
+                  <span class="tecnm-field-label">Proyecto / Solución:</span>
+                  <div class="tecnm-field-value-box">{{ latestStudentProject?.title }}</div>
+                </div>
+              </div>
+
+              <!-- Observaciones del Jefe de Carrera si requiere corrección -->
+              <div
+                v-if="isAccreditationReturned"
+                class="tecnm-alert tecnm-alert-warning tecnm-mb-3"
+              >
+                <div class="tecnm-d-flex tecnm-justify-between tecnm-align-center tecnm-flex-wrap tecnm-gap-2">
+                  <div>
+                    <strong>Correcciones Requeridas por la Jefatura de Carrera:</strong>
+                    <p class="tecnm-mt-1 tecnm-mb-0">{{ latestStudentProject?.reviewComments }}</p>
+                  </div>
+                  <button
+                    type="button"
+                    class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                    @click="openAccreditationModal(true)"
+                  >
+                    Sustituir Constancia Corregida &rarr;
+                  </button>
+                </div>
+              </div>
+
+              <!-- Estado En Revisión -->
+              <div
+                v-else-if="isAccreditationUnderReview"
+                class="tecnm-alert tecnm-alert-info tecnm-mb-3"
+              >
+                <strong>Constancia en Proceso de Dictamen:</strong>
+                <p class="tecnm-mt-1 tecnm-mb-0">
+                  Tu constancia oficial de <strong>InnovaTecNM Nacional</strong> ha sido recibida y se encuentra en revisión por la Jefatura de Carrera.
+                  Las opciones de anteproyecto ordinario y entrega de formatos permanecen bloqueadas mientras se evalúa tu documento. Al ser validado, tu residencia se liberará automáticamente al 100%.
+                </p>
+              </div>
+
+              <!-- Estado Liberado / Completado -->
+              <div
+                v-else-if="isAccreditationCompleted"
+                class="tecnm-alert tecnm-alert-success tecnm-mb-3"
+              >
+                <strong>¡Felicidades! Residencia Profesional Acreditada y Liberada al 100%:</strong>
+                <p class="tecnm-mt-1 tecnm-mb-0">
+                  Tu constancia de <strong>InnovaTecNM Nacional</strong> fue validada exitosamente. Tu expediente cuenta con las calificaciones oficiales aprobatorias (100%). No requieres carta de aceptación ni formatos ordinarios adicionales.
+                </p>
+              </div>
+
+              <!-- Estado Denegado / Rechazado -->
+              <div
+                v-else-if="isAccreditationDenied"
+                class="tecnm-alert tecnm-alert-danger tecnm-mb-3"
+              >
+                <strong>Acreditación No Aprobada:</strong>
+                <p class="tecnm-mt-1 tecnm-mb-0">
+                  Tu solicitud de acreditación por InnovaTecNM Nacional no fue aprobada por la Jefatura de Carrera.
+                  <span v-if="latestStudentProject?.reviewComments"> Motivo: <em>{{ latestStudentProject.reviewComments }}</em>.</span>
+                  Se han reactivado automáticamente las opciones para que puedas registrar tu anteproyecto de residencia ordinario o volver a tramitarlo.
+                </p>
+              </div>
+
+              <div class="tecnm-d-flex tecnm-gap-2 tecnm-flex-wrap">
+                <router-link to="/documents" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm">
+                  Expediente Digital
+                </router-link>
+              </div>
+            </div>
+          </div>
+
+          <!-- Banner Opción Acreditación InnovaTecNM Nacional si no tiene proyecto o fue denegado -->
+          <div
+            v-if="!latestStudentProject || (latestStudentProject.status === 'draft' && !isAccreditationProject) || isAccreditationDenied"
+            class="tecnm-card tecnm-mb-3"
+          >
+            <div class="tecnm-card-body tecnm-d-flex tecnm-justify-between tecnm-align-center tecnm-flex-wrap tecnm-gap-2">
+              <div>
+                <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2 tecnm-mb-1">
+                  <span class="tecnm-badge tecnm-badge--gold">Acreditación Directa</span>
+                  <strong>¿Acreditaste tu Residencia mediante InnovaTecNM a nivel nacional?</strong>
+                </div>
+                <p class="tecnm-form-hint tecnm-mb-0">
+                  Puedes omitir el anteproyecto ordinario y la asignación de asesor docente. Sube tu constancia oficial de InnovaTecNM Nacional para que la Jefatura de Carrera valide y libere tu residencia con calificación de 100%.
+                </p>
+              </div>
+              <button
+                type="button"
+                class="tecnm-btn tecnm-btn-primary"
+                @click="openAccreditationModal(false)"
+              >
+                Tramitar por InnovaTecNM Nacional &rarr;
+              </button>
+            </div>
+          </div>
+
+          <!-- Stepper de Avance del Anteproyecto Tradicional (Oculto en Acreditación Activa) -->
+          <div v-if="projectStepInfo && !isAccreditationActive" class="tecnm-card">
             <div class="tecnm-card-header">
               <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="tecnm-header-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -1671,8 +1893,8 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- Card de Formatos Oficiales TecNM para Descarga -->
-          <div class="tecnm-card" style="margin-top: 1.5rem;">
+          <!-- Card de Formatos Oficiales TecNM para Descarga (Oculto en Acreditación Activa) -->
+          <div v-if="!isAccreditationActive" class="tecnm-card" style="margin-top: 1.5rem;">
             <div class="tecnm-card-header">
               <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="tecnm-header-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -1760,7 +1982,7 @@ onMounted(() => {
               </div>
               <div class="dashboard-student-info-item">
                 <span class="dashboard-info-label">Asesor Asignado:</span>
-                <strong class="dashboard-info-val">{{ latestStudentProject?.advisorName || 'Por asignar por academia' }}</strong>
+                <strong class="dashboard-info-val">{{ isAccreditationActive ? 'No aplica (InnovaTecNM)' : (latestStudentProject?.advisorName || 'Por asignar por academia') }}</strong>
               </div>
             </div>
 
@@ -1983,7 +2205,7 @@ onMounted(() => {
                 Registrar Empresa Receptora
               </router-link>
 
-              <router-link v-if="authStore.isAdmin || authStore.hasRole('departmenthead', 'director', 'academic')" to="/admin/reports" class="tecnm-btn tecnm-btn-outline" style="justify-content: flex-start; gap: 0.5rem;">
+              <router-link v-if="authStore.isAdmin || authStore.hasRole('departmenthead', 'director', 'academic', 'coordinadora', 'coordinator')" to="/admin/reports" class="tecnm-btn tecnm-btn-outline" style="justify-content: flex-start; gap: 0.5rem;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                 </svg>
@@ -2023,6 +2245,15 @@ onMounted(() => {
   <AdvisorWorkloadModal
     v-model="isWorkloadModalOpen"
     :advisor-id="selectedAdvisorForModal"
+  />
+
+  <!-- Ventana Modal de Solicitud y Re-envío de Acreditación InnovaTecNM Nacional -->
+  <AccreditationModal
+    v-model="isAccreditationModalOpen"
+    :is-resubmit="isAccreditationResubmit"
+    :project-id="latestStudentProject?.id"
+    :previous-observations="latestStudentProject?.reviewComments || ''"
+    @success="handleAccreditationSuccess"
   />
 </template>
 

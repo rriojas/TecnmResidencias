@@ -185,6 +185,17 @@ public class RoleService : IRoleService
                 dto.CareerName = GetCareerName(effCareerId.Value);
             }
 
+            var userCareers = await _roleRepository.GetUserCareerIdsAsync(u.Id);
+            if (userCareers.Any())
+            {
+                dto.CareerIds = userCareers;
+                dto.CareerNames = userCareers.Select(cid => GetCareerName(cid)).Where(n => !string.IsNullOrEmpty(n)).ToList();
+                if (dto.Role == "coordinadora" || dto.Role == "coordinator" || !effCareerId.HasValue)
+                {
+                    dto.CareerName = string.Join(", ", dto.CareerNames);
+                }
+            }
+
             dtos.Add(dto);
         }
 
@@ -429,6 +440,20 @@ public class RoleService : IRoleService
                 }
             }
 
+            if (baseUserRole == UserRole.Coordinator || (dto.CareerIds != null && dto.CareerIds.Any()))
+            {
+                var cids = (dto.CareerIds != null && dto.CareerIds.Any())
+                    ? dto.CareerIds
+                    : (dto.CareerId.HasValue ? new List<long> { dto.CareerId.Value } : new List<long>());
+                if (cids.Any())
+                {
+                    await _roleRepository.SyncUserCareersAsync(created.Id, cids, _currentUser.UserId);
+                    responseDto.CareerIds = cids;
+                    responseDto.CareerNames = cids.Select(cid => GetCareerName(cid)).Where(n => !string.IsNullOrEmpty(n)).ToList();
+                    responseDto.CareerName = string.Join(", ", responseDto.CareerNames);
+                }
+            }
+
             if (string.IsNullOrWhiteSpace(responseDto.Phone))
             {
                 responseDto.Phone = created.Phone ?? dto.Phone;
@@ -526,9 +551,19 @@ public class RoleService : IRoleService
                 await _roleRepository.EnsureCareerHeadProfileAsync(updated.Id, updated.Email, advisorFullName, dto.Title, dto.CareerId ?? 1, dto.Phone, _currentUser.UserId, _currentUser.UserId);
             }
 
+            if (updated.Role == UserRole.Coordinator || dto.CareerIds != null)
+            {
+                var careersToSync = dto.CareerIds ?? (dto.CareerId.HasValue && dto.CareerId.Value > 0 ? new List<long> { dto.CareerId.Value } : new List<long>());
+                await _roleRepository.SyncUserCareersAsync(updated.Id, careersToSync, _currentUser.UserId);
+            }
+
             await _roleRepository.CleanupProfilesForUserAsync(updated.Id, updated.Role);
 
             var responseDto = MapUserToDto(updated);
+            if (updated.Role == UserRole.Coordinator)
+            {
+                responseDto.CareerIds = await _roleRepository.GetUserCareerIdsAsync(updated.Id);
+            }
             var updatedStudent = await _roleRepository.GetStudentByUserIdAsync(updated.Id);
             if (updatedStudent != null)
             {
@@ -593,6 +628,7 @@ public class RoleService : IRoleService
         "academico" or "academic" or "jefatura" or "departmenthead" => UserRole.Academic,
         "vinculacion" => UserRole.Vinculacion,
         "director" => UserRole.Director,
+        "coordinadora" or "coordinator" => UserRole.Coordinator,
         "superadmin" or "admin" => UserRole.Admin,
         "jefecarrera" or "careerhead" => UserRole.CareerHead,
         _ => UserRole.Student

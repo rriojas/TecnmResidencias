@@ -39,6 +39,42 @@ const isProjectCompleted = computed(() => {
   return st === 'completed' || currentProject.value?.isCompleted === true
 })
 
+const isAccreditationProject = computed(() => {
+  if (!currentProject.value) return false
+  const t = String(currentProject.value?.projectType || '').toLowerCase()
+  return t === 'acreditacion_innovatec' || t === 'acreditacion_hackatec'
+})
+
+const isAccreditationActive = computed(() => {
+  if (!isAccreditationProject.value) return false
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return !['rejected', 'cancelled'].includes(st)
+})
+
+const isAccreditationUnderReview = computed(() => {
+  if (!isAccreditationProject.value) return false
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return ['under_review', 'pending', 'proposed'].includes(st) && !currentProject.value?.reviewComments
+})
+
+const isAccreditationReturned = computed(() => {
+  if (!isAccreditationProject.value) return false
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return (st === 'draft' || st === 'rejected') && !!currentProject.value?.reviewComments
+})
+
+const isAccreditationCompleted = computed(() => {
+  if (!isAccreditationProject.value) return false
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return st === 'completed' || currentProject.value?.isCompleted === true
+})
+
+const isAccreditationDenied = computed(() => {
+  if (!isAccreditationProject.value) return false
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return (st === 'rejected' || st === 'cancelled') && !currentProject.value?.reviewComments
+})
+
 const isProjectPending = computed(() => {
   const st = String(currentProject.value?.status || '').toLowerCase()
   return ['pending', 'proposed', 'under_review'].includes(st)
@@ -65,6 +101,8 @@ const canUploadDocument = computed(() => {
   if (isStaff.value) return true
   if (isAdvisor.value) return false
   if (!currentProject.value?.id) return false
+  // Si realiza residencias por InnovaTecNM, no requiere subir carta de aceptación ni formatos ordinarios
+  if (isStudent.value && isAccreditationActive.value) return false
   return !isProjectReadOnly.value
 })
 
@@ -615,19 +653,44 @@ onMounted(() => {
 
     <!-- Banner Contextual según Estado del Proyecto (Solo para Estudiante) -->
     <template v-if="isStudent">
-      <div v-if="isProjectCompleted" class="tecnm-alert tecnm-alert-success" role="alert" style="margin-bottom: 1rem;">
-        <span><strong>Expediente Digital Concluido:</strong> Este proyecto de residencia profesional ha sido finalizado. Puedes consultar y descargar todos los documentos y evidencias registradas.</span>
-      </div>
-      <div v-else-if="isProjectPending" class="tecnm-alert tecnm-alert-warning" role="alert" style="margin-bottom: 1rem;">
-        <span><strong>Anteproyecto en Dictamen:</strong> Tu solicitud se encuentra en revisión. La carga de formatos oficiales se habilitará tras la aprobación.</span>
-      </div>
-      <div v-else-if="isProjectDraft" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
-        <span><strong>Anteproyecto en Borrador:</strong> Envía tu solicitud a revisión en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
-      </div>
-      <div v-else-if="isProjectRejected" class="tecnm-alert tecnm-alert-danger" role="alert" style="margin-bottom: 1rem;">
-        <span><strong>Anteproyecto con Observaciones:</strong> Realiza las correcciones solicitadas en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
-      </div>
-      <div v-else-if="!currentProject && !isLoading" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+      <!-- Casos para Modalidad InnovaTecNM Nacional -->
+      <template v-if="isAccreditationProject">
+        <div v-if="isAccreditationCompleted" class="tecnm-alert tecnm-alert-success" role="alert" style="margin-bottom: 1rem;">
+          <span><strong>Residencia Acreditada y Liberada al 100% por InnovaTecNM Nacional:</strong> Tu constancia oficial fue validada por la Jefatura. Tu expediente digital se encuentra exento de carta de aceptación, solicitud y anexos adicionales.</span>
+        </div>
+        <div v-else-if="isAccreditationReturned" class="tecnm-alert tecnm-alert-warning" role="alert" style="margin-bottom: 1rem;">
+          <div class="tecnm-d-flex tecnm-justify-between tecnm-align-center tecnm-flex-wrap tecnm-gap-2">
+            <span><strong>Constancia de InnovaTecNM Nacional con Observaciones:</strong> La Jefatura de Carrera solicitó correcciones a tu constancia: <em>{{ currentProject?.reviewComments }}</em>.</span>
+            <router-link to="/dashboard" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm">
+              Sustituir en el Panel &rarr;
+            </router-link>
+          </div>
+        </div>
+        <div v-else-if="isAccreditationUnderReview" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
+          <span><strong>Trámite de InnovaTecNM Nacional en Revisión:</strong> Tu constancia oficial está siendo analizada por la Jefatura de Carrera. Por tu modalidad de residencia, <strong>no requieres subir carta de aceptación ni ningún tipo de formato ordinario</strong>.</span>
+        </div>
+        <div v-else-if="isAccreditationDenied" class="tecnm-alert tecnm-alert-danger" role="alert" style="margin-bottom: 1rem;">
+          <span><strong>Acreditación por InnovaTecNM No Aprobada:</strong> Tu constancia no fue validada. Se han reactivado las opciones ordinarias y la entrega de formatos.</span>
+        </div>
+      </template>
+
+      <!-- Casos para Flujo Ordinario -->
+      <template v-else>
+        <div v-if="isProjectCompleted" class="tecnm-alert tecnm-alert-success" role="alert" style="margin-bottom: 1rem;">
+          <span><strong>Expediente Digital Concluido:</strong> Este proyecto de residencia profesional ha sido finalizado. Puedes consultar y descargar todos los documentos y evidencias registradas.</span>
+        </div>
+        <div v-else-if="isProjectPending" class="tecnm-alert tecnm-alert-warning" role="alert" style="margin-bottom: 1rem;">
+          <span><strong>Anteproyecto en Dictamen:</strong> Tu solicitud se encuentra en revisión. La carga de formatos oficiales se habilitará tras la aprobación.</span>
+        </div>
+        <div v-else-if="isProjectDraft" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
+          <span><strong>Anteproyecto en Borrador:</strong> Envía tu solicitud a revisión en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
+        </div>
+        <div v-else-if="isProjectRejected" class="tecnm-alert tecnm-alert-danger" role="alert" style="margin-bottom: 1rem;">
+          <span><strong>Anteproyecto con Observaciones:</strong> Realiza las correcciones solicitadas en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
+        </div>
+      </template>
+
+      <div v-if="!currentProject && !isLoading" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
         <span><strong>Sin Anteproyecto Registrado:</strong> Aún no cuentas con un anteproyecto para consultar el expediente digital.</span>
         <router-link to="/projects/proposal" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm">
           + Registrar Solicitud de Anteproyecto

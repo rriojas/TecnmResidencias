@@ -142,7 +142,8 @@ const showDocuments = computed(() =>
 const showTrackingTimeline = computed(() =>
   authStore.isAdmin ||
   authStore.isCareerHead ||
-  authStore.hasRole('departmenthead', 'academic', 'director')
+  authStore.isCoordinator ||
+  authStore.hasRole('departmenthead', 'academic', 'director', 'coordinadora', 'coordinator')
 )
 
 const showEvaluacionGroup = computed(() =>

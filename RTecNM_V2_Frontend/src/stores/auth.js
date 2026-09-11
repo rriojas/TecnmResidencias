@@ -37,7 +37,15 @@ export const useAuthStore = defineStore('auth', () => {
   })
 
   const isReadOnly = computed(() => {
-    return currentRole.value === 'director'
+    return (
+      currentRole.value === 'director' ||
+      currentRole.value === 'coordinadora' ||
+      currentRole.value === 'coordinator'
+    )
+  })
+
+  const isCoordinator = computed(() => {
+    return currentRole.value === 'coordinadora' || currentRole.value === 'coordinator'
   })
 
   const isCareerHead = computed(() => {
@@ -48,12 +56,23 @@ export const useAuthStore = defineStore('auth', () => {
     return user.value?.careerId ?? user.value?.career_id ?? null
   })
 
+  const userCareerIds = computed(() => {
+    if (Array.isArray(user.value?.careerIds) && user.value.careerIds.length > 0) {
+      return user.value.careerIds
+    }
+    if (user.value?.careerId) return [user.value.careerId]
+    if (user.value?.career_id) return [user.value.career_id]
+    return []
+  })
+
   const roleLabel = computed(() => {
     const map = {
       admin: 'Administrador',
       departmenthead: 'Jefe de División',
       jefecarrera: 'Jefe de Carrera',
       careerhead: 'Jefe de Carrera',
+      coordinadora: 'Coordinadora de Carrera',
+      coordinator: 'Coordinadora de Carrera',
       advisor: 'Asesor Académico',
       student: 'Estudiante',
       vinculacion: 'Vinculación',
@@ -115,6 +134,16 @@ export const useAuthStore = defineStore('auth', () => {
       'students.profile.view', 'advisors.manage', 'projects.proposals', 'activities.schedule',
       'advisories.session.view', 'evaluations.summary.view', 'documents.digital', 'companies.view',
       'admin.reports', 'reports.export.excel', 'admin.roles'
+    ],
+    coordinadora: [
+      'students.profile.view', 'advisors.manage', 'projects.proposals', 'activities.schedule',
+      'advisories.session.view', 'evaluations.summary.view', 'documents.digital', 'companies.view',
+      'admin.reports', 'reports.export.excel'
+    ],
+    coordinator: [
+      'students.profile.view', 'advisors.manage', 'projects.proposals', 'activities.schedule',
+      'advisories.session.view', 'evaluations.summary.view', 'documents.digital', 'companies.view',
+      'admin.reports', 'reports.export.excel'
     ],
     advisor: [
       'projects.review', 'projects.advisor',
@@ -291,8 +320,10 @@ export const useAuthStore = defineStore('auth', () => {
     permissions,
     isAdmin,
     isReadOnly,
+    isCoordinator,
     isCareerHead,
     userCareerId,
+    userCareerIds,
     roleLabel,
     userDisplayName,
     userAvatarInitials,

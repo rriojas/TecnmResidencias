@@ -17,5 +17,7 @@ public class UserResponseDto
     public bool IsActive { get; set; }
     public bool IsAdmin { get; set; }
     public long? CareerId { get; set; }
+    public List<long> CareerIds { get; set; } = new();
+    public List<string> CareerNames { get; set; } = new();
     public List<string> Permissions { get; set; } = new();
 }

@@ -39,6 +39,7 @@ public class AppDbContext : DbContext
     public DbSet<CareerHead> CareerHeads => Set<CareerHead>();
     public DbSet<Career> Careers => Set<Career>();
     public DbSet<AdvisorDepartment> AdvisorDepartments => Set<AdvisorDepartment>();
+    public DbSet<UserCareer> UserCareers => Set<UserCareer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -49,6 +50,7 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new ModuleConfiguration());
         modelBuilder.ApplyConfiguration(new PermissionConfiguration());
         modelBuilder.ApplyConfiguration(new UserRoleAssignmentConfiguration());
+        modelBuilder.ApplyConfiguration(new UserCareerConfiguration());
         modelBuilder.ApplyConfiguration(new RolePermissionConfiguration());
         modelBuilder.ApplyConfiguration(new StudentConfiguration());
         modelBuilder.ApplyConfiguration(new StudentBlockConfiguration());

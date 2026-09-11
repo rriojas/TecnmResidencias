@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using System.IO;
 using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
 
@@ -12,18 +15,29 @@ public class ProjectsController : ControllerBase
 {
     private readonly IProjectService _projectService;
     private readonly ICurrentUserService _currentUser;
+    private readonly IWebHostEnvironment _environment;
+    private readonly IConfiguration _configuration;
 
-    public ProjectsController(IProjectService projectService, ICurrentUserService currentUser)
+    public ProjectsController(
+        IProjectService projectService,
+        ICurrentUserService currentUser,
+        IWebHostEnvironment environment,
+        IConfiguration configuration)
     {
         _projectService = projectService;
         _currentUser = currentUser;
+        _environment = environment;
+        _configuration = configuration;
     }
+
+    private string UploadsRootPath =>
+        Path.GetFullPath(Path.Combine(_environment.ContentRootPath, _configuration["Uploads:Path"] ?? "uploads"));
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateProjectDto dto)
     {
-        if (_currentUser.IsInRole(UserRole.Vinculacion))
-            return StatusCode(403, new { message = "El rol Vinculación no tiene permisos para crear anteproyectos." });
+        if (_currentUser.IsInRole(UserRole.Vinculacion) || _currentUser.IsInRole(UserRole.Director) || _currentUser.IsInRole(UserRole.Coordinator))
+            return StatusCode(403, new { message = "No tiene permisos para crear anteproyectos." });
 
         var result = await _projectService.CreateProjectAsync(dto);
         if (!result.IsSuccess)
@@ -43,7 +57,7 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpGet("export")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
     public async Task<IActionResult> ExportPdf([FromQuery] string? status, [FromQuery] string? search, [FromQuery] string? sortBy, [FromQuery] string? sortDir, [FromQuery] bool includeInactive = false)
     {
         var result = await _projectService.ExportPdfAsync(status, search, sortBy, sortDir, includeInactive);
@@ -96,7 +110,7 @@ public class ProjectsController : ControllerBase
     [HttpGet("student/{studentId:long}")]
     public async Task<IActionResult> GetByStudentId(long studentId, [FromQuery] PaginationQuery query)
     {
-        if (!_currentUser.IsInRole(UserRole.Admin) && !_currentUser.IsInRole(UserRole.DepartmentHead) && !_currentUser.IsInRole(UserRole.Director) && !_currentUser.IsInRole(UserRole.Academic) && !_currentUser.IsInRole(UserRole.Vinculacion))
+        if (!_currentUser.IsInRole(UserRole.Admin) && !_currentUser.IsInRole(UserRole.DepartmentHead) && !_currentUser.IsInRole(UserRole.Director) && !_currentUser.IsInRole(UserRole.Academic) && !_currentUser.IsInRole(UserRole.Vinculacion) && !_currentUser.IsInRole(UserRole.Coordinator))
             return StatusCode(403, new { message = "No tiene permisos para consultar anteproyectos de otros estudiantes." });
 
         var result = await _projectService.GetProjectsByStudentIdPagedAsync(studentId, query);
@@ -133,8 +147,8 @@ public class ProjectsController : ControllerBase
     [HttpPut("{id:long}")]
     public async Task<IActionResult> Update(long id, [FromBody] UpdateProjectDto dto)
     {
-        if (_currentUser.IsInRole(UserRole.Vinculacion))
-            return StatusCode(403, new { message = "El rol Vinculación no tiene permisos para modificar anteproyectos." });
+        if (_currentUser.IsInRole(UserRole.Vinculacion) || _currentUser.IsInRole(UserRole.Director) || _currentUser.IsInRole(UserRole.Coordinator))
+            return StatusCode(403, new { message = "No tiene permisos para modificar anteproyectos." });
 
         var result = await _projectService.UpdateProjectAsync(id, dto);
         if (!result.IsSuccess)
@@ -169,8 +183,8 @@ public class ProjectsController : ControllerBase
     [HttpPatch("{id:long}/cancel")]
     public async Task<IActionResult> Cancel(long id)
     {
-        if (_currentUser.IsInRole(UserRole.Vinculacion))
-            return StatusCode(403, new { message = "El rol Vinculación no tiene permisos para cancelar anteproyectos." });
+        if (_currentUser.IsInRole(UserRole.Vinculacion) || _currentUser.IsInRole(UserRole.Director) || _currentUser.IsInRole(UserRole.Coordinator))
+            return StatusCode(403, new { message = "No tiene permisos para cancelar anteproyectos." });
 
         var result = await _projectService.CancelProjectAsync(id);
         if (!result.IsSuccess)
@@ -199,5 +213,38 @@ public class ProjectsController : ControllerBase
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 
         return Ok(new { message = "Anteproyecto reactivado exitosamente." });
+    }
+
+    [HttpPost("accreditation")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> CreateAccreditation([FromForm] CreateAccreditationDto dto)
+    {
+        var result = await _projectService.CreateAccreditationProjectAsync(dto, UploadsRootPath);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return CreatedAtAction(nameof(GetById), new { id = result.Data!.Id }, result.Data);
+    }
+
+    [HttpPost("{id:long}/accreditation/validate")]
+    [Authorize(Roles = "admin,jefecarrera,careerhead,departmenthead")]
+    public async Task<IActionResult> ValidateAccreditation(long id, [FromBody] ReviewAccreditationDto dto)
+    {
+        var result = await _projectService.ReviewAccreditationAsync(id, dto);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
+
+    [HttpPost("{id:long}/accreditation/resubmit")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> ResubmitAccreditation(long id, [FromForm] ResubmitAccreditationDto dto)
+    {
+        var result = await _projectService.ResubmitAccreditationAsync(id, dto, UploadsRootPath);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
     }
 }

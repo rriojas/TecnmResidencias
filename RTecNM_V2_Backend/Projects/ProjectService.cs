@@ -2,6 +2,8 @@ using TecNM.Residency.Advisors;
 using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
 using TecNM.Residency.Companies;
+using TecNM.Residency.Documents;
+using TecNM.Residency.Evaluations;
 using TecNM.Residency.Students;
 
 namespace TecNM.Residency.Projects;
@@ -13,19 +15,25 @@ public class ProjectService : IProjectService
     private readonly IStudentRepository _studentRepository;
     private readonly IAdvisorRepository _advisorRepository;
     private readonly ICompanyRepository _companyRepository;
+    private readonly IDocumentRepository _documentRepository;
+    private readonly IEvaluationRepository _evaluationRepository;
 
     public ProjectService(
         IProjectRepository repository,
         ICurrentUserService currentUser,
         IStudentRepository studentRepository,
         IAdvisorRepository advisorRepository,
-        ICompanyRepository companyRepository)
+        ICompanyRepository companyRepository,
+        IDocumentRepository documentRepository,
+        IEvaluationRepository evaluationRepository)
     {
         _repository = repository;
         _currentUser = currentUser;
         _studentRepository = studentRepository;
         _advisorRepository = advisorRepository;
         _companyRepository = companyRepository;
+        _documentRepository = documentRepository;
+        _evaluationRepository = evaluationRepository;
     }
 
     private bool IsStaff() =>
@@ -738,5 +746,363 @@ public class ProjectService : IProjectService
             careerId,
             careerName
         );
+    }
+
+    public async Task<Result<ProjectResponseDto>> CreateAccreditationProjectAsync(CreateAccreditationDto dto, string uploadsRootPath)
+    {
+        if (dto == null)
+            return Result<ProjectResponseDto>.Failure("Los datos de la solicitud no pueden ser nulos.");
+
+        if (!_currentUser.IsInRole(UserRole.Student))
+            return Result<ProjectResponseDto>.Failure("Solo los estudiantes pueden solicitar la acreditación de residencia.", 403);
+
+        var student = await _studentRepository.GetByUserIdAsync(_currentUser.UserId);
+        if (student == null)
+            return Result<ProjectResponseDto>.Failure("No se encontró un expediente de estudiante asociado a tu cuenta.", 404);
+
+        var activeProject = await _repository.GetActiveByStudentIdAsync(student.Id);
+        if (activeProject != null)
+            return Result<ProjectResponseDto>.Failure($"Ya cuentas con un proyecto o trámite de residencia vigente (#{activeProject.Id} — {activeProject.Title}).", 409);
+
+        if (dto.File == null || dto.File.Length == 0)
+            return Result<ProjectResponseDto>.Failure("La constancia o formato de acreditación es obligatorio.");
+
+        if (dto.File.Length > 10 * 1024 * 1024)
+            return Result<ProjectResponseDto>.Failure("El archivo excede el límite máximo permitido de 10MB.");
+
+        var extension = Path.GetExtension(dto.File.FileName).ToLowerInvariant();
+        var allowedExts = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+        if (!allowedExts.Contains(extension))
+            return Result<ProjectResponseDto>.Failure("Solo se admiten constancias en formato PDF o imagen (JPG, PNG).");
+
+        var eventType = "acreditacion_innovatec";
+        var eventDisplayName = "InnovaTecNM Nacional";
+        var projectTitle = string.IsNullOrWhiteSpace(dto.ProjectTitle)
+            ? $"Acreditación de Residencia por {eventDisplayName}"
+            : dto.ProjectTitle.Trim();
+
+        // Resolver empresa vinculada institucional
+        long companyId = 0;
+        if (dto.CompanyId.HasValue && dto.CompanyId.Value > 0)
+        {
+            var specifiedCompany = await _companyRepository.GetByIdAsync(dto.CompanyId.Value);
+            if (specifiedCompany != null && specifiedCompany.IsActive)
+                companyId = specifiedCompany.Id;
+        }
+
+        if (companyId == 0)
+        {
+            var allCompanies = await _companyRepository.GetAllAsync();
+            var matchedCompany = allCompanies.FirstOrDefault(c => c.Name.Contains("TecNM", StringComparison.OrdinalIgnoreCase) || c.Name.Contains("InnovaTec", StringComparison.OrdinalIgnoreCase))
+                                ?? allCompanies.FirstOrDefault(c => c.IsActive)
+                                ?? allCompanies.FirstOrDefault();
+
+            if (matchedCompany != null)
+            {
+                companyId = matchedCompany.Id;
+            }
+            else
+            {
+                var institutional = new Company
+                {
+                    Name = "Tecnológico Nacional de México",
+                    LegalName = "Instituto Tecnológico Superior de Monclova",
+                    Rfc = "TECNM010101AA1",
+                    ContactName = "Jefatura de Vinculación",
+                    ContactEmail = "vinculacion@monclova.tecnm.mx",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                await _companyRepository.AddAsync(institutional);
+                companyId = institutional.Id;
+            }
+        }
+
+        var project = new Project
+        {
+            StudentId = student.Id,
+            AdvisorId = null,
+            CompanyId = companyId,
+            Title = projectTitle,
+            ProjectType = eventType,
+            ProblemStatement = $"Acreditación de Residencia Profesional por participación y acreditación en la Cumbre Nacional InnovaTecNM a nivel nacional.",
+            Justification = "Lineamientos institucionales del TecNM para la acreditación directa de Residencia Profesional mediante el certamen InnovaTecNM Nacional.",
+            GeneralObjective = $"Acreditar y liberar la Residencia Profesional mediante constancia oficial de {eventDisplayName}.",
+            Status = ProjectStatus.UnderReview,
+            StartDate = DateTime.UtcNow,
+            EndDate = DateTime.UtcNow,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            CreatedBy = _currentUser.UserId
+        };
+
+        var createdProject = await _repository.CreateAsync(project);
+
+        // Guardar archivo físico y registro en documents
+        var docsDir = Path.Combine(uploadsRootPath, "documents");
+        if (!Directory.Exists(docsDir))
+        {
+            Directory.CreateDirectory(docsDir);
+        }
+
+        var uniqueFileName = $"{createdProject.Id}_constancia_acreditacion_{Guid.NewGuid()}{extension}";
+        var relativePath = Path.Combine("documents", uniqueFileName).Replace('\\', '/');
+        var fullPath = Path.Combine(docsDir, uniqueFileName);
+
+        using (var stream = new FileStream(fullPath, FileMode.Create))
+        {
+            await dto.File.CopyToAsync(stream);
+        }
+
+        var contentType = !string.IsNullOrEmpty(dto.File.ContentType)
+            ? dto.File.ContentType
+            : extension switch
+            {
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                _ => "application/pdf"
+            };
+
+        var document = new Document
+        {
+            ProjectId = createdProject.Id,
+            DocumentType = DocumentType.ConstanciaAcreditacion,
+            FileName = dto.File.FileName,
+            FilePath = relativePath,
+            FileSize = dto.File.Length,
+            ContentType = contentType,
+            Status = DocumentStatus.Uploaded,
+            UploadedAt = DateTime.UtcNow,
+            IsActive = true,
+            IsVisible = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            CreatedBy = _currentUser.UserId
+        };
+
+        await _documentRepository.AddAsync(document);
+        await _documentRepository.SaveChangesAsync();
+
+        var fullProject = await _repository.GetByIdAsync(createdProject.Id);
+        return Result<ProjectResponseDto>.Success(MapToDto(fullProject ?? createdProject));
+    }
+
+    public async Task<Result<ProjectResponseDto>> ReviewAccreditationAsync(long id, ReviewAccreditationDto dto)
+    {
+        if (dto == null)
+            return Result<ProjectResponseDto>.Failure("Los datos de revisión son obligatorios.");
+
+        var isAuthorizedReviewer = _currentUser.IsInRole(UserRole.Admin)
+            || _currentUser.IsInRole(UserRole.CareerHead)
+            || _currentUser.IsInRole(UserRole.DepartmentHead);
+
+        if (!isAuthorizedReviewer)
+            return Result<ProjectResponseDto>.Failure("Solo el Jefe de Carrera y el Administrador pueden dictaminar acreditaciones de residencia.", 403);
+
+        var project = await _repository.GetByIdAsync(id);
+        if (project == null)
+            return Result<ProjectResponseDto>.Failure("Proyecto no encontrado.", 404);
+
+        if (project.ProjectType is not ("acreditacion_hackatec" or "acreditacion_innovatec"))
+            return Result<ProjectResponseDto>.Failure("Este proyecto no corresponde a un trámite de acreditación por InnovaTecNM Nacional.", 400);
+
+        // Aislamiento por carrera para el Jefe de Carrera
+        if (_currentUser.IsInRole(UserRole.CareerHead) && !_currentUser.IsInRole(UserRole.Admin))
+        {
+            if (_currentUser.CareerId.HasValue && project.Student?.CareerId != _currentUser.CareerId.Value)
+            {
+                return Result<ProjectResponseDto>.Failure("No tienes permisos para dictaminar estudiantes de otra carrera.", 403);
+            }
+        }
+
+        // Obtener el documento de constancia
+        var pagedDocs = await _documentRepository.GetPagedByProjectIdAsync(project.Id, new PaginationQuery { PageNumber = 1, PageSize = 10 });
+        var constanciaDoc = pagedDocs.Items.FirstOrDefault(d => d.DocumentType == DocumentType.ConstanciaAcreditacion && d.IsActive);
+
+        if (dto.Approved)
+        {
+            project.Status = ProjectStatus.Completed;
+            project.ReviewComments = !string.IsNullOrWhiteSpace(dto.Observations)
+                ? dto.Observations.Trim()
+                : "Constancia y acreditación validada con éxito.";
+            project.UpdatedAt = DateTime.UtcNow;
+            project.UpdatedBy = _currentUser.UserId;
+
+            if (constanciaDoc != null)
+            {
+                constanciaDoc.Status = DocumentStatus.Approved;
+                constanciaDoc.RejectionReason = null;
+                constanciaDoc.UpdatedAt = DateTime.UtcNow;
+                constanciaDoc.UpdatedBy = _currentUser.UserId;
+                await _documentRepository.UpdateAsync(constanciaDoc);
+                await _documentRepository.SaveChangesAsync();
+            }
+
+            // Asentar automáticamente las 3 evaluaciones con calificación de 100%
+            var periods = new[] { "partial_1", "partial_2", "final" };
+            foreach (var period in periods)
+            {
+                var eval = new Evaluation
+                {
+                    ProjectId = project.Id,
+                    EvaluatorId = _currentUser.UserId,
+                    EvaluationPeriod = period,
+                    Score = 100m,
+                    Feedback = "Acreditación de Residencia Profesional por evento institucional InnovaTecNM Nacional. Calificación aprobatoria emitida al validar constancia oficial.",
+                    IsActive = true,
+                    IsVisible = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    CreatedBy = _currentUser.UserId
+                };
+                await _evaluationRepository.SaveEvaluationAsync(eval);
+            }
+        }
+        else if (dto.Denied)
+        {
+            // Rechazo / Denegación definitiva de la acreditación por InnovaTecNM Nacional
+            project.Status = ProjectStatus.Rejected;
+            project.ReviewComments = !string.IsNullOrWhiteSpace(dto.Observations)
+                ? dto.Observations.Trim()
+                : "Acreditación por InnovaTecNM Nacional no aprobada por la Jefatura de Carrera.";
+            project.UpdatedAt = DateTime.UtcNow;
+            project.UpdatedBy = _currentUser.UserId;
+
+            if (constanciaDoc != null)
+            {
+                constanciaDoc.Status = DocumentStatus.Rejected;
+                constanciaDoc.RejectionReason = project.ReviewComments;
+                constanciaDoc.UpdatedAt = DateTime.UtcNow;
+                constanciaDoc.UpdatedBy = _currentUser.UserId;
+                await _documentRepository.UpdateAsync(constanciaDoc);
+                await _documentRepository.SaveChangesAsync();
+            }
+        }
+        else
+        {
+            // Regresar con observaciones de formato/calidad (el alumno podrá sustituir la constancia)
+            project.Status = ProjectStatus.Draft;
+            project.ReviewComments = !string.IsNullOrWhiteSpace(dto.Observations)
+                ? dto.Observations.Trim()
+                : "Se requieren correcciones en el formato o legibilidad de la constancia adjunta.";
+            project.UpdatedAt = DateTime.UtcNow;
+            project.UpdatedBy = _currentUser.UserId;
+
+            if (constanciaDoc != null)
+            {
+                constanciaDoc.Status = DocumentStatus.Rejected;
+                constanciaDoc.RejectionReason = dto.Observations?.Trim();
+                constanciaDoc.UpdatedAt = DateTime.UtcNow;
+                constanciaDoc.UpdatedBy = _currentUser.UserId;
+                await _documentRepository.UpdateAsync(constanciaDoc);
+                await _documentRepository.SaveChangesAsync();
+            }
+        }
+
+        await _repository.UpdateAsync(project);
+        var updated = await _repository.GetByIdAsync(project.Id);
+        return Result<ProjectResponseDto>.Success(MapToDto(updated ?? project));
+    }
+
+    public async Task<Result<ProjectResponseDto>> ResubmitAccreditationAsync(long id, ResubmitAccreditationDto dto, string uploadsRootPath)
+    {
+        if (dto == null || dto.File == null || dto.File.Length == 0)
+            return Result<ProjectResponseDto>.Failure("Debe adjuntar la nueva constancia en archivo digital.");
+
+        var student = await GetSessionStudentAsync();
+        var project = await _repository.GetByIdAsync(id);
+        if (project == null)
+            return Result<ProjectResponseDto>.Failure("Proyecto no encontrado.", 404);
+
+        if (!_currentUser.IsInRole(UserRole.Admin) && (student == null || project.StudentId != student.Id))
+            return Result<ProjectResponseDto>.Failure("No tienes permiso para actualizar este expediente.", 403);
+
+        if (project.ProjectType is not ("acreditacion_hackatec" or "acreditacion_innovatec"))
+            return Result<ProjectResponseDto>.Failure("El proyecto indicado no es una acreditación de InnovaTecNM Nacional.", 400);
+
+        if (project.Status == ProjectStatus.Completed)
+            return Result<ProjectResponseDto>.Failure("El trámite de acreditación ya fue concluido y liberado.", 400);
+
+        if (dto.File.Length > 10 * 1024 * 1024)
+            return Result<ProjectResponseDto>.Failure("El archivo excede el tamaño máximo permitido de 10MB.");
+
+        var extension = Path.GetExtension(dto.File.FileName).ToLowerInvariant();
+        var allowedExts = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+        if (!allowedExts.Contains(extension))
+            return Result<ProjectResponseDto>.Failure("Solo se permiten archivos en formato PDF o imágenes (JPG, PNG).");
+
+        var docsDir = Path.Combine(uploadsRootPath, "documents");
+        if (!Directory.Exists(docsDir))
+        {
+            Directory.CreateDirectory(docsDir);
+        }
+
+        var uniqueFileName = $"{project.Id}_constancia_acreditacion_{Guid.NewGuid()}{extension}";
+        var relativePath = Path.Combine("documents", uniqueFileName).Replace('\\', '/');
+        var fullPath = Path.Combine(docsDir, uniqueFileName);
+
+        using (var stream = new FileStream(fullPath, FileMode.Create))
+        {
+            await dto.File.CopyToAsync(stream);
+        }
+
+        var contentType = !string.IsNullOrEmpty(dto.File.ContentType)
+            ? dto.File.ContentType
+            : extension switch
+            {
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                _ => "application/pdf"
+            };
+
+        var pagedDocs = await _documentRepository.GetPagedByProjectIdAsync(project.Id, new PaginationQuery { PageNumber = 1, PageSize = 10 });
+        var constanciaDoc = pagedDocs.Items.FirstOrDefault(d => d.DocumentType == DocumentType.ConstanciaAcreditacion && d.IsActive);
+
+        if (constanciaDoc != null)
+        {
+            constanciaDoc.FileName = dto.File.FileName;
+            constanciaDoc.FilePath = relativePath;
+            constanciaDoc.FileSize = dto.File.Length;
+            constanciaDoc.ContentType = contentType;
+            constanciaDoc.Status = DocumentStatus.Uploaded;
+            constanciaDoc.RejectionReason = null;
+            constanciaDoc.UploadedAt = DateTime.UtcNow;
+            constanciaDoc.UpdatedAt = DateTime.UtcNow;
+            constanciaDoc.UpdatedBy = _currentUser.UserId;
+            await _documentRepository.UpdateAsync(constanciaDoc);
+            await _documentRepository.SaveChangesAsync();
+        }
+        else
+        {
+            var newDoc = new Document
+            {
+                ProjectId = project.Id,
+                DocumentType = DocumentType.ConstanciaAcreditacion,
+                FileName = dto.File.FileName,
+                FilePath = relativePath,
+                FileSize = dto.File.Length,
+                ContentType = contentType,
+                Status = DocumentStatus.Uploaded,
+                UploadedAt = DateTime.UtcNow,
+                IsActive = true,
+                IsVisible = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                CreatedBy = _currentUser.UserId
+            };
+            await _documentRepository.AddAsync(newDoc);
+            await _documentRepository.SaveChangesAsync();
+        }
+
+        project.Status = ProjectStatus.UnderReview;
+        project.ReviewComments = "Nueva constancia adjuntada por el estudiante. Pendiente de dictamen por Jefatura de Carrera.";
+        project.UpdatedAt = DateTime.UtcNow;
+        project.UpdatedBy = _currentUser.UserId;
+
+        await _repository.UpdateAsync(project);
+        var updated = await _repository.GetByIdAsync(project.Id);
+        return Result<ProjectResponseDto>.Success(MapToDto(updated ?? project));
     }
 }

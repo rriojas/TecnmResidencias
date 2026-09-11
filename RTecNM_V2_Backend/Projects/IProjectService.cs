@@ -22,4 +22,7 @@ public interface IProjectService
     Task<Result<ProjectResponseDto>> CancelProjectAsync(long id);
     Task<Result<bool>> SoftDeleteAsync(long id);
     Task<Result<bool>> ActivateAsync(long id);
+    Task<Result<ProjectResponseDto>> CreateAccreditationProjectAsync(CreateAccreditationDto dto, string uploadsRootPath);
+    Task<Result<ProjectResponseDto>> ReviewAccreditationAsync(long id, ReviewAccreditationDto dto);
+    Task<Result<ProjectResponseDto>> ResubmitAccreditationAsync(long id, ResubmitAccreditationDto dto, string uploadsRootPath);
 }

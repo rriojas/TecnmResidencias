@@ -6,6 +6,7 @@ public interface ICurrentUserService
 {
     long UserId { get; }
     long? CareerId { get; }
+    IReadOnlyList<long> CareerIds { get; }
     string? Email { get; }
     UserRole? Role { get; }
     bool IsAuthenticated { get; }

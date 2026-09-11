@@ -72,11 +72,20 @@ const userForm = ref({
   password: '',
   roleId: '',
   careerId: 4,
+  careerIds: [],
   phone: '',
   title: '',
   curp: '',
   gender: 'Masculino',
   academicPeriodId: 1,
+})
+
+const isCoordinatorRole = computed(() => {
+  if (!userForm.value.roleId) return false
+  const role = roleOptions.value.find((r) => r.id === parseInt(userForm.value.roleId, 10))
+  if (!role) return false
+  const code = (role.code || '').toLowerCase().replace('_', '')
+  return code === 'coordinadora' || code === 'coordinator'
 })
 
 const ALLOWED_DOMAINS = ['@monclova.tecnm.mx', '@tecnm.mx']
@@ -341,6 +350,7 @@ function openCreateUserModal() {
     password: '',
     roleId: '',
     careerId: 4,
+    careerIds: [],
     phone: '',
     title: '',
     curp: '',
@@ -369,6 +379,15 @@ function openEditUserModal(u) {
       ? u.assignedRoles[0].id
       : roleOptions.value.find((r) => r.code === u.role)?.id || ''
 
+  let initialCareerIds = []
+  if (Array.isArray(u.careerIds) && u.careerIds.length > 0) {
+    initialCareerIds = u.careerIds.map(Number)
+  } else if (u.careerId) {
+    initialCareerIds = [Number(u.careerId)]
+  } else if (u.departmentId) {
+    initialCareerIds = [Number(u.departmentId)]
+  }
+
   userForm.value = {
     userId: u.userId,
     controlNumber: u.controlNumber || '',
@@ -379,6 +398,7 @@ function openEditUserModal(u) {
     password: '',
     roleId: currentRoleId,
     careerId: u.careerId || u.departmentId || 4,
+    careerIds: initialCareerIds,
     phone: u.phone || '',
     title: u.title || '',
     curp: u.curp || '',
@@ -400,6 +420,11 @@ async function handleSaveUser() {
 
   if (!userForm.value.roleId) {
     userFormError.value = 'Por favor seleccione un rol para el usuario.'
+    return
+  }
+
+  if (isCoordinatorRole.value && (!userForm.value.careerIds || userForm.value.careerIds.length === 0)) {
+    userFormError.value = 'Debe seleccionar al menos una carrera para la coordinadora.'
     return
   }
 
@@ -429,6 +454,10 @@ async function handleSaveUser() {
   const controlNumber = userForm.value.controlNumber ? userForm.value.controlNumber.replace(/\s+/g, '').toUpperCase() : null
   const cleanEmail = email.replace(/\s+/g, '').toLowerCase()
 
+  const primaryCareerId = isCoordinatorRole.value
+    ? (userForm.value.careerIds[0] ? parseInt(userForm.value.careerIds[0], 10) : 4)
+    : parseInt(userForm.value.careerId || 4, 10)
+
   const payload = {
     email: cleanEmail,
     roleId: parseInt(userForm.value.roleId, 10),
@@ -436,14 +465,15 @@ async function handleSaveUser() {
     lastName: cleanLastName || null,
     lastName2: cleanLastName2 || null,
     controlNumber,
-    careerId: parseInt(userForm.value.careerId || 4, 10),
+    careerId: primaryCareerId,
+    careerIds: isCoordinatorRole.value ? userForm.value.careerIds.map(Number) : null,
     fullName,
     title: userForm.value.title ? userForm.value.title.trim().replace(/\s+/g, ' ') : null,
     phone: userForm.value.phone ? userForm.value.phone.trim().replace(/\s+/g, '') : null,
     curp: userForm.value.curp ? userForm.value.curp.replace(/\s+/g, '').toUpperCase() : null,
     gender: userForm.value.gender || null,
     academicPeriodId: userForm.value.academicPeriodId ? parseInt(userForm.value.academicPeriodId, 10) : 1,
-    departmentId: parseInt(userForm.value.careerId || 4, 10),
+    departmentId: primaryCareerId,
     advisorType: 1,
   }
 
@@ -1206,8 +1236,34 @@ onMounted(async () => {
             </div>
 
             <div class="tecnm-form-group">
-              <label for="userCareerSelect" class="tecnm-label">Carrera / Área Académica *</label>
+              <label :for="isCoordinatorRole ? undefined : 'userCareerSelect'" class="tecnm-label">
+                {{ isCoordinatorRole ? 'Carreras Asignadas (Seleccionar 1 o más) *' : 'Carrera / Área Académica *' }}
+              </label>
+
+              <!-- Checkboxes para rol Coordinadora -->
+              <div v-if="isCoordinatorRole" class="coordinator-careers-container" id="coordinatorCareersCheckboxes">
+                <div
+                  v-for="c in (careersOptions.length > 0 ? careersOptions : defaultCareers)"
+                  :key="c.id"
+                  class="coordinator-career-checkbox-item"
+                >
+                  <label :for="'career-check-' + c.id" class="coordinator-checkbox-label">
+                    <input
+                      :id="'career-check-' + c.id"
+                      type="checkbox"
+                      :value="c.id"
+                      v-model="userForm.careerIds"
+                      class="coordinator-checkbox-input"
+                    />
+                    <span class="coordinator-career-badge">{{ c.code }}</span>
+                    <span class="coordinator-career-text">{{ c.name }}</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Combobox para los demás roles -->
               <select
+                v-else
                 id="userCareerSelect"
                 v-model.number="userForm.careerId"
                 class="tecnm-form-control"
@@ -1215,7 +1271,7 @@ onMounted(async () => {
               >
                 <option value="" disabled>-- Seleccionar Carrera --</option>
                 <option
-                  v-for="c in careersOptions"
+                  v-for="c in (careersOptions.length > 0 ? careersOptions : defaultCareers)"
                   :key="c.id"
                   :value="c.id"
                 >
@@ -1285,3 +1341,60 @@ onMounted(async () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.coordinator-careers-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 0.75rem;
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+}
+
+.coordinator-career-checkbox-item {
+  display: flex;
+  align-items: center;
+}
+
+.coordinator-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.375rem;
+  transition: background-color 0.15s ease;
+  font-size: 0.875rem;
+  color: #1e293b;
+}
+
+.coordinator-checkbox-label:hover {
+  background-color: #e2e8f0;
+}
+
+.coordinator-checkbox-input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: #1b396a;
+  cursor: pointer;
+}
+
+.coordinator-career-badge {
+  display: inline-block;
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.45rem;
+  background-color: #1b396a;
+  color: #ffffff;
+  border-radius: 0.25rem;
+}
+
+.coordinator-career-text {
+  flex: 1;
+}
+</style>

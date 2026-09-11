@@ -117,6 +117,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         UserRole.Director => "director",
         UserRole.Admin => "admin",
         UserRole.CareerHead => "jefecarrera",
+        UserRole.Coordinator => "coordinadora",
         _ => "student"
     };
 
@@ -129,6 +130,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         "director" => UserRole.Director,
         "admin" or "administrador" or "superadmin" => UserRole.Admin,
         "jefecarrera" or "jefe_carrera" or "careerhead" => UserRole.CareerHead,
+        "coordinadora" or "coordinador" or "coordinator" => UserRole.Coordinator,
         _ => UserRole.Student
     };
 }

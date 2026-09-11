@@ -154,7 +154,8 @@ public static class DbSeeder
             ("Director / Directivos", "director", "Acceso de solo lectura global a todos los módulos"),
             ("Asesores Académicos", "advisor", "Asesoría académica, revisión de 26 semanas y evaluación"),
             ("Estudiantes", "student", "Registro de anteproyectos vinculados a empresas, cronograma y expediente"),
-            ("Jefe de Carrera", "jefecarrera", "Asignación de asesores y seguimiento académico filtrado por carrera")
+            ("Jefe de Carrera", "jefecarrera", "Asignación de asesores y seguimiento académico filtrado por carrera"),
+            ("Coordinadora de Carrera", "coordinadora", "Acceso de solo lectura restringido a sus carreras asignadas")
         };
 
         foreach (var rdef in roleDefs)
@@ -238,7 +239,7 @@ public static class DbSeeder
             if (role.Code == "admin") allowedSlugs = existingPerms.Select(p => p.Slug).ToHashSet();
             else if (role.Code == "academico") allowedSlugs = academicSlugs;
             else if (role.Code == "vinculacion") allowedSlugs = vinculacionSlugs;
-            else if (role.Code == "director") allowedSlugs = directorSlugs;
+            else if (role.Code == "director" || role.Code == "coordinadora") allowedSlugs = directorSlugs;
             else if (role.Code == "advisor") allowedSlugs = advisorSlugs;
             else if (role.Code == "student") allowedSlugs = studentSlugs;
             else if (role.Code == "jefecarrera") allowedSlugs = jefeCarreraSlugs;
@@ -769,6 +770,24 @@ public static class DbSeeder
                 ALTER TABLE student_blocks ADD COLUMN IF NOT EXISTS updated_by BIGINT NULL;
                 ALTER TABLE student_blocks ADD COLUMN IF NOT EXISTS is_visible BOOLEAN NOT NULL DEFAULT TRUE;
                 ALTER TABLE student_blocks ADD COLUMN IF NOT EXISTS display_order INT NOT NULL DEFAULT 0;
+
+                CREATE TABLE IF NOT EXISTS user_careers (
+                    id BIGSERIAL PRIMARY KEY,
+                    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    career_id BIGINT NOT NULL REFERENCES careers(id) ON DELETE CASCADE,
+                    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                    is_visible BOOLEAN NOT NULL DEFAULT TRUE,
+                    display_order INT NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    deleted_at TIMESTAMP WITH TIME ZONE NULL,
+                    created_by BIGINT NULL,
+                    updated_by BIGINT NULL,
+                    deleted_by BIGINT NULL,
+                    CONSTRAINT uq_user_careers UNIQUE (user_id, career_id)
+                );
+                CREATE INDEX IF NOT EXISTS ix_user_careers_user_id ON user_careers(user_id);
+                CREATE INDEX IF NOT EXISTS ix_user_careers_career_id ON user_careers(career_id);
 
                 UPDATE users u SET phone = a.phone FROM advisors a WHERE a.user_id = u.id AND (u.phone IS NULL OR u.phone = '');
                 UPDATE users u SET phone = ch.phone FROM career_heads ch WHERE ch.user_id = u.id AND (u.phone IS NULL OR u.phone = '');

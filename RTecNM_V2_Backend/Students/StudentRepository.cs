@@ -25,6 +25,20 @@ public class StudentRepository : IStudentRepository
         {
             q = q.Where(s => s.CareerId == _currentUser.CareerId.Value);
         }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            var allowedCareerIds = _currentUser.CareerIds;
+            if (careerId.HasValue && careerId.Value > 0)
+            {
+                q = allowedCareerIds.Contains(careerId.Value)
+                    ? q.Where(s => s.CareerId == careerId.Value)
+                    : q.Where(s => false);
+            }
+            else
+            {
+                q = q.Where(s => allowedCareerIds.Contains(s.CareerId));
+            }
+        }
         else if (careerId.HasValue && careerId.Value > 0)
         {
             q = q.Where(s => s.CareerId == careerId.Value);
@@ -71,6 +85,20 @@ public class StudentRepository : IStudentRepository
         {
             q = q.Where(s => s.CareerId == _currentUser.CareerId.Value);
         }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            var allowedCareerIds = _currentUser.CareerIds;
+            if (careerId.HasValue && careerId.Value > 0)
+            {
+                q = allowedCareerIds.Contains(careerId.Value)
+                    ? q.Where(s => s.CareerId == careerId.Value)
+                    : q.Where(s => false);
+            }
+            else
+            {
+                q = q.Where(s => allowedCareerIds.Contains(s.CareerId));
+            }
+        }
         else if (careerId.HasValue && careerId.Value > 0)
         {
             q = q.Where(s => s.CareerId == careerId.Value);
@@ -115,6 +143,11 @@ public class StudentRepository : IStudentRepository
         {
             q = q.Where(s => s.CareerId == _currentUser.CareerId.Value);
         }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            var allowedCareerIds = _currentUser.CareerIds;
+            q = q.Where(s => allowedCareerIds.Contains(s.CareerId));
+        }
 
         return await q.OrderBy(s => s.LastName)
             .ThenBy(s => s.FirstName)
@@ -131,6 +164,9 @@ public class StudentRepository : IStudentRepository
         if (student != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue && student.CareerId != _currentUser.CareerId.Value)
             return null;
 
+        if (student != null && _currentUser.Role == UserRole.Coordinator && !_currentUser.CareerIds.Contains(student.CareerId))
+            return null;
+
         return student;
     }
 
@@ -144,6 +180,9 @@ public class StudentRepository : IStudentRepository
         if (student != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue && student.CareerId != _currentUser.CareerId.Value)
             return null;
 
+        if (student != null && _currentUser.Role == UserRole.Coordinator && !_currentUser.CareerIds.Contains(student.CareerId))
+            return null;
+
         return student;
     }
 
@@ -155,6 +194,9 @@ public class StudentRepository : IStudentRepository
             .FirstOrDefaultAsync(s => s.UserId == userId && (s.User == null || s.User.Role == UserRole.Student));
 
         if (student != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue && student.CareerId != _currentUser.CareerId.Value)
+            return null;
+
+        if (student != null && _currentUser.Role == UserRole.Coordinator && !_currentUser.CareerIds.Contains(student.CareerId))
             return null;
 
         return student;

@@ -10,5 +10,7 @@ public enum UserRole
     Director = 4,
     Admin = 5,
     CareerHead = 6,
-    JefeCarrera = 6
+    JefeCarrera = 6,
+    Coordinator = 7,
+    Coordinadora = 7
 }

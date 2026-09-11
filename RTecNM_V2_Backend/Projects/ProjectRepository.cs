@@ -31,6 +31,9 @@ public class ProjectRepository : IProjectRepository
         if (project != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue && project.Student != null && project.Student.CareerId != _currentUser.CareerId.Value)
             return null;
 
+        if (project != null && _currentUser.Role == UserRole.Coordinator && project.Student != null && !_currentUser.CareerIds.Contains(project.Student.CareerId))
+            return null;
+
         return project;
     }
 
@@ -86,6 +89,12 @@ public class ProjectRepository : IProjectRepository
             q = q.Where(p => p.Student != null && p.Student.CareerId == _currentUser.CareerId.Value);
             q = q.Where(p => p.Status != ProjectStatus.Draft);
         }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            var allowedCareerIds = _currentUser.CareerIds;
+            q = q.Where(p => p.Student != null && allowedCareerIds.Contains(p.Student.CareerId));
+            q = q.Where(p => p.Status != ProjectStatus.Draft);
+        }
 
         q = ApplyStatusFilter(q, status);
 
@@ -113,6 +122,12 @@ public class ProjectRepository : IProjectRepository
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
             q = q.Where(p => p.Student != null && p.Student.CareerId == _currentUser.CareerId.Value);
+            q = q.Where(p => p.Status != ProjectStatus.Draft);
+        }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            var allowedCareerIds = _currentUser.CareerIds;
+            q = q.Where(p => p.Student != null && allowedCareerIds.Contains(p.Student.CareerId));
             q = q.Where(p => p.Status != ProjectStatus.Draft);
         }
 

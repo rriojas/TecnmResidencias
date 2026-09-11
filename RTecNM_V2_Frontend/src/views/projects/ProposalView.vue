@@ -111,9 +111,53 @@ const activeProposal = computed(() => {
   })
 })
 
+function isAccreditationType(p) {
+  if (!p) return false
+  const t = String(p.projectType || '').toLowerCase()
+  return t === 'acreditacion_innovatec' || t === 'acreditacion_hackatec'
+}
+
+// Trámite de InnovaTecNM Nacional para estudiante
+const latestAccreditationProject = computed(() => {
+  return proposals.value.find((p) => isAccreditationType(p))
+})
+
+const isAccreditationActive = computed(() => {
+  if (!latestAccreditationProject.value || isStaff.value) return false
+  const st = String(latestAccreditationProject.value.status || '').toLowerCase()
+  return !['rejected', 'cancelled'].includes(st)
+})
+
+const isAccreditationUnderReview = computed(() => {
+  if (!latestAccreditationProject.value || isStaff.value) return false
+  const st = String(latestAccreditationProject.value.status || '').toLowerCase()
+  return ['under_review', 'pending', 'proposed'].includes(st) && !latestAccreditationProject.value.reviewComments
+})
+
+const isAccreditationReturned = computed(() => {
+  if (!latestAccreditationProject.value || isStaff.value) return false
+  const st = String(latestAccreditationProject.value.status || '').toLowerCase()
+  return (st === 'draft' || st === 'rejected') && !!latestAccreditationProject.value.reviewComments
+})
+
+const isAccreditationCompleted = computed(() => {
+  if (!latestAccreditationProject.value || isStaff.value) return false
+  const st = String(latestAccreditationProject.value.status || '').toLowerCase()
+  return st === 'completed'
+})
+
+const isAccreditationDenied = computed(() => {
+  if (!latestAccreditationProject.value || isStaff.value) return false
+  const st = String(latestAccreditationProject.value.status || '').toLowerCase()
+  return (st === 'rejected' || st === 'cancelled') && !latestAccreditationProject.value.reviewComments
+})
+
 const canCreateProposal = computed(() => {
   if (authStore.isReadOnly || authStore.hasRole('vinculacion')) return false
   if (isStaff.value) return true
+  // Si tiene trámite de InnovaTecNM en revisión o completado, creación bloqueada
+  if (isAccreditationActive.value) return false
+  // Si fue denegado, activeProposal no bloqueará si no hay otro activo
   return !activeProposal.value
 })
 
@@ -460,6 +504,54 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Banners informativos para Estudiante con trámite de InnovaTecNM Nacional -->
+    <template v-if="!isStaff && latestAccreditationProject">
+      <!-- En Revisión -->
+      <div v-if="isAccreditationUnderReview" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
+        <div>
+          <strong>Trámite de InnovaTecNM Nacional en Revisión por la Jefatura:</strong>
+          <p class="tecnm-mt-1 tecnm-mb-0">
+            Has enviado tu constancia oficial de <strong>InnovaTecNM Nacional</strong>. El registro de nuevo anteproyecto ordinario se encuentra pausado mientras se realiza el dictamen. Al ser aprobada, tu residencia se liberará al 100%.
+          </p>
+        </div>
+      </div>
+
+      <!-- Con Observaciones / Correcciones -->
+      <div v-else-if="isAccreditationReturned" class="tecnm-alert tecnm-alert-warning" role="alert" style="margin-bottom: 1rem;">
+        <div class="tecnm-d-flex tecnm-justify-between tecnm-align-center tecnm-flex-wrap tecnm-gap-2">
+          <div>
+            <strong>Constancia de InnovaTecNM Nacional con Observaciones:</strong>
+            <p class="tecnm-mt-1 tecnm-mb-0">{{ latestAccreditationProject.reviewComments }}</p>
+          </div>
+          <router-link to="/dashboard" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm">
+            Ir al Panel para Corregir &rarr;
+          </router-link>
+        </div>
+      </div>
+
+      <!-- Acreditado / Completado -->
+      <div v-else-if="isAccreditationCompleted" class="tecnm-alert tecnm-alert-success" role="alert" style="margin-bottom: 1rem;">
+        <div>
+          <strong>¡Residencia Profesional Acreditada al 100% mediante InnovaTecNM Nacional!</strong>
+          <p class="tecnm-mt-1 tecnm-mb-0">
+            Tu constancia fue aprobada satisfactoriamente. Tu residencia se encuentra liberada y exenta de anteproyecto ordinario, asignación de asesor y formatos adicionales.
+          </p>
+        </div>
+      </div>
+
+      <!-- Denegado / Rechazado -->
+      <div v-else-if="isAccreditationDenied" class="tecnm-alert tecnm-alert-danger" role="alert" style="margin-bottom: 1rem;">
+        <div>
+          <strong>Acreditación por InnovaTecNM No Aprobada:</strong>
+          <p class="tecnm-mt-1 tecnm-mb-0">
+            Tu solicitud de acreditación no fue aprobada por la Jefatura de Carrera.
+            <span v-if="latestAccreditationProject.reviewComments"> Motivo: <em>{{ latestAccreditationProject.reviewComments }}</em>.</span>
+            Se han reactivado las opciones para que puedas registrar tu anteproyecto ordinario o volver a tramitar la constancia desde el panel principal.
+          </p>
+        </div>
+      </div>
+    </template>
+
     <!-- Tarjeta Principal de Tabla -->
     <div class="tecnm-card">
       <div class="tecnm-card-header">
@@ -554,7 +646,7 @@ onMounted(() => {
                 </td>
                 <td v-if="isStaff">{{ p.studentName || '—' }}</td>
                 <td>{{ p.companyName || '—' }}</td>
-                <td>{{ p.projectType || 'Desarrollo' }}</td>
+                <td>{{ isAccreditationType(p) ? 'InnovaTecNM Nacional' : (p.projectType || 'Desarrollo') }}</td>
                 <td>{{ formatTecNMDate(p.createdAt) }}</td>
                 <td>
                   <TecnmBadge :status="p.status" />
@@ -569,7 +661,7 @@ onMounted(() => {
                       Ver detalle
                     </button>
                     <button
-                      v-if="!authStore.isReadOnly && !authStore.hasRole('vinculacion') && (isStaff ? !['completed', 'cancelled'].includes((p.status||'').toLowerCase()) : DRAFT_STATUSES.includes((p.status||'').toLowerCase()))"
+                      v-if="!authStore.isReadOnly && !authStore.hasRole('vinculacion') && (isStaff ? !['completed', 'cancelled'].includes((p.status||'').toLowerCase()) : (DRAFT_STATUSES.includes((p.status||'').toLowerCase()) && !isAccreditationType(p)))"
                       type="button"
                       class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                       @click="openEditModal(p)"
@@ -577,7 +669,7 @@ onMounted(() => {
                       {{ isStaff ? 'Editar' : 'Editar borrador' }}
                     </button>
                     <button
-                      v-if="!authStore.isReadOnly && !authStore.hasRole('vinculacion') && ['draft', 'rejected'].includes((p.status||'').toLowerCase())"
+                      v-if="!authStore.isReadOnly && !authStore.hasRole('vinculacion') && ['draft', 'rejected'].includes((p.status||'').toLowerCase()) && !isAccreditationType(p)"
                       type="button"
                       class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
                       @click="submitProposal(p)"

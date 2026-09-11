@@ -56,9 +56,24 @@ function isDictaminable(status) {
   return DICTAMINABLE_STATUSES.includes((status || '').toLowerCase())
 }
 
+function isAccreditation(project) {
+  if (!project) return false
+  const t = String(project.projectType || '').toLowerCase()
+  return t === 'acreditacion_hackatec' || t === 'acreditacion_innovatec'
+}
+
+function getAccreditationBadgeLabel(project) {
+  return 'InnovaTecNM Nacional'
+}
+
 function getActionLabel(project) {
   if (!project) return 'Ver Detalle'
   const st = (project.status || '').toLowerCase()
+  if (isAccreditation(project)) {
+    if (!authStore.isReadOnly && !authStore.hasRole('vinculacion') && isDictaminable(st)) {
+      return 'Revisar Acreditación'
+    }
+  }
   if (!authStore.isReadOnly && !authStore.hasRole('vinculacion') && isDictaminable(st)) {
     return 'Revisar y Dictaminar'
   }
@@ -74,6 +89,7 @@ const selectedProject = ref(null)
 const reviewComments = ref('')
 const selectedAdvisorId = ref('')
 const initialReviewAdvisor = ref(null)
+const accreditationDoc = ref(null)
 const isSubmitting = ref(false)
 
 // Catálogo de Carreras
@@ -199,9 +215,102 @@ async function openReviewModal(project) {
     reviewComments.value = res.data.reviewComments || ''
     selectedAdvisorId.value = res.data.advisorId || ''
     initialReviewAdvisor.value = res.data.advisorId ? { id: res.data.advisorId, fullName: res.data.advisorName } : null
+    accreditationDoc.value = null
+
+    if (isAccreditation(res.data)) {
+      try {
+        const dRes = await apiClient.get(`/v1/documents?projectId=${project.id}`)
+        const docs = dRes.data?.items || []
+        const found = docs.find((d) => d.documentType === 'constancia_acreditacion' && d.isActive)
+        accreditationDoc.value = found || null
+      } catch {}
+    }
+
     isReviewModalOpen.value = true
   } catch {
     showAlert('Error al cargar datos del anteproyecto.', 'danger')
+  }
+}
+
+async function downloadAccreditationDoc() {
+  if (!accreditationDoc.value?.id) return
+  try {
+    const res = await apiClient.get(`/v1/documents/${accreditationDoc.value.id}/download`, {
+      responseType: 'blob',
+    })
+    const url = window.URL.createObjectURL(new Blob([res.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', accreditationDoc.value.fileName || 'Constancia_Acreditacion.pdf')
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch {
+    showAlert('Error al descargar la constancia de acreditación.', 'danger')
+  }
+}
+
+async function handleValidateAccreditation(approved, denied = false) {
+  if (!selectedProject.value) return
+
+  if (!approved && !reviewComments.value.trim()) {
+    showAlert(
+      denied
+        ? 'Debe ingresar el motivo de la denegación en las observaciones.'
+        : 'Debe ingresar las observaciones de calidad o formato antes de regresar la constancia.',
+      'warning'
+    )
+    return
+  }
+
+  const title = approved
+    ? 'Validar y Liberar Residencia'
+    : denied
+      ? 'Denegar Acreditación por InnovaTecNM'
+      : 'Regresar con Observaciones'
+
+  const message = approved
+    ? `¿Está seguro de validar la constancia y liberar la residencia de "${selectedProject.value.studentName}" con calificación del 100%?`
+    : denied
+      ? `¿Está seguro de denegar la solicitud de acreditación de "${selectedProject.value.studentName}"? Al denegarla, se reactivarán sus opciones para registrar anteproyecto ordinario.`
+      : `¿Está seguro de regresar la constancia al estudiante con las observaciones de calidad/formato indicadas?`
+
+  const okText = approved
+    ? 'Validar y Liberar (100%)'
+    : denied
+      ? 'Confirmar Denegación'
+      : 'Regresar con Observaciones'
+
+  const confirmed = await confirm({
+    title,
+    message,
+    okText,
+    cancelText: 'Cancelar',
+  })
+  if (!confirmed) return
+
+  isSubmitting.value = true
+  try {
+    await apiClient.post(`/v1/projects/${selectedProject.value.id}/accreditation/validate`, {
+      approved,
+      denied,
+      observations: reviewComments.value.trim() || undefined,
+    })
+    showAlert(
+      approved
+        ? '¡Acreditación VALIDADA y Residencia LIBERADA con calificación de 100%!'
+        : denied
+          ? 'Acreditación DENEGADA. Se reactivaron automáticamente las secciones ordinarias del estudiante.'
+          : 'Observaciones enviadas al estudiante. Podrá re-enviar su constancia corregida.',
+      approved ? 'success' : denied ? 'danger' : 'warning'
+    )
+    isReviewModalOpen.value = false
+    loadProjects()
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al dictaminar la acreditación.', 'danger')
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -527,7 +636,16 @@ onMounted(() => {
                 v-else
                 :key="p.id"
               >
-                <td><strong>{{ p.title }}</strong></td>
+                <td>
+                  <strong>{{ p.title }}</strong>
+                  <span
+                    v-if="isAccreditation(p)"
+                    class="tecnm-badge"
+                    style="margin-left: 0.5rem; font-size: 0.72rem; background-color: var(--tecnm-gold-accent, #C5A059); color: #fff;"
+                  >
+                    {{ getAccreditationBadgeLabel(p) }}
+                  </span>
+                </td>
                 <td>
                   <div>{{ p.studentName || '—' }}</div>
                   <small v-if="p.careerId || p.career" style="color: var(--tecnm-blue-primary, #1b396a); font-size: 0.75rem;">
@@ -596,7 +714,7 @@ onMounted(() => {
       <div class="modal-card modal-card-wide">
         <div class="tecnm-modal-header">
           <h3 class="tecnm-modal-title">
-            Detalle de Solicitud de Anteproyecto
+            {{ isAccreditation(selectedProject) ? 'Revisión de Acreditación (' + getAccreditationBadgeLabel(selectedProject) + ')' : 'Detalle de Solicitud de Anteproyecto' }}
             <span id="modalProjectId" style="display: none;">{{ selectedProject.id }}</span>
           </h3>
           <button
@@ -624,87 +742,131 @@ onMounted(() => {
             </div>
           </div>
 
-          <h4 class="tecnm-field-label">Título del Proyecto</h4>
+          <h4 class="tecnm-field-label">
+            {{ isAccreditation(selectedProject) ? 'Nombre del Proyecto o Solución (Evento)' : 'Título del Proyecto' }}
+          </h4>
           <p id="modalProjectTitle" class="tecnm-field-value tecnm-field-value-emphasis">
             {{ selectedProject.title }}
           </p>
 
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: var(--tecnm-spacing-md);">
-            <div>
-              <h4 class="tecnm-field-label">Empresa Receptora</h4>
-              <p class="tecnm-field-value">{{ selectedProject.companyName || '—' }}</p>
+          <!-- SECCIÓN ESPECIAL ACREDITACIÓN INNOVATECNM NACIONAL -->
+          <template v-if="isAccreditation(selectedProject)">
+            <div class="tecnm-alert tecnm-alert-info" style="margin-bottom: 1rem;">
+              <strong>Modalidad de Acreditación Directa:</strong>
+              El residente tramitó su acreditación mediante <strong>{{ getAccreditationBadgeLabel(selectedProject) }}</strong>. No requiere anteproyecto ordinario ni asignación de asesor. Al validar la constancia oficial, la residencia se liberará automáticamente al 100%.
             </div>
-            <div>
-              <h4 class="tecnm-field-label">Asesor Interno Asignado</h4>
-              <p class="tecnm-field-value">
-                <span v-if="selectedProject.advisorName" class="tecnm-badge tecnm-badge-success" style="font-size: 0.85rem;">
-                  {{ selectedProject.advisorName }}
-                </span>
-                <span v-else class="tecnm-badge tecnm-badge-warning" style="font-size: 0.85rem;">
-                  Pendiente de asignación
-                </span>
-              </p>
-            </div>
-          </div>
 
-          <!-- Selector de Asesor para Jefatura / División Académica -->
-          <div
-            v-if="!authStore.isReadOnly && (authStore.isAdmin || authStore.hasRole('departmenthead', 'academic')) && !['completed', 'cancelled'].includes((selectedProject.status || '').toLowerCase())"
-            class="tecnm-form-group"
-            style="background: var(--tecnm-bg-light, #f8fafc); padding: 1rem; border-radius: 8px; border: 1px solid var(--tecnm-border-color, #e2e8f0); margin-bottom: 1rem;"
-          >
-            <label class="tecnm-label" style="font-weight: 600;">
-              Asignar / Cambiar Asesor Académico por Anteproyecto:
-            </label>
-            <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;">
-              <div style="flex: 1;">
-                <TecnmAutocomplete
-                  v-model="selectedAdvisorId"
-                  endpoint="/v1/advisors"
-                  global-search-source="ADVISORS"
-                  placeholder="Buscar asesor académico por nombre..."
-                  :initial-item="initialReviewAdvisor"
-                />
+            <!-- Card de Constancia Adjunta -->
+            <div class="tecnm-card" style="margin-bottom: 1.25rem; border: 1px solid var(--tecnm-border-color, #e2e8f0);">
+              <div class="tecnm-card-header" style="background: var(--tecnm-bg-light, #f8fafc); padding: 0.75rem 1rem;">
+                <h4 class="tecnm-card-title" style="font-size: 0.95rem; margin: 0;">
+                  Constancia Oficial de Acreditación
+                </h4>
               </div>
-              <button
-                type="button"
-                class="tecnm-btn tecnm-btn-primary"
-                :disabled="isSubmitting || !selectedAdvisorId || Number(selectedAdvisorId) === Number(selectedProject.advisorId)"
-                @click="handleAssignAdvisor"
-              >
-                Guardar Asesor
-              </button>
+              <div class="tecnm-card-body" style="padding: 1rem;">
+                <div v-if="accreditationDoc" class="tecnm-d-flex tecnm-justify-between tecnm-align-center" style="gap: 1rem; flex-wrap: wrap;">
+                  <div>
+                    <div style="font-weight: 600; color: var(--tecnm-blue-primary, #1b396a);">
+                      {{ accreditationDoc.fileName }}
+                    </div>
+                    <div class="tecnm-text-sub" style="font-size: 0.8rem;">
+                      Subido: {{ formatTecNMDate(accreditationDoc.uploadedAt) }} &bull; Estado: <TecnmBadge :status="accreditationDoc.status" />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                    @click="downloadAccreditationDoc"
+                  >
+                    Descargar / Ver Constancia &rarr;
+                  </button>
+                </div>
+                <div v-else class="tecnm-text-muted" style="font-size: 0.875rem;">
+                  No se encontró archivo de constancia cargado en el expediente.
+                </div>
+              </div>
             </div>
-          </div>
+          </template>
 
-          <h4 class="tecnm-field-label">Planteamiento del Problema</h4>
-          <p id="modalProblemStatement" class="tecnm-field-value tecnm-field-value-box">
-            {{ selectedProject.problemStatement }}
-          </p>
+          <!-- SECCIÓN ANTEPROYECTO TRADICIONAL -->
+          <template v-else>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: var(--tecnm-spacing-md);">
+              <div>
+                <h4 class="tecnm-field-label">Empresa Receptora</h4>
+                <p class="tecnm-field-value">{{ selectedProject.companyName || '—' }}</p>
+              </div>
+              <div>
+                <h4 class="tecnm-field-label">Asesor Interno Asignado</h4>
+                <p class="tecnm-field-value">
+                  <span v-if="selectedProject.advisorName" class="tecnm-badge tecnm-badge-success" style="font-size: 0.85rem;">
+                    {{ selectedProject.advisorName }}
+                  </span>
+                  <span v-else class="tecnm-badge tecnm-badge-warning" style="font-size: 0.85rem;">
+                    Pendiente de asignación
+                  </span>
+                </p>
+              </div>
+            </div>
 
-          <h4 class="tecnm-field-label">Justificación</h4>
-          <p id="modalJustification" class="tecnm-field-value tecnm-field-value-box">
-            {{ selectedProject.justification }}
-          </p>
-
-          <h4 class="tecnm-field-label">Objetivo General</h4>
-          <p id="modalGeneralObjective" class="tecnm-field-value tecnm-field-value-emphasis">
-            {{ selectedProject.generalObjective }}
-          </p>
-
-          <h4 class="tecnm-field-label">Objetivos Específicos</h4>
-          <ul id="modalObjectivesList" class="tecnm-field-list">
-            <li v-if="!selectedProject.objectives || selectedProject.objectives.length === 0">
-              Sin objetivos específicos registrados.
-            </li>
-            <li
-              v-for="(obj, idx) in selectedProject.objectives"
-              v-else
-              :key="idx"
+            <!-- Selector de Asesor para Jefatura / División Académica -->
+            <div
+              v-if="!authStore.isReadOnly && (authStore.isAdmin || authStore.hasRole('departmenthead', 'academic')) && !['completed', 'cancelled'].includes((selectedProject.status || '').toLowerCase())"
+              class="tecnm-form-group"
+              style="background: var(--tecnm-bg-light, #f8fafc); padding: 1rem; border-radius: 8px; border: 1px solid var(--tecnm-border-color, #e2e8f0); margin-bottom: 1rem;"
             >
-              {{ obj.description || obj }}
-            </li>
-          </ul>
+              <label class="tecnm-label" style="font-weight: 600;">
+                Asignar / Cambiar Asesor Académico por Anteproyecto:
+              </label>
+              <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;">
+                <div style="flex: 1;">
+                  <TecnmAutocomplete
+                    v-model="selectedAdvisorId"
+                    endpoint="/v1/advisors"
+                    global-search-source="ADVISORS"
+                    placeholder="Buscar asesor académico por nombre..."
+                    :initial-item="initialReviewAdvisor"
+                  />
+                </div>
+                <button
+                  type="button"
+                  class="tecnm-btn tecnm-btn-primary"
+                  :disabled="isSubmitting || !selectedAdvisorId || Number(selectedAdvisorId) === Number(selectedProject.advisorId)"
+                  @click="handleAssignAdvisor"
+                >
+                  Guardar Asesor
+                </button>
+              </div>
+            </div>
+
+            <h4 class="tecnm-field-label">Planteamiento del Problema</h4>
+            <p id="modalProblemStatement" class="tecnm-field-value tecnm-field-value-box">
+              {{ selectedProject.problemStatement }}
+            </p>
+
+            <h4 class="tecnm-field-label">Justificación</h4>
+            <p id="modalJustification" class="tecnm-field-value tecnm-field-value-box">
+              {{ selectedProject.justification }}
+            </p>
+
+            <h4 class="tecnm-field-label">Objetivo General</h4>
+            <p id="modalGeneralObjective" class="tecnm-field-value tecnm-field-value-emphasis">
+              {{ selectedProject.generalObjective }}
+            </p>
+
+            <h4 class="tecnm-field-label">Objetivos Específicos</h4>
+            <ul id="modalObjectivesList" class="tecnm-field-list">
+              <li v-if="!selectedProject.objectives || selectedProject.objectives.length === 0">
+                Sin objetivos específicos registrados.
+              </li>
+              <li
+                v-for="(obj, idx) in selectedProject.objectives"
+                v-else
+                :key="idx"
+              >
+                {{ obj.description || obj }}
+              </li>
+            </ul>
+          </template>
 
           <!-- Bloque de Avisos e Información según el Estado -->
 
@@ -792,17 +954,45 @@ onMounted(() => {
             Descargar PDF Oficial
           </button>
 
-          <!-- Asignar Asesor Interno directo si está aprobado -->
+          <!-- Asignar Asesor Interno directo si está aprobado y es proyecto ordinario -->
           <router-link
-            v-if="PRINTABLE_STATUSES.includes((selectedProject.status || '').toLowerCase()) && (authStore.isAdmin || authStore.hasRole('departmenthead', 'academic') || authStore.isCareerHead)"
+            v-if="!isAccreditation(selectedProject) && PRINTABLE_STATUSES.includes((selectedProject.status || '').toLowerCase()) && (authStore.isAdmin || authStore.hasRole('departmenthead', 'academic') || authStore.isCareerHead)"
             to="/advisors/assignments"
             class="tecnm-btn tecnm-btn-primary"
           >
             Asignar Asesor &rarr;
           </router-link>
 
-          <!-- Botones de Dictamen si está Pendiente/En Revisión -->
-          <template v-if="isDictaminable(selectedProject.status) && !authStore.isReadOnly && !authStore.hasRole('vinculacion')">
+          <!-- Botones de Dictamen para Acreditación InnovaTecNM Nacional -->
+          <template v-if="isAccreditation(selectedProject) && isDictaminable(selectedProject.status) && !authStore.isReadOnly && !authStore.hasRole('vinculacion')">
+            <button
+              type="button"
+              class="tecnm-btn tecnm-btn-danger"
+              :disabled="isSubmitting"
+              @click="handleValidateAccreditation(false, true)"
+            >
+              Denegar Acreditación
+            </button>
+            <button
+              type="button"
+              class="tecnm-btn tecnm-btn-warning"
+              :disabled="isSubmitting"
+              @click="handleValidateAccreditation(false, false)"
+            >
+              Regresar con Observaciones
+            </button>
+            <button
+              type="button"
+              class="tecnm-btn tecnm-btn-success"
+              :disabled="isSubmitting"
+              @click="handleValidateAccreditation(true, false)"
+            >
+              Validar y Liberar Residencia (100%)
+            </button>
+          </template>
+
+          <!-- Botones de Dictamen Ordinario si está Pendiente/En Revisión -->
+          <template v-else-if="!isAccreditation(selectedProject) && isDictaminable(selectedProject.status) && !authStore.isReadOnly && !authStore.hasRole('vinculacion')">
             <button
               id="rejectBtn"
               type="button"

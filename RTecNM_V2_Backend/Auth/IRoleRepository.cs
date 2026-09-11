@@ -33,4 +33,6 @@ public interface IRoleRepository
     Task EnsureAdvisorProfileAsync(long userId, string email, string? fullName, string? title, long? departmentId, string? phone, int? advisorType, long? createdByUserId, long? updatedByUserId);
     Task EnsureCareerHeadProfileAsync(long userId, string email, string? fullName, string? title, long careerId, string? phone, long? createdByUserId, long? updatedByUserId);
     Task CleanupProfilesForUserAsync(long userId, UserRole role);
+    Task<List<long>> GetUserCareerIdsAsync(long userId);
+    Task SyncUserCareersAsync(long userId, List<long> careerIds, long performedByUserId);
 }

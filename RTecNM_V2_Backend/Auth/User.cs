@@ -18,4 +18,5 @@ public class User : BaseEntity
     public long? CareerId { get; set; }
 
     public ICollection<UserRoleAssignment> UserRoles { get; set; } = new List<UserRoleAssignment>();
+    public ICollection<UserCareer> UserCareers { get; set; } = new List<UserCareer>();
 }

@@ -104,9 +104,46 @@ public class AuthService : IAuthService
             }
         }
 
+        var coordinatorCareerIds = new List<long>();
+        var coordinatorCareerNames = new List<string>();
+        if (user.Role == UserRole.Coordinator)
+        {
+            var ucList = await _context.UserCareers
+                .AsNoTracking()
+                .Include(uc => uc.Career)
+                .Where(uc => uc.UserId == user.Id && uc.IsActive)
+                .ToListAsync();
+
+            coordinatorCareerIds = ucList.Select(x => x.CareerId).ToList();
+            coordinatorCareerNames = ucList.Select(x => x.Career != null ? x.Career.Name : "").Where(n => !string.IsNullOrEmpty(n)).ToList();
+
+            if (coordinatorCareerIds.Any())
+            {
+                careerId = coordinatorCareerIds.First();
+            }
+            else if (user.CareerId.HasValue)
+            {
+                careerId = user.CareerId;
+                coordinatorCareerIds.Add(user.CareerId.Value);
+            }
+
+            var composed = $"{user.FirstName} {user.LastName}".Trim();
+            if (!string.IsNullOrWhiteSpace(composed))
+            {
+                fullName = composed;
+            }
+        }
+
         var permissions = await GetUserPermissionSlugsAsync(user);
-        var token = GenerateJwtToken(user, permissions, careerId);
+        var token = GenerateJwtToken(user, permissions, careerId, coordinatorCareerIds);
         var expiresIn = (int)TimeSpan.FromMinutes(_jwtSettings.ExpirationMinutes).TotalSeconds;
+
+        var roleCode = user.Role switch
+        {
+            UserRole.CareerHead => "jefecarrera",
+            UserRole.Coordinator => "coordinadora",
+            _ => user.Role.ToString().ToLowerInvariant()
+        };
 
         var response = new AuthTokenResponseDto
         {
@@ -119,7 +156,9 @@ public class AuthService : IAuthService
                 FullName = fullName,
                 ControlNumber = controlNumber,
                 CareerId = careerId,
-                Role = user.Role == UserRole.CareerHead ? "jefecarrera" : user.Role.ToString().ToLowerInvariant(),
+                CareerIds = coordinatorCareerIds,
+                CareerNames = coordinatorCareerNames,
+                Role = roleCode,
                 IsActive = user.IsActive,
                 IsAdmin = user.IsAdmin,
                 Permissions = permissions
@@ -185,12 +224,18 @@ public class AuthService : IAuthService
         return storedHash == computedHash;
     }
 
-    private string GenerateJwtToken(User user, List<string> permissions, long? careerId = null)
+    private string GenerateJwtToken(User user, List<string> permissions, long? careerId = null, List<long>? careerIds = null)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        var roleCode = user.Role == UserRole.CareerHead ? "jefecarrera" : user.Role.ToString().ToLowerInvariant();
+        var roleCode = user.Role switch
+        {
+            UserRole.CareerHead => "jefecarrera",
+            UserRole.Coordinator => "coordinadora",
+            _ => user.Role.ToString().ToLowerInvariant()
+        };
+
         var claimsList = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -204,11 +249,27 @@ public class AuthService : IAuthService
         {
             claimsList.Add(new Claim(ClaimTypes.Role, "careerhead"));
         }
+        else if (user.Role == UserRole.Coordinator)
+        {
+            claimsList.Add(new Claim(ClaimTypes.Role, "coordinator"));
+        }
 
-        if (careerId.HasValue && careerId.Value > 0)
+        if (careerIds != null && careerIds.Any())
+        {
+            var joined = string.Join(",", careerIds);
+            claimsList.Add(new Claim("CareerIds", joined));
+            claimsList.Add(new Claim("career_ids", joined));
+            foreach (var cid in careerIds)
+            {
+                claimsList.Add(new Claim("career_id", cid.ToString()));
+                claimsList.Add(new Claim("CareerId", cid.ToString()));
+            }
+        }
+        else if (careerId.HasValue && careerId.Value > 0)
         {
             claimsList.Add(new Claim("career_id", careerId.Value.ToString()));
             claimsList.Add(new Claim("careerId", careerId.Value.ToString()));
+            claimsList.Add(new Claim("CareerIds", careerId.Value.ToString()));
         }
 
         foreach (var perm in permissions)

@@ -86,7 +86,7 @@ public class EvaluationService : IEvaluationService
         }
         else if (IsStaff())
         {
-            evaluatorId = dto.EvaluatorId;
+            evaluatorId = dto.EvaluatorId > 0 ? dto.EvaluatorId : _currentUser.UserId;
         }
         else
         {

@@ -6,7 +6,7 @@ using TecNM.Residency.Common;
 namespace TecNM.Residency.Admin;
 
 [ApiController]
-[Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera")]
+[Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
 [Route("api/v1/[controller]")]
 public class AdminController : ControllerBase
 {
@@ -31,13 +31,24 @@ public class AdminController : ControllerBase
         {
             careerId = _currentUser.CareerId;
         }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            if (careerId.HasValue && _currentUser.CareerIds.Contains(careerId.Value))
+            {
+                // mantener careerId seleccionado por la coordinadora
+            }
+            else
+            {
+                careerId = _currentUser.CareerIds.FirstOrDefault();
+            }
+        }
 
         var result = await _metricsService.GetDashboardMetricsAsync(careerId);
         return Ok(result.Data);
     }
 
     [HttpGet("reports/releasable")]
-    [Authorize(Roles = "admin,departmenthead,director")]
+    [Authorize(Roles = "admin,departmenthead,director,coordinadora,coordinator")]
     public async Task<IActionResult> GetReleasableProjects([FromQuery] PaginationQuery query)
     {
         var result = await _reportService.GetReleasableProjectsAsync(query);
@@ -48,7 +59,7 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost("reports/release-letter/{projectId:long}")]
-    [Authorize(Roles = "admin,departmenthead,director")]
+    [Authorize(Roles = "admin,departmenthead")]
     public async Task<IActionResult> IssueReleaseLetter(long projectId)
     {
         var result = await _reportService.IssueReleaseLetterAsync(projectId);

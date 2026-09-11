@@ -177,6 +177,19 @@ public class SearchService : ISearchService
                 whereConditions.Add($"\"career_id\"::text = '{_currentUser.CareerId.Value}'");
             }
         }
+        else if (_currentUser.IsInRole(UserRole.Coordinator))
+        {
+            var careerIds = _currentUser.CareerIds;
+            var careerIdsListStr = careerIds.Count > 0 ? string.Join(",", careerIds) : "0";
+            if (request.SourceKey.Equals("STUDENTS", StringComparison.OrdinalIgnoreCase))
+            {
+                whereConditions.Add($"\"career_id\" IN ({careerIdsListStr})");
+            }
+            else if (request.SourceKey.Equals("PROJECTS", StringComparison.OrdinalIgnoreCase))
+            {
+                whereConditions.Add($"\"career_id\" IN ({careerIdsListStr})");
+            }
+        }
 
         var whereClause = whereConditions.Count > 0 ? "WHERE " + string.Join(" AND ", whereConditions) : "";
 

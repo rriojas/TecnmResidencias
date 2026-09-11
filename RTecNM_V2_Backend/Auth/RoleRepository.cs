@@ -579,6 +579,49 @@ public class RoleRepository : IRoleRepository
             }
         }
 
+        if (role != UserRole.Coordinator)
+        {
+            var userCareers = await _context.UserCareers.Where(uc => uc.UserId == userId).ToListAsync();
+            if (userCareers.Any())
+            {
+                _context.UserCareers.RemoveRange(userCareers);
+            }
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<List<long>> GetUserCareerIdsAsync(long userId)
+    {
+        return await _context.UserCareers
+            .AsNoTracking()
+            .Where(uc => uc.UserId == userId && uc.IsActive)
+            .Select(uc => uc.CareerId)
+            .ToListAsync();
+    }
+
+    public async Task SyncUserCareersAsync(long userId, List<long> careerIds, long performedByUserId)
+    {
+        var existing = await _context.UserCareers.Where(uc => uc.UserId == userId).ToListAsync();
+        if (existing.Any())
+        {
+            _context.UserCareers.RemoveRange(existing);
+        }
+
+        var distinct = careerIds.Where(cid => cid > 0).Distinct().ToList();
+        foreach (var cid in distinct)
+        {
+            _context.UserCareers.Add(new UserCareer
+            {
+                UserId = userId,
+                CareerId = cid,
+                IsActive = true,
+                IsVisible = true,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = performedByUserId
+            });
+        }
+
         await _context.SaveChangesAsync();
     }
 }

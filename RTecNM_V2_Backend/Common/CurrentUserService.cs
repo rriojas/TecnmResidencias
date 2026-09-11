@@ -38,6 +38,42 @@ public class CurrentUserService : ICurrentUserService
         }
     }
 
+    public IReadOnlyList<long> CareerIds
+    {
+        get
+        {
+            var user = _httpContextAccessor.HttpContext?.User;
+            if (user == null) return Array.Empty<long>();
+
+            var list = new List<long>();
+            var allClaims = user.FindAll("career_id")
+                .Concat(user.FindAll("careerId"))
+                .Concat(user.FindAll("CareerId"))
+                .Concat(user.FindAll("CareerIds"))
+                .Concat(user.FindAll("career_ids"));
+
+            foreach (var c in allClaims)
+            {
+                if (string.IsNullOrWhiteSpace(c.Value)) continue;
+                var parts = c.Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                foreach (var p in parts)
+                {
+                    if (long.TryParse(p, out var parsed) && parsed > 0 && !list.Contains(parsed))
+                    {
+                        list.Add(parsed);
+                    }
+                }
+            }
+
+            if (!list.Any() && CareerId.HasValue)
+            {
+                list.Add(CareerId.Value);
+            }
+
+            return list;
+        }
+    }
+
     public string? Email
     {
         get
@@ -65,6 +101,7 @@ public class CurrentUserService : ICurrentUserService
                 "director" => UserRole.Director,
                 "admin" or "superadmin" => UserRole.Admin,
                 "jefecarrera" or "careerhead" => UserRole.CareerHead,
+                "coordinadora" or "coordinador" or "coordinator" => UserRole.Coordinator,
                 _ => null
             };
         }
