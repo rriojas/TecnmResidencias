@@ -268,7 +268,10 @@ async function openEditModal(proposal) {
       justification: p.justification || '',
       generalObjective: p.generalObjective || '',
       objectives: (p.objectives && p.objectives.length > 0)
-        ? p.objectives.map((o) => o.description || o)
+        ? (() => {
+            const mapped = p.objectives.map((o) => (typeof o === 'string' ? o : (o.description || o.Description || '')).trim()).filter(Boolean)
+            return mapped.length > 0 ? mapped : ['']
+          })()
         : [''],
     }
     formError.value = ''
@@ -1175,6 +1178,9 @@ onMounted(() => {
 
             <h4 class="tecnm-field-label">Objetivos Específicos</h4>
             <ul class="tecnm-field-list">
+              <li v-if="!selectedProject.objectives || selectedProject.objectives.length === 0">
+                No se registraron objetivos específicos.
+              </li>
               <li
                 v-for="(obj, idx) in selectedProject.objectives || []"
                 :key="idx"

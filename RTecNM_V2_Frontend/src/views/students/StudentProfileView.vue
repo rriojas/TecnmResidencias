@@ -434,6 +434,23 @@ onMounted(() => {
                 </div>
               </div>
 
+              <!-- Objetivos del Anteproyecto -->
+              <div v-if="project.generalObjective" style="margin-top: 1rem;">
+                <span class="tecnm-info-tile-label">Objetivo General</span>
+                <p class="tecnm-field-value tecnm-field-value-emphasis" style="margin-top: 0.25rem;">
+                  {{ project.generalObjective }}
+                </p>
+              </div>
+
+              <div v-if="project.objectives && project.objectives.length > 0" style="margin-top: 0.75rem;">
+                <span class="tecnm-info-tile-label">Objetivos Específicos</span>
+                <ul class="tecnm-field-list" style="margin-top: 0.25rem;">
+                  <li v-for="(obj, idx) in project.objectives" :key="idx">
+                    {{ obj.description || obj }}
+                  </li>
+                </ul>
+              </div>
+
               <div class="tecnm-project-actions">
                 <button
                   type="button"

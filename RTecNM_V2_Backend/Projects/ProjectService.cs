@@ -1,3 +1,4 @@
+using System.Text.Json;
 using TecNM.Residency.Advisors;
 using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
@@ -211,27 +212,39 @@ public class ProjectService : IProjectService
         project.UpdatedAt = DateTime.UtcNow;
         project.UpdatedBy = _currentUser.UserId;
 
-        project.Objectives.Clear();
-        var updateObjs = dto.GetNormalizedObjectives();
-        if (updateObjs.Count > 0)
+        // Solo actualizar objetivos si fueron proporcionados explícitamente en el payload
+        bool hasObjectivesInPayload = (dto.SpecificObjectives != null && dto.SpecificObjectives.Count > 0) ||
+                                      (dto.Objectives.HasValue && dto.Objectives.Value.ValueKind == JsonValueKind.Array);
+
+        if (hasObjectivesInPayload)
         {
-            int number = 1;
-            foreach (var objText in updateObjs)
+            project.Objectives.Clear();
+            var updateObjs = dto.GetNormalizedObjectives();
+            if (updateObjs.Count > 0)
             {
-                project.Objectives.Add(new ProjectObjective
+                int number = 1;
+                foreach (var objText in updateObjs)
                 {
-                    ProjectId = project.Id,
-                    ObjectiveNumber = number++,
-                    Description = objText,
-                    Status = "pending",
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                });
+                    project.Objectives.Add(new ProjectObjective
+                    {
+                        ProjectId = project.Id,
+                        ObjectiveNumber = number++,
+                        Description = objText,
+                        Status = "pending",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    });
+                }
             }
+
+            await _repository.UpdateWithObjectivesAsync(project);
+        }
+        else
+        {
+            await _repository.UpdateAsync(project);
         }
 
-        await _repository.UpdateWithObjectivesAsync(project);
         return Result<ProjectResponseDto>.Success(MapToDto(project));
     }
 
