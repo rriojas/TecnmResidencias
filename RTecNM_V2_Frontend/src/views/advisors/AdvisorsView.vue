@@ -205,6 +205,7 @@ async function loadAdvisors({ silent = false } = {}) {
       pageSize: pageSize.value,
       sortBy: sortBy.value,
       sortDir: sortDir.value,
+      search: searchTerm.value.trim() || undefined,
       includeInactive: includeInactive.value,
     }
     const res = await apiClient.get('/v1/advisors', { params })
@@ -222,6 +223,20 @@ async function loadAdvisors({ silent = false } = {}) {
   }
 }
 
+let searchTimer = null
+function onSearchInput() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    pageNumber.value = 1
+    loadAdvisors()
+  }, 300)
+}
+
+function onInactiveToggleChange() {
+  pageNumber.value = 1
+  loadAdvisors()
+}
+
 function handleSort(col) {
   if (sortBy.value === col) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
@@ -229,6 +244,7 @@ function handleSort(col) {
     sortBy.value = col
     sortDir.value = 'asc'
   }
+  pageNumber.value = 1
   loadAdvisors({ silent: true })
 }
 
@@ -479,6 +495,17 @@ onMounted(() => {
         <h3 class="tecnm-card-title">Asesores Registrados</h3>
       </div>
       <div class="tecnm-card-toolbar">
+        <div class="tecnm-form-group tecnm-mb-0 tecnm-search-box" style="margin-bottom: 0; flex: 1; max-width: 420px;">
+          <input
+            id="advisorSearchInput"
+            v-model="searchTerm"
+            type="search"
+            class="tecnm-form-control"
+            placeholder="Buscar por nombre, título o teléfono..."
+            @input="onSearchInput"
+          />
+        </div>
+
         <div class="tecnm-toolbar-actions">
           <label v-if="!authStore.isCareerHead" class="tecnm-switch-label">
             <span class="tecnm-switch">
@@ -486,7 +513,7 @@ onMounted(() => {
                 id="advisorIncludeInactiveToggle"
                 v-model="includeInactive"
                 type="checkbox"
-                @change="loadAdvisors"
+                @change="onInactiveToggleChange"
               />
               <span class="tecnm-switch-slider"></span>
             </span>
@@ -659,10 +686,11 @@ onMounted(() => {
         <!-- Paginación -->
         <TecnmPagination
           v-if="totalCount > 0"
-          v-model:currentPage="pageNumber"
-          v-model:pageSize="pageSize"
-          :totalPages="totalPages"
-          :totalCount="totalCount"
+          :current-page="pageNumber"
+          :total-pages="totalPages"
+          :total-count="totalCount"
+          :page-size="pageSize"
+          @update:current-page="pageNumber = $event"
           @page-change="loadAdvisors"
         />
       </div>

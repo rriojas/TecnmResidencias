@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import apiClient from '@/services/api'
 import SupervisionNoteModal from '@/components/evaluations/SupervisionNoteModal.vue'
 import TecnmAutocomplete from '@/components/common/TecnmAutocomplete.vue'
+import TecnmPagination from '@/components/common/TecnmPagination.vue'
 
 const authStore = useAuthStore()
 
@@ -29,6 +30,10 @@ const selectedAutocompleteItem = ref(null)
 // quickFilter: 'all' | 'attention' | 'healthy' | 'warning' | 'critical' | 'irregular'
 const activeQuickFilter = ref('all')
 const expandedAdvisors = ref(new Set())
+
+// Paginación
+const pageNumber = ref(1)
+const pageSize = ref(10)
 
 // Modales
 const isNoteModalOpen = ref(false)
@@ -134,7 +139,7 @@ async function loadData() {
     if (newExpanded.size === 0 && summary.value.advisorHealthMetrics.length > 0) {
       newExpanded.add(summary.value.advisorHealthMetrics[0].advisorId)
     }
-    expandedAdvisors.value = newExpanded
+    pageNumber.value = 1
   } catch (err) {
     errorMessage.value = err.response?.data?.message || 'Error al cargar el seguimiento de asesores.'
   } finally {
@@ -180,6 +185,7 @@ const autocompleteItems = computed(() => {
 function handleAutocompleteSelect(item) {
   selectedAutocompleteItem.value = item
   selectedAutocompleteId.value = item.id
+  pageNumber.value = 1
   if (item.type === 'advisor') {
     searchQuery.value = item.advisorName
     expandedAdvisors.value.add(item.advisorId)
@@ -193,16 +199,19 @@ function handleAutocompleteClear() {
   selectedAutocompleteItem.value = null
   selectedAutocompleteId.value = null
   searchQuery.value = ''
+  pageNumber.value = 1
 }
 
 function handleAutocompleteQueryChange(q) {
   if (!selectedAutocompleteItem.value) {
     searchQuery.value = q
+    pageNumber.value = 1
   }
 }
 
 function setQuickFilter(filter) {
   activeQuickFilter.value = activeQuickFilter.value === filter ? 'all' : filter
+  pageNumber.value = 1
   if (selectedAutocompleteItem.value) {
     handleAutocompleteClear()
   }
@@ -271,6 +280,13 @@ const filteredAdvisors = computed(() => {
   })
 
   return list
+})
+
+const totalCount = computed(() => filteredAdvisors.value.length)
+const totalPages = computed(() => Math.ceil(totalCount.value / pageSize.value) || 1)
+const paginatedAdvisors = computed(() => {
+  const start = (pageNumber.value - 1) * pageSize.value
+  return filteredAdvisors.value.slice(start, start + pageSize.value)
 })
 
 const attentionCount = computed(() => {
@@ -628,7 +644,7 @@ onMounted(() => {
     <!-- 4. Lista Priorizada de Asesores (Críticos primero) -->
     <div v-else>
       <div
-        v-for="adv in filteredAdvisors"
+        v-for="adv in paginatedAdvisors"
         :key="adv.advisorId"
         class="tecnm-advisor-card"
         :class="adv.healthStatus"
@@ -866,6 +882,16 @@ onMounted(() => {
           </div>
         </div>
       </div>
+
+      <!-- Paginación Institucional -->
+      <TecnmPagination
+        v-if="totalCount > 0"
+        :current-page="pageNumber"
+        :total-pages="totalPages"
+        :total-count="totalCount"
+        :page-size="pageSize"
+        @update:current-page="pageNumber = $event"
+      />
     </div>
 
     <!-- 5. Modal de Detalle de Sesión Individual -->

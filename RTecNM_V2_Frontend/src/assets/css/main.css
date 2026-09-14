@@ -70,28 +70,22 @@ a:hover {
    ============================================================ */
 .tecnm-container {
   width: 100%;
-  max-width: 1360px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 0 var(--tecnm-spacing-md);
-  transition: max-width 0.25s ease-in-out;
+  padding: 0 clamp(1rem, 2.2vw, 2.5rem);
+  box-sizing: border-box;
 }
 
-@media (min-width: 1536px) {
+@media (min-width: 2000px) {
   .tecnm-container {
-    max-width: 1560px;
-  }
-}
-
-@media (min-width: 1800px) {
-  .tecnm-container {
-    max-width: 1720px;
+    max-width: 1920px;
   }
 }
 
 .tecnm-container.is-fluid {
-  max-width: 98% !important;
-  width: 98% !important;
-  padding: 0 1rem !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  padding: 0 clamp(0.75rem, 1.5vw, 1.5rem) !important;
 }
 
 .tecnm-page-layout {
@@ -102,7 +96,7 @@ a:hover {
 
 .tecnm-main-content {
   flex: 1;
-  padding: var(--tecnm-spacing-xl) 0;
+  padding: clamp(0.75rem, 1.5vh, 1.25rem) 0;
   background-color: var(--tecnm-bg-main);
 }
 
@@ -717,12 +711,17 @@ textarea.tecnm-form-control {
   overflow-x: auto;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  max-height: clamp(360px, calc(100vh - 310px), 82vh);
-  min-height: 200px;
+  max-height: clamp(260px, calc(100vh - 310px), 68vh);
   border: 1px solid var(--tecnm-border-color, #cbd5e1);
   border-radius: var(--tecnm-border-radius-md, 8px);
   background: #ffffff;
   position: relative;
+}
+
+@media (max-height: 850px) {
+  .tecnm-table-responsive {
+    max-height: clamp(200px, calc(100vh - 270px), 58vh);
+  }
 }
 
 .tecnm-table-responsive thead th {
@@ -840,31 +839,35 @@ textarea.tecnm-form-control {
   align-items: center;
   justify-content: space-between;
   gap: var(--tecnm-spacing-sm);
-  padding: var(--tecnm-spacing-sm) var(--tecnm-spacing-md);
+  padding: 0.5rem 0.85rem;
   border-top: 1px solid var(--tecnm-border-color);
   background-color: var(--tecnm-surface-white);
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.03);
 }
 
 .tecnm-pagination-info {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--tecnm-text-secondary);
 }
 
 .tecnm-pagination-pages {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
 }
 
 .tecnm-pagination-btn {
-  min-width: 2.15rem;
-  height: 2.15rem;
-  padding: 0 0.5rem;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.45rem;
   border: 1px solid var(--tecnm-border-color);
   border-radius: var(--tecnm-radius-md);
   background-color: var(--tecnm-surface-white);
   color: var(--tecnm-text-primary);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
@@ -890,6 +893,40 @@ textarea.tecnm-form-control {
 .tecnm-pagination-ellipsis {
   color: var(--tecnm-text-secondary);
   padding: 0 0.15rem;
+}
+
+/* Adaptabilidad para Laptops y pantallas compactas */
+@media (max-width: 1440px) {
+  .tecnm-table th,
+  .tecnm-table td {
+    padding: 0.45rem 0.6rem;
+    font-size: 0.815rem;
+  }
+
+  .tecnm-card {
+    padding: 0.85rem;
+  }
+
+  .tecnm-card-header {
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .tecnm-card-toolbar {
+    padding: 0.45rem 0.65rem;
+  }
+
+  .tecnm-page-title {
+    font-size: 1.35rem;
+  }
+
+  .tecnm-page-subtitle {
+    font-size: 0.825rem;
+  }
+
+  .tecnm-actions-bar {
+    margin-bottom: 0.75rem;
+  }
 }
 
 .tecnm-score-approved {

@@ -40,7 +40,7 @@ public class AdvisorRepository : IAdvisorRepository
         }
 
         q = q.ApplySort(query.SortBy, query.SortDir,
-            new[] { "FullName", "Title", "AdvisorType", "CreatedAt" },
+            new[] { "FullName", "Title", "AdvisorType", "CreatedAt", "Phone", "IsActive", "DepartmentId" },
             "CreatedAt", defaultDescending: true);
 
         return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);

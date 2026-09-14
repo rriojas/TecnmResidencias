@@ -241,6 +241,20 @@ async function loadStudents({ silent = false } = {}) {
   }
 }
 
+let searchTimer = null
+function onSearchInput() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    pageNumber.value = 1
+    loadStudents()
+  }, 300)
+}
+
+function onInactiveToggleChange() {
+  pageNumber.value = 1
+  loadStudents()
+}
+
 function onCareerFilterChange() {
   pageNumber.value = 1
   loadStudents()
@@ -660,6 +674,17 @@ onMounted(() => {
       </div>
 
       <div class="tecnm-card-toolbar">
+        <div class="tecnm-form-group tecnm-mb-0 tecnm-search-box" style="margin-bottom: 0; flex: 1; max-width: 420px;">
+          <input
+            id="studentSearchInput"
+            v-model="searchTerm"
+            type="search"
+            class="tecnm-form-control"
+            placeholder="Buscar por nombre, no. control o correo..."
+            @input="onSearchInput"
+          />
+        </div>
+
         <div v-if="!authStore.isCareerHead" class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
           <label for="careerFilterSelect" class="tecnm-field-label" style="margin-bottom: 0; white-space: nowrap; font-size: 0.85rem;">Carrera:</label>
           <select
@@ -683,7 +708,7 @@ onMounted(() => {
                 id="studentsIncludeInactiveToggle"
                 v-model="includeInactive"
                 type="checkbox"
-                @change="loadStudents"
+                @change="onInactiveToggleChange"
               />
               <span class="tecnm-switch-slider"></span>
             </span>
@@ -875,10 +900,11 @@ onMounted(() => {
         <!-- Paginación -->
         <TecnmPagination
           v-if="totalCount > 0"
-          v-model:currentPage="pageNumber"
-          v-model:pageSize="pageSize"
-          :totalPages="totalPages"
-          :totalCount="totalCount"
+          :current-page="pageNumber"
+          :total-pages="totalPages"
+          :total-count="totalCount"
+          :page-size="pageSize"
+          @update:current-page="pageNumber = $event"
           @page-change="loadStudents"
         />
       </div>

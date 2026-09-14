@@ -125,6 +125,9 @@ async function loadStudents({ silent = false } = {}) {
     const params = {
       pageNumber: pageNumber.value,
       pageSize: pageSize.value,
+      search: searchTerm.value.trim() || undefined,
+      sortBy: sortBy.value,
+      sortDir: sortDir.value,
       includeInactive: includeInactive.value,
       onlyApprovedProject: false,
     }
@@ -143,51 +146,22 @@ async function loadStudents({ silent = false } = {}) {
   }
 }
 
+let searchTimer = null
+function onSearchInput() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    pageNumber.value = 1
+    loadStudents()
+  }, 300)
+}
+
+function onInactiveToggleChange() {
+  pageNumber.value = 1
+  loadStudents()
+}
+
 const sortedStudents = computed(() => {
-  let list = [...students.value]
-
-  if (searchTerm.value.trim()) {
-    const term = searchTerm.value.trim().toLowerCase()
-    list = list.filter((s) => {
-      const control = (s.controlNumber || '').toLowerCase()
-      const name = (s.fullName || `${s.firstName} ${s.lastName}`).toLowerCase()
-      const career = (s.career || '').toLowerCase()
-      const advisor = (s.advisorName || '').toLowerCase()
-      return control.includes(term) || name.includes(term) || career.includes(term) || advisor.includes(term)
-    })
-  }
-
-  const field = sortBy.value
-  const dir = sortDir.value === 'asc' ? 1 : -1
-
-  return list.sort((a, b) => {
-    let valA = ''
-    let valB = ''
-
-    if (field === 'ControlNumber') {
-      valA = a.controlNumber || ''
-      valB = b.controlNumber || ''
-    } else if (field === 'FullName') {
-      valA = a.fullName || `${a.firstName} ${a.lastName}`
-      valB = b.fullName || `${b.firstName} ${b.lastName}`
-    } else if (field === 'Career') {
-      valA = a.career || ''
-      valB = b.career || ''
-    } else if (field === 'AdvisorName') {
-      valA = a.advisorName || ''
-      valB = b.advisorName || ''
-    } else {
-      valA = a[field] ?? ''
-      valB = b[field] ?? ''
-    }
-
-    if (typeof valA === 'string') valA = valA.toLowerCase()
-    if (typeof valB === 'string') valB = valB.toLowerCase()
-
-    if (valA < valB) return -1 * dir
-    if (valA > valB) return 1 * dir
-    return 0
-  })
+  return students.value
 })
 
 function handleSort(col) {
@@ -197,6 +171,8 @@ function handleSort(col) {
     sortBy.value = col
     sortDir.value = 'asc'
   }
+  pageNumber.value = 1
+  loadStudents()
 }
 
 async function handleIndividualAssign(student, newAdvisorId) {
@@ -378,7 +354,8 @@ onMounted(() => {
             v-model="searchTerm"
             type="search"
             class="tecnm-form-control"
-            placeholder="Buscar por alumno, matrícula, carrera o asesor..."
+            placeholder="Buscar por alumno, matrícula o correo..."
+            @input="onSearchInput"
           />
         </div>
 
@@ -389,7 +366,7 @@ onMounted(() => {
                 id="assignmentIncludeInactiveToggle"
                 v-model="includeInactive"
                 type="checkbox"
-                @change="loadStudents"
+                @change="onInactiveToggleChange"
               />
               <span class="tecnm-switch-slider"></span>
             </span>
@@ -444,7 +421,7 @@ onMounted(() => {
                 <td><strong>{{ s.controlNumber }}</strong></td>
                 <td>{{ s.fullName || `${s.firstName} ${s.lastName}` }}</td>
                 <td>{{ s.career || 'N/A' }}</td>
-                <td style="min-width: 290px; max-width: 360px;">
+                <td class="tecnm-assignment-col">
                   <span v-if="authStore.isReadOnly" class="tecnm-text-sub" style="font-weight: 500;">
                     {{ s.advisorName || 'Sin Asesor Asignado' }}
                   </span>
@@ -473,10 +450,11 @@ onMounted(() => {
 
         <TecnmPagination
           v-if="totalCount > 0"
-          v-model:currentPage="pageNumber"
-          v-model:pageSize="pageSize"
-          :totalPages="totalPages"
-          :totalCount="totalCount"
+          :current-page="pageNumber"
+          :total-pages="totalPages"
+          :total-count="totalCount"
+          :page-size="pageSize"
+          @update:current-page="pageNumber = $event"
           @page-change="loadStudents"
         />
       </div>
@@ -566,10 +544,11 @@ onMounted(() => {
           <div style="margin-top: 0.75rem;">
             <TecnmPagination
               v-if="batchTotalCount > 0"
-              v-model:currentPage="batchPage"
-              v-model:pageSize="batchPageSize"
-              :totalPages="batchTotalPages"
-              :totalCount="batchTotalCount"
+              :current-page="batchPage"
+              :total-pages="batchTotalPages"
+              :total-count="batchTotalCount"
+              :page-size="batchPageSize"
+              @update:current-page="batchPage = $event"
             />
           </div>
         </div>
@@ -591,28 +570,15 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.tecnm-table-responsive {
-  min-height: auto;
-  padding-bottom: 0;
-  overflow: visible;
+.tecnm-assignment-col {
+  min-width: 260px;
+  max-width: 340px;
 }
-:deep(.tecnm-table) {
-  overflow: visible;
-}
-:deep(.tecnm-table td) {
-  position: relative;
-  overflow: visible;
+:deep(.tecnm-autocomplete-wrapper) {
+  margin-bottom: 0;
 }
 :deep(.tecnm-autocomplete-dropdown) {
   z-index: 1060 !important;
-}
-:deep(.tecnm-pagination) {
-  border-top: none;
-  padding-top: 1rem;
-}
-@media (max-width: 992px) {
-  .tecnm-table-responsive {
-    overflow-x: auto;
-  }
+  max-height: 200px;
 }
 </style>

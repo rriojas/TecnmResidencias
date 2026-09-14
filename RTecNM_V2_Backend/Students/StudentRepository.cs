@@ -69,8 +69,12 @@ public class StudentRepository : IStudentRepository
                              || (s.User != null && s.User.Email.ToLower().Contains(term)));
         }
 
-        q = q.ApplySort(query.SortBy, query.SortDir,
-            new[] { "ControlNumber", "FirstName", "LastName", "Gpa", "CreatedAt" },
+        var sortBy = query.SortBy;
+        if (string.Equals(sortBy, "FullName", StringComparison.OrdinalIgnoreCase))
+            sortBy = "FirstName";
+
+        q = q.ApplySort(sortBy, query.SortDir,
+            new[] { "ControlNumber", "FirstName", "LastName", "Gpa", "CreatedAt", "CareerId", "IsActive", "IsPresentationLetterSent" },
             "CreatedAt", defaultDescending: true);
 
         return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
