@@ -18,6 +18,7 @@ const { open: openSearch } = useGlobalSearch()
 // Estado
 const advisors = ref([])
 const includeInactive = ref(false)
+const selectedDepartmentFilter = ref('all')
 const sortBy = ref('FullName')
 const sortDir = ref('asc')
 const searchTerm = ref('')
@@ -207,6 +208,7 @@ async function loadAdvisors({ silent = false } = {}) {
       sortDir: sortDir.value,
       search: searchTerm.value.trim() || undefined,
       includeInactive: includeInactive.value,
+      departmentId: selectedDepartmentFilter.value !== 'all' ? Number(selectedDepartmentFilter.value) : undefined,
     }
     const res = await apiClient.get('/v1/advisors', { params })
     const data = res.data
@@ -409,6 +411,7 @@ async function handleExportPdf() {
       sortBy: sortBy.value,
       sortDir: sortDir.value,
       includeInactive: includeInactive.value,
+      departmentId: selectedDepartmentFilter.value !== 'all' ? Number(selectedDepartmentFilter.value) : undefined,
     }
     const res = await apiClient.get('/v1/advisors/export', {
       params,
@@ -504,6 +507,22 @@ onMounted(() => {
             placeholder="Buscar por nombre, título o teléfono..."
             @input="onSearchInput"
           />
+        </div>
+
+        <div v-if="!authStore.isCareerHead" class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <label for="advisorDepartmentFilter" class="tecnm-field-label" style="margin-bottom: 0; white-space: nowrap; font-size: 0.85rem;">Departamento:</label>
+          <select
+            id="advisorDepartmentFilter"
+            v-model="selectedDepartmentFilter"
+            class="tecnm-form-control"
+            style="min-width: 220px; font-size: 0.85rem;"
+            @change="pageNumber = 1; loadAdvisors()"
+          >
+            <option value="all">Todos los Departamentos</option>
+            <option v-for="(name, id) in DEPARTMENTS" :key="id" :value="id">
+              {{ name }}
+            </option>
+          </select>
         </div>
 
         <div class="tecnm-toolbar-actions">

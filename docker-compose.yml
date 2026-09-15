@@ -17,7 +17,7 @@ services:
       # 02_demo_data.sql deshabilitado en producción para evitar empresas o datos ficticios:
       # - ./docs/database/02_demo_data.sql:/docker-entrypoint-initdb.d/02-demo.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U residency_user -d postgre_recidencias"]
+      test: [ "CMD-SHELL", "pg_isready -U residency_user -d postgre_recidencias" ]
       interval: 5s
       timeout: 5s
       retries: 10

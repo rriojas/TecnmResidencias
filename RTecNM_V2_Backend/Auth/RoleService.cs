@@ -201,7 +201,11 @@ public class RoleService : IRoleService
 
         if (careerId.HasValue && careerId.Value > 0)
         {
-            dtos = dtos.Where(d => (d.CareerId == careerId.Value) || (d.DepartmentId == careerId.Value)).ToList();
+            dtos = dtos.Where(d =>
+                (d.CareerId.HasValue && d.CareerId.Value == careerId.Value) ||
+                (d.DepartmentId.HasValue && d.DepartmentId.Value == careerId.Value) ||
+                (d.CareerIds != null && d.CareerIds.Contains(careerId.Value))
+            ).ToList();
         }
 
         var isDesc = (query.SortDir ?? "").Equals("desc", StringComparison.OrdinalIgnoreCase);

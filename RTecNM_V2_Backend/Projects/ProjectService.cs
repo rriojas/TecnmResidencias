@@ -307,7 +307,7 @@ public class ProjectService : IProjectService
         return Result<ProjectResponseDto>.Success(MapToDto(project));
     }
 
-    public async Task<Result<PaginatedResult<ProjectResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
+    public async Task<Result<PaginatedResult<ProjectResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, long? careerId = null)
     {
         // Vista Estudiante: únicamente sus registros.
         if (_currentUser.IsInRole(UserRole.Student))
@@ -319,7 +319,7 @@ public class ProjectService : IProjectService
             _currentUser.IsInRole(UserRole.DepartmentHead) ||
             _currentUser.IsInRole(UserRole.Director))
         {
-            var pagedAll = await _repository.GetPagedAsync(query, status, includeInactive);
+            var pagedAll = await _repository.GetPagedAsync(query, status, includeInactive, careerId);
             return Result<PaginatedResult<ProjectResponseDto>>.Success(MapPaged(pagedAll));
         }
 
@@ -328,16 +328,16 @@ public class ProjectService : IProjectService
             return await GetAdvisorProjectsPagedAsync(query);
 
         // Fallback general: todos los registros.
-        var paged = await _repository.GetPagedAsync(query, status, includeInactive);
+        var paged = await _repository.GetPagedAsync(query, status, includeInactive, careerId);
         return Result<PaginatedResult<ProjectResponseDto>>.Success(MapPaged(paged));
     }
 
-    public async Task<Result<byte[]>> ExportPdfAsync(string? status, string? search, string? sortBy, string? sortDir, bool includeInactive = false)
+    public async Task<Result<byte[]>> ExportPdfAsync(string? status, string? search, string? sortBy, string? sortDir, bool includeInactive = false, long? careerId = null)
     {
         if (!IsStaff())
             return Result<byte[]>.Failure("No tiene permisos para exportar anteproyectos.", 403);
 
-        var projects = await _repository.GetAllForExportAsync(status, search, sortBy, sortDir, includeInactive);
+        var projects = await _repository.GetAllForExportAsync(status, search, sortBy, sortDir, includeInactive, careerId);
         var definition = new PdfTableDefinition
         {
             Title = "Anteproyectos de Residencia Profesional - TecNM Campus Monclova",

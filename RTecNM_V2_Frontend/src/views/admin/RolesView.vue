@@ -538,9 +538,13 @@ const defaultCareers = [
 
 const careersOptions = ref([])
 
+const availableCareers = computed(() => {
+  return careersOptions.value.length > 0 ? careersOptions.value : defaultCareers
+})
+
 function getCareerName(id) {
   if (!id) return ''
-  const c = (careersOptions.value.length > 0 ? careersOptions.value : defaultCareers).find(x => Number(x.id) === Number(id))
+  const c = availableCareers.value.find(x => Number(x.id) === Number(id))
   return c ? c.name : ''
 }
 
@@ -806,7 +810,7 @@ onMounted(async () => {
           >
             <option value="all">Todas las Carreras</option>
             <option
-              v-for="c in (careersOptions.length > 0 ? careersOptions : defaultCareers)"
+              v-for="c in availableCareers"
               :key="c.id"
               :value="String(c.id)"
             >
@@ -1243,7 +1247,7 @@ onMounted(async () => {
               <!-- Checkboxes para rol Coordinadora -->
               <div v-if="isCoordinatorRole" class="coordinator-careers-container" id="coordinatorCareersCheckboxes">
                 <div
-                  v-for="c in (careersOptions.length > 0 ? careersOptions : defaultCareers)"
+                  v-for="c in availableCareers"
                   :key="c.id"
                   class="coordinator-career-checkbox-item"
                 >
@@ -1271,7 +1275,7 @@ onMounted(async () => {
               >
                 <option value="" disabled>-- Seleccionar Carrera --</option>
                 <option
-                  v-for="c in (careersOptions.length > 0 ? careersOptions : defaultCareers)"
+                  v-for="c in availableCareers"
                   :key="c.id"
                   :value="c.id"
                 >

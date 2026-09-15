@@ -4,8 +4,8 @@ namespace TecNM.Residency.Advisors;
 
 public interface IAdvisorRepository
 {
-    Task<PaginatedResult<Advisor>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false);
-    Task<List<Advisor>> GetAllForExportAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false);
+    Task<PaginatedResult<Advisor>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, long? departmentId = null);
+    Task<List<Advisor>> GetAllForExportAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false, long? departmentId = null);
     Task<List<Advisor>> GetOptionsAsync();
     Task<Advisor?> GetByIdAsync(long id);
     Task<Advisor?> GetByUserIdAsync(long userId);

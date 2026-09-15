@@ -78,7 +78,7 @@ public class ProjectRepository : IProjectRepository
             .FirstOrDefaultAsync();
     }
 
-    public async Task<PaginatedResult<Project>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
+    public async Task<PaginatedResult<Project>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, long? careerId = null)
     {
         IQueryable<Project> q = QueryWithDetails();
         if (!includeInactive)
@@ -92,8 +92,21 @@ public class ProjectRepository : IProjectRepository
         else if (_currentUser.Role == UserRole.Coordinator)
         {
             var allowedCareerIds = _currentUser.CareerIds;
-            q = q.Where(p => p.Student != null && allowedCareerIds.Contains(p.Student.CareerId));
+            if (careerId.HasValue && careerId.Value > 0)
+            {
+                q = allowedCareerIds.Contains(careerId.Value)
+                    ? q.Where(p => p.Student != null && p.Student.CareerId == careerId.Value)
+                    : q.Where(p => false);
+            }
+            else
+            {
+                q = q.Where(p => p.Student != null && allowedCareerIds.Contains(p.Student.CareerId));
+            }
             q = q.Where(p => p.Status != ProjectStatus.Draft);
+        }
+        else if (careerId.HasValue && careerId.Value > 0)
+        {
+            q = q.Where(p => p.Student != null && p.Student.CareerId == careerId.Value);
         }
 
         q = ApplyStatusFilter(q, status);
@@ -113,7 +126,7 @@ public class ProjectRepository : IProjectRepository
         return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
     }
 
-    public async Task<List<Project>> GetAllForExportAsync(string? status, string? search, string? sortBy, string? sortDir, bool includeInactive = false)
+    public async Task<List<Project>> GetAllForExportAsync(string? status, string? search, string? sortBy, string? sortDir, bool includeInactive = false, long? careerId = null)
     {
         IQueryable<Project> q = QueryWithDetails().AsNoTracking();
         if (!includeInactive)
@@ -127,8 +140,21 @@ public class ProjectRepository : IProjectRepository
         else if (_currentUser.Role == UserRole.Coordinator)
         {
             var allowedCareerIds = _currentUser.CareerIds;
-            q = q.Where(p => p.Student != null && allowedCareerIds.Contains(p.Student.CareerId));
+            if (careerId.HasValue && careerId.Value > 0)
+            {
+                q = allowedCareerIds.Contains(careerId.Value)
+                    ? q.Where(p => p.Student != null && p.Student.CareerId == careerId.Value)
+                    : q.Where(p => false);
+            }
+            else
+            {
+                q = q.Where(p => p.Student != null && allowedCareerIds.Contains(p.Student.CareerId));
+            }
             q = q.Where(p => p.Status != ProjectStatus.Draft);
+        }
+        else if (careerId.HasValue && careerId.Value > 0)
+        {
+            q = q.Where(p => p.Student != null && p.Student.CareerId == careerId.Value);
         }
 
         q = ApplyStatusFilter(q, status);

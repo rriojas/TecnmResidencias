@@ -156,7 +156,7 @@ async function handleImportSubmit() {
   }
 }
 
-const CAREERS = {
+const defaultCareersMap = {
   1: 'Ing. Informática',
   2: 'Ing. Industrial',
   3: 'Ing. Mecatrónica',
@@ -165,6 +165,8 @@ const CAREERS = {
   6: 'Ing. en Gestión Empresarial',
   7: 'Ing. Mecánica',
 }
+
+const CAREERS = ref({ ...defaultCareersMap })
 
 const selectedCareerFilter = ref(
   authStore.isCareerHead && authStore.userCareerId
@@ -189,8 +191,8 @@ const sortedStudents = computed(() => {
       valA = a.fullName || `${a.firstName} ${a.lastName}`
       valB = b.fullName || `${b.firstName} ${b.lastName}`
     } else if (field === 'CareerId') {
-      valA = CAREERS[a.careerId] || a.career || ''
-      valB = CAREERS[b.careerId] || b.career || ''
+      valA = CAREERS.value[a.careerId] || a.career || ''
+      valB = CAREERS.value[b.careerId] || b.career || ''
     } else if (field === 'Email') {
       valA = a.email || (a.user ? a.user.email : '')
       valB = b.email || (b.user ? b.user.email : '')
@@ -577,17 +579,25 @@ const filteredCareers = computed(() => {
   if (authStore.isCoordinator && authStore.userCareerIds.length > 0) {
     const res = {}
     authStore.userCareerIds.forEach(id => {
-      if (CAREERS[id]) res[id] = CAREERS[id]
+      if (CAREERS.value[id]) res[id] = CAREERS.value[id]
     })
     return res
   }
-  return CAREERS
+  return CAREERS.value
 })
 
 async function loadCareersOptions() {
   try {
     const res = await apiClient.get('/v1/careers/all')
-    careersOptions.value = res.data || []
+    const list = res.data || []
+    if (list.length > 0) {
+      careersOptions.value = list
+      const map = {}
+      list.forEach(c => {
+        map[c.id] = c.name
+      })
+      CAREERS.value = map
+    }
   } catch {
     careersOptions.value = []
   }

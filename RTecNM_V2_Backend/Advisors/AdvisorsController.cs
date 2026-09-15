@@ -27,17 +27,17 @@ public class AdvisorsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] PaginationQuery query, [FromQuery] string? status, [FromQuery] bool includeInactive = false)
+    public async Task<IActionResult> GetAll([FromQuery] PaginationQuery query, [FromQuery] string? status, [FromQuery] bool includeInactive = false, [FromQuery] long? departmentId = null)
     {
-        var result = await _advisorService.GetPagedAsync(query, status, includeInactive);
+        var result = await _advisorService.GetPagedAsync(query, status, includeInactive, departmentId);
         return result.IsSuccess ? Ok(result.Data) : BadRequest(new { message = result.ErrorMessage });
     }
 
     [HttpGet("export")]
     [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
-    public async Task<IActionResult> ExportPdf([FromQuery] string? search, [FromQuery] string? sortBy, [FromQuery] string? sortDir, [FromQuery] bool includeInactive = false)
+    public async Task<IActionResult> ExportPdf([FromQuery] string? search, [FromQuery] string? sortBy, [FromQuery] string? sortDir, [FromQuery] bool includeInactive = false, [FromQuery] long? departmentId = null)
     {
-        var result = await _advisorService.ExportPdfAsync(search, sortBy, sortDir, includeInactive);
+        var result = await _advisorService.ExportPdfAsync(search, sortBy, sortDir, includeInactive, departmentId);
         return result.IsSuccess
             ? File(result.Data!, "application/pdf", "asesores_tecnm.pdf")
             : BadRequest(new { message = result.ErrorMessage });

@@ -170,8 +170,17 @@ public class RoleRepository : IRoleRepository
         else if (!string.IsNullOrWhiteSpace(roleFilter) && roleFilter != "all")
         {
             var rf = roleFilter.Trim().ToLowerInvariant();
-            q = q.Where(u => u.UserRoles.Any(ur => ur.IsActive && ur.Role != null && (ur.Role.Code.ToLower() == rf || ur.Role.Name.ToLower().Contains(rf)))
-                || u.Role.ToString().ToLower() == rf);
+            var enumVal = MapStringToUserRole(rf);
+            if (enumVal.HasValue)
+            {
+                var roleEnum = enumVal.Value;
+                q = q.Where(u => u.UserRoles.Any(ur => ur.IsActive && ur.Role != null && (ur.Role.Code.ToLower() == rf || ur.Role.Name.ToLower().Contains(rf)))
+                    || u.Role == roleEnum);
+            }
+            else
+            {
+                q = q.Where(u => u.UserRoles.Any(ur => ur.IsActive && ur.Role != null && (ur.Role.Code.ToLower() == rf || ur.Role.Name.ToLower().Contains(rf))));
+            }
         }
 
         q = q.ApplySort(query.SortBy, query.SortDir,
@@ -209,8 +218,17 @@ public class RoleRepository : IRoleRepository
         else if (!string.IsNullOrWhiteSpace(roleFilter) && roleFilter != "all")
         {
             var rf = roleFilter.Trim().ToLowerInvariant();
-            q = q.Where(u => u.UserRoles.Any(ur => ur.IsActive && ur.Role != null && (ur.Role.Code.ToLower() == rf || ur.Role.Name.ToLower().Contains(rf)))
-                || u.Role.ToString().ToLower() == rf);
+            var enumVal = MapStringToUserRole(rf);
+            if (enumVal.HasValue)
+            {
+                var roleEnum = enumVal.Value;
+                q = q.Where(u => u.UserRoles.Any(ur => ur.IsActive && ur.Role != null && (ur.Role.Code.ToLower() == rf || ur.Role.Name.ToLower().Contains(rf)))
+                    || u.Role == roleEnum);
+            }
+            else
+            {
+                q = q.Where(u => u.UserRoles.Any(ur => ur.IsActive && ur.Role != null && (ur.Role.Code.ToLower() == rf || ur.Role.Name.ToLower().Contains(rf))));
+            }
         }
 
         return await q.ToListAsync();
@@ -624,4 +642,17 @@ public class RoleRepository : IRoleRepository
 
         await _context.SaveChangesAsync();
     }
+
+    private static UserRole? MapStringToUserRole(string str) => (str ?? "").ToLowerInvariant().Replace("_", "") switch
+    {
+        "student" or "estudiante" => UserRole.Student,
+        "advisor" or "asesor" => UserRole.Advisor,
+        "academico" or "academic" or "departmenthead" or "jefatura" => UserRole.Academic,
+        "vinculacion" => UserRole.Vinculacion,
+        "director" => UserRole.Director,
+        "admin" or "administrador" or "superadmin" => UserRole.Admin,
+        "jefecarrera" or "careerhead" => UserRole.CareerHead,
+        "coordinadora" or "coordinador" or "coordinator" => UserRole.Coordinator,
+        _ => null
+    };
 }

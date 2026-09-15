@@ -31,18 +31,18 @@ public class AdvisorService : IAdvisorService
         _context = context;
     }
 
-    public async Task<Result<PaginatedResult<AdvisorResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
+    public async Task<Result<PaginatedResult<AdvisorResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, long? departmentId = null)
     {
-        var paged = await _advisorRepository.GetPagedAsync(query, status, includeInactive);
+        var paged = await _advisorRepository.GetPagedAsync(query, status, includeInactive, departmentId);
         var dtos = paged.Items.Select(MapToResponseDto);
         var result = PaginatedResult<AdvisorResponseDto>.Create(
             dtos, paged.TotalCount, paged.PageNumber, paged.PageSize);
         return Result<PaginatedResult<AdvisorResponseDto>>.Success(result);
     }
 
-    public async Task<Result<byte[]>> ExportPdfAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false)
+    public async Task<Result<byte[]>> ExportPdfAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false, long? departmentId = null)
     {
-        var advisors = await _advisorRepository.GetAllForExportAsync(search, sortBy, sortDir, includeInactive);
+        var advisors = await _advisorRepository.GetAllForExportAsync(search, sortBy, sortDir, includeInactive, departmentId);
         var definition = new PdfTableDefinition
         {
             Title = "Asesores Institucionales - TecNM Campus Monclova",

@@ -93,7 +93,7 @@ const accreditationDoc = ref(null)
 const isSubmitting = ref(false)
 
 // Catálogo de Carreras
-const CAREERS = {
+const defaultCareersMap = {
   1: 'Ing. Informática',
   2: 'Ing. Industrial',
   3: 'Ing. Mecatrónica',
@@ -103,6 +103,22 @@ const CAREERS = {
   7: 'Ing. Mecánica',
 }
 
+const CAREERS = ref({ ...defaultCareersMap })
+
+async function loadCareersCatalog() {
+  try {
+    const res = await apiClient.get('/v1/careers/all')
+    const list = res.data || []
+    if (list.length > 0) {
+      const map = {}
+      list.forEach(c => {
+        map[c.id] = c.name
+      })
+      CAREERS.value = map
+    }
+  } catch {}
+}
+
 const selectedCareerFilter = ref('all')
 const searchTerm = ref('')
 
@@ -110,20 +126,15 @@ const filteredCareers = computed(() => {
   if (authStore.isCoordinator && authStore.userCareerIds.length > 0) {
     const res = {}
     authStore.userCareerIds.forEach(id => {
-      if (CAREERS[id]) res[id] = CAREERS[id]
+      if (CAREERS.value[id]) res[id] = CAREERS.value[id]
     })
     return res
   }
-  return CAREERS
+  return CAREERS.value
 })
 
 const sortedProjects = computed(() => {
   let list = [...projects.value]
-
-  if (selectedCareerFilter.value !== 'all') {
-    const cid = Number(selectedCareerFilter.value)
-    list = list.filter((p) => Number(p.careerId) === cid)
-  }
 
   if (authStore.isCareerHead) {
     list = list.filter((p) => String(p.status || '').toLowerCase() !== 'draft')
@@ -186,6 +197,7 @@ async function loadProjects({ silent = false } = {}) {
       sortBy: sortBy.value,
       sortDir: sortDir.value,
       includeInactive: includeInactive.value,
+      careerId: selectedCareerFilter.value !== 'all' ? Number(selectedCareerFilter.value) : undefined,
     }
 
     const res = await apiClient.get('/v1/projects', { params })
@@ -461,6 +473,7 @@ async function handleExportPdf() {
       sortBy: sortBy.value,
       sortDir: sortDir.value,
       includeInactive: includeInactive.value,
+      careerId: selectedCareerFilter.value !== 'all' ? Number(selectedCareerFilter.value) : undefined,
     }
     const res = await apiClient.get('/v1/projects/export', {
       params,
@@ -481,6 +494,7 @@ async function handleExportPdf() {
 }
 
 onMounted(() => {
+  loadCareersCatalog()
   loadProjects()
 })
 </script>
@@ -545,6 +559,7 @@ onMounted(() => {
             v-model="selectedCareerFilter"
             class="tecnm-form-control"
             style="min-width: 220px; font-size: 0.85rem;"
+            @change="pageNumber = 1; loadProjects()"
           >
             <option value="all">{{ authStore.isCoordinator ? 'Mis Carreras Asignadas' : 'Todas las Carreras' }}</option>
             <option v-for="(name, id) in filteredCareers" :key="id" :value="id">

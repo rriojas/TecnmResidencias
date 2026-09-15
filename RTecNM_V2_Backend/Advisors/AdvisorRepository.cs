@@ -15,13 +15,18 @@ public class AdvisorRepository : IAdvisorRepository
         _currentUser = currentUser;
     }
 
-    public async Task<PaginatedResult<Advisor>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false)
+    public async Task<PaginatedResult<Advisor>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, long? departmentId = null)
     {
         IQueryable<Advisor> q = _context.Advisors.Include(a => a.User).AsNoTracking();
 
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
             q = q.Where(a => a.AdvisorType == AdvisorType.Internal);
+        }
+
+        if (departmentId.HasValue && departmentId.Value > 0)
+        {
+            q = q.Where(a => a.DepartmentId == departmentId.Value);
         }
 
         if (status == "active")
@@ -46,13 +51,18 @@ public class AdvisorRepository : IAdvisorRepository
         return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
     }
 
-    public async Task<List<Advisor>> GetAllForExportAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false)
+    public async Task<List<Advisor>> GetAllForExportAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false, long? departmentId = null)
     {
         IQueryable<Advisor> q = _context.Advisors.Include(a => a.User).AsNoTracking();
 
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
             q = q.Where(a => a.AdvisorType == AdvisorType.Internal);
+        }
+
+        if (departmentId.HasValue && departmentId.Value > 0)
+        {
+            q = q.Where(a => a.DepartmentId == departmentId.Value);
         }
 
         if (!includeInactive)
