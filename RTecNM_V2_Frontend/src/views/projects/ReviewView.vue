@@ -90,6 +90,8 @@ const reviewComments = ref('')
 const selectedAdvisorId = ref('')
 const initialReviewAdvisor = ref(null)
 const accreditationDoc = ref(null)
+const anteproyectoDoc = ref(null)
+const cartaAceptacionDoc = ref(null)
 const isSubmitting = ref(false)
 
 // Catálogo de Carreras
@@ -239,15 +241,16 @@ async function openReviewModal(project) {
     selectedAdvisorId.value = res.data.advisorId || ''
     initialReviewAdvisor.value = res.data.advisorId ? { id: res.data.advisorId, fullName: res.data.advisorName } : null
     accreditationDoc.value = null
+    anteproyectoDoc.value = null
+    cartaAceptacionDoc.value = null
 
-    if (isAccreditation(res.data)) {
-      try {
-        const dRes = await apiClient.get(`/v1/documents?projectId=${project.id}`)
-        const docs = dRes.data?.items || []
-        const found = docs.find((d) => d.documentType === 'constancia_acreditacion' && d.isActive)
-        accreditationDoc.value = found || null
-      } catch {}
-    }
+    try {
+      const dRes = await apiClient.get(`/v1/documents?projectId=${project.id}`)
+      const docs = dRes.data?.items || []
+      accreditationDoc.value = docs.find((d) => d.documentType === 'constancia_acreditacion' && d.isActive) || null
+      anteproyectoDoc.value = docs.find((d) => d.documentType === 'anteproyecto' && d.isActive) || null
+      cartaAceptacionDoc.value = docs.find((d) => d.documentType === 'carta_aceptacion' && d.isActive) || null
+    } catch {}
 
     isReviewModalOpen.value = true
   } catch {
@@ -255,23 +258,28 @@ async function openReviewModal(project) {
   }
 }
 
-async function downloadAccreditationDoc() {
-  if (!accreditationDoc.value?.id) return
+async function downloadDoc(doc, defaultFileName) {
+  if (!doc?.id) return
   try {
-    const res = await apiClient.get(`/v1/documents/${accreditationDoc.value.id}/download`, {
+    const res = await apiClient.get(`/v1/documents/${doc.id}/download`, {
       responseType: 'blob',
     })
     const url = window.URL.createObjectURL(new Blob([res.data]))
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', accreditationDoc.value.fileName || 'Constancia_Acreditacion.pdf')
+    link.setAttribute('download', doc.fileName || defaultFileName)
     document.body.appendChild(link)
     link.click()
     link.remove()
     window.URL.revokeObjectURL(url)
   } catch {
-    showAlert('Error al descargar la constancia de acreditación.', 'danger')
+    showAlert('Error al descargar el documento.', 'danger')
   }
+}
+
+async function downloadAccreditationDoc() {
+  if (!accreditationDoc.value) return
+  await downloadDoc(accreditationDoc.value, 'Constancia_Acreditacion.pdf')
 }
 
 async function handleValidateAccreditation(approved, denied = false) {
@@ -831,6 +839,68 @@ onMounted(() => {
                     Pendiente de asignación
                   </span>
                 </p>
+              </div>
+            </div>
+
+            <!-- Card de Documentos Requeridos del Alumno para Dictamen -->
+            <div class="tecnm-card" style="margin-bottom: 1.25rem; border: 1px solid var(--tecnm-border-color, #e2e8f0);">
+              <div class="tecnm-card-header" style="background: var(--tecnm-bg-light, #f8fafc); padding: 0.75rem 1rem;">
+                <h4 class="tecnm-card-title" style="font-size: 0.95rem; margin: 0;">
+                  Documentos del Expediente Requeridos para Dictamen
+                </h4>
+              </div>
+              <div class="tecnm-card-body" style="padding: 1rem; display: flex; flex-direction: column; gap: 0.85rem;">
+                <!-- Anteproyecto Técnico -->
+                <div class="tecnm-d-flex tecnm-justify-between tecnm-align-center" style="gap: 1rem; flex-wrap: wrap; padding-bottom: 0.75rem; border-bottom: 1px dashed var(--tecnm-border-color, #e2e8f0);">
+                  <div>
+                    <div style="font-weight: 600; color: var(--tecnm-blue-primary, #1b396a);">
+                      Anteproyecto Técnico
+                    </div>
+                    <div v-if="anteproyectoDoc" class="tecnm-text-sub" style="font-size: 0.8rem;">
+                      {{ anteproyectoDoc.fileName }} &bull; Subido: {{ formatTecNMDate(anteproyectoDoc.uploadedAt) }} &bull; <TecnmBadge :status="anteproyectoDoc.status" />
+                    </div>
+                    <div v-else class="tecnm-text-muted" style="font-size: 0.8rem;">
+                      El estudiante aún no ha adjuntado el documento de anteproyecto.
+                    </div>
+                  </div>
+                  <button
+                    v-if="anteproyectoDoc"
+                    type="button"
+                    class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                    @click="downloadDoc(anteproyectoDoc, 'Anteproyecto_Tecnico.pdf')"
+                  >
+                    Descargar / Ver Anteproyecto &rarr;
+                  </button>
+                  <span v-else class="tecnm-badge tecnm-badge-warning" style="font-size: 0.75rem;">
+                    Pendiente de carga
+                  </span>
+                </div>
+
+                <!-- Carta de Aceptación -->
+                <div class="tecnm-d-flex tecnm-justify-between tecnm-align-center" style="gap: 1rem; flex-wrap: wrap;">
+                  <div>
+                    <div style="font-weight: 600; color: var(--tecnm-blue-primary, #1b396a);">
+                      Carta de Aceptación de la Empresa
+                    </div>
+                    <div v-if="cartaAceptacionDoc" class="tecnm-text-sub" style="font-size: 0.8rem;">
+                      {{ cartaAceptacionDoc.fileName }} &bull; Subido: {{ formatTecNMDate(cartaAceptacionDoc.uploadedAt) }} &bull; <TecnmBadge :status="cartaAceptacionDoc.status" />
+                    </div>
+                    <div v-else class="tecnm-text-muted" style="font-size: 0.8rem;">
+                      El estudiante aún no ha adjuntado su carta de aceptación.
+                    </div>
+                  </div>
+                  <button
+                    v-if="cartaAceptacionDoc"
+                    type="button"
+                    class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                    @click="downloadDoc(cartaAceptacionDoc, 'Carta_Aceptacion.pdf')"
+                  >
+                    Descargar / Ver Carta &rarr;
+                  </button>
+                  <span v-else class="tecnm-badge tecnm-badge-warning" style="font-size: 0.75rem;">
+                    Pendiente de carga
+                  </span>
+                </div>
               </div>
             </div>
 

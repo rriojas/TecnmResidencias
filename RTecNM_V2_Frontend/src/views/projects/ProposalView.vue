@@ -50,6 +50,8 @@ const formError = ref('')
 const isDetailOpen = ref(false)
 const selectedProject = ref(null)
 const accreditationDoc = ref(null)
+const anteproyectoDoc = ref(null)
+const cartaAceptacionDoc = ref(null)
 
 // Initial items para autocompletes
 const initialStudent = ref(null)
@@ -286,15 +288,16 @@ async function openDetailModal(proposal) {
     const res = await apiClient.get(`/v1/projects/${proposal.id}`)
     selectedProject.value = res.data
     accreditationDoc.value = null
+    anteproyectoDoc.value = null
+    cartaAceptacionDoc.value = null
 
-    if (isAccreditationType(res.data)) {
-      try {
-        const dRes = await apiClient.get(`/v1/documents?projectId=${proposal.id}`)
-        const docs = dRes.data?.items || []
-        const found = docs.find((d) => d.documentType === 'constancia_acreditacion' && d.isActive)
-        accreditationDoc.value = found || null
-      } catch {}
-    }
+    try {
+      const dRes = await apiClient.get(`/v1/documents?projectId=${proposal.id}`)
+      const docs = dRes.data?.items || []
+      accreditationDoc.value = docs.find((d) => d.documentType === 'constancia_acreditacion' && d.isActive) || null
+      anteproyectoDoc.value = docs.find((d) => d.documentType === 'anteproyecto' && d.isActive) || null
+      cartaAceptacionDoc.value = docs.find((d) => d.documentType === 'carta_aceptacion' && d.isActive) || null
+    } catch {}
 
     isDetailOpen.value = true
   } catch {
@@ -302,23 +305,28 @@ async function openDetailModal(proposal) {
   }
 }
 
-async function downloadAccreditationDoc() {
-  if (!accreditationDoc.value?.id) return
+async function downloadDoc(doc, defaultFileName) {
+  if (!doc?.id) return
   try {
-    const res = await apiClient.get(`/v1/documents/${accreditationDoc.value.id}/download`, {
+    const res = await apiClient.get(`/v1/documents/${doc.id}/download`, {
       responseType: 'blob',
     })
     const url = window.URL.createObjectURL(new Blob([res.data]))
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', accreditationDoc.value.fileName || 'Constancia_InnovaTecNM.pdf')
+    link.setAttribute('download', doc.fileName || defaultFileName)
     document.body.appendChild(link)
     link.click()
     link.remove()
     window.URL.revokeObjectURL(url)
   } catch {
-    showAlert('Error al descargar la constancia de acreditación.', 'danger')
+    showAlert('Error al descargar el documento.', 'danger')
   }
+}
+
+async function downloadAccreditationDoc() {
+  if (!accreditationDoc.value) return
+  await downloadDoc(accreditationDoc.value, 'Constancia_InnovaTecNM.pdf')
 }
 
 async function handleProposalSubmit() {
@@ -1188,6 +1196,76 @@ onMounted(() => {
                 {{ obj.description || obj }}
               </li>
             </ul>
+
+            <!-- Documentos de Expediente (Anteproyecto Técnico y Carta de Aceptación) -->
+            <div class="tecnm-card" style="margin-top: 1rem; margin-bottom: 0.5rem; border: 1px solid var(--tecnm-border-color, #e2e8f0);">
+              <div class="tecnm-card-header" style="background: var(--tecnm-bg-light, #f8fafc); padding: 0.75rem 1rem;">
+                <h4 class="tecnm-card-title" style="font-size: 0.95rem; margin: 0;">
+                  Documentos Adjuntos de la Solicitud
+                </h4>
+              </div>
+              <div class="tecnm-card-body" style="padding: 1rem; display: flex; flex-direction: column; gap: 0.85rem;">
+                <!-- Anteproyecto Técnico -->
+                <div class="tecnm-d-flex tecnm-justify-between tecnm-align-center" style="gap: 1rem; flex-wrap: wrap; padding-bottom: 0.75rem; border-bottom: 1px dashed var(--tecnm-border-color, #e2e8f0);">
+                  <div>
+                    <div style="font-weight: 600; color: var(--tecnm-blue-primary, #1b396a);">
+                      Anteproyecto Técnico
+                    </div>
+                    <div v-if="anteproyectoDoc" class="tecnm-text-sub" style="font-size: 0.8rem;">
+                      {{ anteproyectoDoc.fileName }} &bull; Subido: {{ formatTecNMDate(anteproyectoDoc.uploadedAt) }} &bull; <TecnmBadge :status="anteproyectoDoc.status" />
+                    </div>
+                    <div v-else class="tecnm-text-muted" style="font-size: 0.8rem;">
+                      No se ha adjuntado el documento de anteproyecto.
+                    </div>
+                  </div>
+                  <button
+                    v-if="anteproyectoDoc"
+                    type="button"
+                    class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                    @click="downloadDoc(anteproyectoDoc, 'Anteproyecto_Tecnico.pdf')"
+                  >
+                    Descargar / Ver &rarr;
+                  </button>
+                  <router-link
+                    v-else
+                    to="/documents"
+                    class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                  >
+                    + Subir en Expediente
+                  </router-link>
+                </div>
+
+                <!-- Carta de Aceptación -->
+                <div class="tecnm-d-flex tecnm-justify-between tecnm-align-center" style="gap: 1rem; flex-wrap: wrap;">
+                  <div>
+                    <div style="font-weight: 600; color: var(--tecnm-blue-primary, #1b396a);">
+                      Carta de Aceptación de la Empresa
+                    </div>
+                    <div v-if="cartaAceptacionDoc" class="tecnm-text-sub" style="font-size: 0.8rem;">
+                      {{ cartaAceptacionDoc.fileName }} &bull; Subido: {{ formatTecNMDate(cartaAceptacionDoc.uploadedAt) }} &bull; <TecnmBadge :status="cartaAceptacionDoc.status" />
+                    </div>
+                    <div v-else class="tecnm-text-muted" style="font-size: 0.8rem;">
+                      No se ha adjuntado la carta de aceptación de la empresa.
+                    </div>
+                  </div>
+                  <button
+                    v-if="cartaAceptacionDoc"
+                    type="button"
+                    class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                    @click="downloadDoc(cartaAceptacionDoc, 'Carta_Aceptacion.pdf')"
+                  >
+                    Descargar / Ver &rarr;
+                  </button>
+                  <router-link
+                    v-else
+                    to="/documents"
+                    class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                  >
+                    + Subir en Expediente
+                  </router-link>
+                </div>
+              </div>
+            </div>
           </template>
 
           <!-- Alerta de Observaciones del Dictamen -->

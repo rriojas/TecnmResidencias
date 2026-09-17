@@ -59,8 +59,17 @@ public class DocumentsController : ControllerBase
             var isStaff = User.IsInRole("admin") || User.IsInRole("departmenthead") || User.IsInRole("director") || User.IsInRole("academic");
             if (projectResult.Data.IsCompleted && !isStaff)
                 return StatusCode(400, new { message = "El proyecto de residencia se encuentra concluido. No se permiten nuevas cargas al expediente digital." });
-            if (!projectResult.Data.CanUploadDocuments && !isStaff)
-                return StatusCode(400, new { message = "El anteproyecto aún no ha sido aprobado para cargar documentos oficiales." });
+
+            if (projectResult.Data.Status.Equals("cancelled", StringComparison.OrdinalIgnoreCase) && !isStaff)
+                return StatusCode(400, new { message = "El anteproyecto se encuentra cancelado. No se permiten cargas al expediente." });
+
+            var isPreApprovalDoc = dto.DocumentType.Equals(DocumentType.Anteproyecto, StringComparison.OrdinalIgnoreCase)
+                || dto.DocumentType.Equals(DocumentType.CartaAceptacion, StringComparison.OrdinalIgnoreCase)
+                || dto.DocumentType.Equals(DocumentType.Solicitud, StringComparison.OrdinalIgnoreCase)
+                || dto.DocumentType.Equals(DocumentType.ConstanciaAcreditacion, StringComparison.OrdinalIgnoreCase);
+
+            if (!projectResult.Data.CanUploadDocuments && !isStaff && !isPreApprovalDoc)
+                return StatusCode(400, new { message = "El anteproyecto aún no ha sido aprobado. En esta etapa solo se permite cargar el Anteproyecto Técnico y la Carta de Aceptación." });
         }
 
         try

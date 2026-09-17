@@ -90,10 +90,15 @@ const isProjectRejected = computed(() => {
   return st === 'rejected'
 })
 
+const isProjectApproved = computed(() => {
+  const st = String(currentProject.value?.status || '').toLowerCase()
+  return ['approved', 'aprobado', 'in_progress', 'inprogress', 'en_progreso', 'completed', 'completado'].includes(st)
+})
+
 const isProjectReadOnly = computed(() => {
   if (!currentProject.value) return true
   const st = String(currentProject.value?.status || '').toLowerCase()
-  return isProjectCompleted.value || ['cancelled', 'rejected', 'pending', 'under_review', 'proposed', 'draft'].includes(st)
+  return isProjectCompleted.value || st === 'cancelled'
 })
 
 const canUploadDocument = computed(() => {
@@ -391,13 +396,13 @@ function openUploadModal() {
     if (isProjectCompleted.value) {
       showAlert('El expediente de este proyecto concluido se encuentra en modo solo lectura.', 'info')
     } else {
-      showAlert('No se pueden subir documentos hasta que el anteproyecto sea aprobado.', 'warning')
+      showAlert('El anteproyecto se encuentra cancelado. No se permiten cargas.', 'warning')
     }
     return
   }
   uploadForm.value = {
     projectId: currentProject.value?.id || null,
-    documentType: '',
+    documentType: !isProjectApproved.value ? 'anteproyecto' : '',
     file: null,
   }
   uploadInitialProject.value = currentProject.value
@@ -463,6 +468,14 @@ async function handleUploadSubmit() {
   if (!uploadForm.value.file) {
     showAlert('Seleccione un archivo PDF o imagen válido.', 'danger')
     return
+  }
+
+  if (isStudent.value && !isProjectApproved.value) {
+    const preApprovalAllowed = ['anteproyecto', 'carta_aceptacion', 'solicitud', 'otro']
+    if (!preApprovalAllowed.includes(uploadForm.value.documentType)) {
+      showAlert('En esta etapa previa al dictamen, solo puedes subir tu Anteproyecto Técnico o tu Carta de Aceptación.', 'warning')
+      return
+    }
   }
 
   isSubmitting.value = true
@@ -679,14 +692,14 @@ onMounted(() => {
         <div v-if="isProjectCompleted" class="tecnm-alert tecnm-alert-success" role="alert" style="margin-bottom: 1rem;">
           <span><strong>Expediente Digital Concluido:</strong> Este proyecto de residencia profesional ha sido finalizado. Puedes consultar y descargar todos los documentos y evidencias registradas.</span>
         </div>
-        <div v-else-if="isProjectPending" class="tecnm-alert tecnm-alert-warning" role="alert" style="margin-bottom: 1rem;">
-          <span><strong>Anteproyecto en Dictamen:</strong> Tu solicitud se encuentra en revisión. La carga de formatos oficiales se habilitará tras la aprobación.</span>
+        <div v-else-if="isProjectPending" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
+          <span><strong>Anteproyecto en Dictamen:</strong> Tu solicitud se encuentra en revisión. Ya puedes subir tu <strong>Anteproyecto Técnico</strong> y tu <strong>Carta de Aceptación</strong> para que el Jefe de Carrera los revise. Los formatos restantes se habilitarán tras la aprobación.</span>
         </div>
         <div v-else-if="isProjectDraft" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
-          <span><strong>Anteproyecto en Borrador:</strong> Envía tu solicitud a revisión en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
+          <span><strong>Anteproyecto en Borrador:</strong> Puedes subir tu <strong>Anteproyecto Técnico</strong> y tu <strong>Carta de Aceptación</strong> desde aquí o revisar tu solicitud en <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
         </div>
-        <div v-else-if="isProjectRejected" class="tecnm-alert tecnm-alert-danger" role="alert" style="margin-bottom: 1rem;">
-          <span><strong>Anteproyecto con Observaciones:</strong> Realiza las correcciones solicitadas en el módulo de <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
+        <div v-else-if="isProjectRejected" class="tecnm-alert tecnm-alert-warning" role="alert" style="margin-bottom: 1rem;">
+          <span><strong>Anteproyecto con Observaciones:</strong> Puedes subir una versión corregida de tu <strong>Anteproyecto Técnico</strong> o <strong>Carta de Aceptación</strong> para atender las observaciones recibidas.</span>
         </div>
       </template>
 
@@ -954,14 +967,14 @@ onMounted(() => {
               required
             >
               <option value="">-- Seleccionar Tipo --</option>
+              <option value="anteproyecto">Anteproyecto Técnico *</option>
+              <option value="carta_aceptacion">Carta de Aceptación *</option>
               <option value="solicitud">Solicitud de Residencia Profesional</option>
-              <option value="carta_presentacion">Carta de Presentación</option>
-              <option value="carta_aceptacion">Carta de Aceptación</option>
-              <option value="anteproyecto">Anteproyecto Técnico</option>
-              <option value="dictamen">Dictamen de Aprobación</option>
-              <option value="manual_usuario">Manual de Usuario</option>
-              <option value="manual_tecnico">Manual Técnico</option>
-              <option value="libranza">Oficio de Liberación</option>
+              <option v-if="isProjectApproved || isStaff" value="carta_presentacion">Carta de Presentación</option>
+              <option v-if="isProjectApproved || isStaff" value="dictamen">Dictamen de Aprobación</option>
+              <option v-if="isProjectApproved || isStaff" value="manual_usuario">Manual de Usuario</option>
+              <option v-if="isProjectApproved || isStaff" value="manual_tecnico">Manual Técnico</option>
+              <option v-if="isProjectApproved || isStaff" value="libranza">Oficio de Liberación</option>
               <option value="otro">Otro / Evidencia Adicional</option>
             </select>
           </div>
