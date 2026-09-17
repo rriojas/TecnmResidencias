@@ -6,6 +6,7 @@ public record CreateCompanyDto(
     string? TradeName,
     string? Rfc,
     string? Sector,
+    string? CompanySize,
     string? Address,
     string? Street,
     string? Number,

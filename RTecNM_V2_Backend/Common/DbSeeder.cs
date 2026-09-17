@@ -743,6 +743,8 @@ public static class DbSeeder
                 ELSE
                     ALTER TABLE students ADD COLUMN IF NOT EXISTS gender VARCHAR(50);
                 END IF;
+                ALTER TABLE companies ADD COLUMN IF NOT EXISTS company_size VARCHAR(50);
+                UPDATE companies SET company_size = 'Mediana' WHERE company_size IS NULL;
 
                 UPDATE users SET role = LOWER(role);
                 DELETE FROM advisors WHERE user_id IN (SELECT id FROM users WHERE role NOT IN ('advisor', 'academico'));

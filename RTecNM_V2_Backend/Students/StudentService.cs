@@ -65,11 +65,12 @@ public class StudentService : IStudentService
         var definition = new PdfTableDefinition
         {
             Title = "Directorio de Estudiantes Residentes - TecNM Campus Monclova",
-            Headers = new List<string> { "No. Control", "Nombre", "Correo", "Carrera", "Promedio", "Estado", "Creado el", "Actualizado el" },
+            Headers = new List<string> { "No. Control", "Nombre", "Género", "Correo", "Carrera", "Promedio", "Estado", "Creado el", "Actualizado el" },
             Rows = students.Select(s => new List<string>
             {
                 s.ControlNumber,
                 $"{s.FirstName} {s.LastName} {s.LastName2 ?? ""}".Trim(),
+                s.Gender ?? "—",
                 s.User?.Email ?? string.Empty,
                 s.CareerId.ToString(),
                 s.Gpa.ToString("0.0"),
@@ -613,7 +614,12 @@ public class StudentService : IStudentService
 
             // Map Gender & Academic Semester
             var s = sexoStr.Trim().ToUpperInvariant();
-            string gender = s.StartsWith("M") ? "Masculino" : s.StartsWith("F") ? "Femenino" : StringSanitizer.SanitizeText(sexoStr);
+            string gender = s switch
+            {
+                "M" or "MASCULINO" or "MASC" or "H" or "HOMBRE" => "Masculino",
+                "F" or "FEMENINO" or "FEM" or "MUJER" => "Femenino",
+                _ => StringSanitizer.SanitizeText(sexoStr)
+            };
             int? periodId = parsedSem;
 
             // Extraer y procesar las 3 columnas de requisitos para bloqueo

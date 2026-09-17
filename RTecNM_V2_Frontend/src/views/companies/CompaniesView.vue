@@ -23,7 +23,7 @@ const canViewAgreements = computed(() => {
 })
 
 const tableColspan = computed(() => {
-  let count = 7
+  let count = 8
   if (canViewAgreements.value) count++
   if (!authStore.isStudent) count++
   return count
@@ -81,6 +81,7 @@ const form = ref({
   tradeName: '',
   rfc: '',
   sector: '',
+  companySize: '',
   street: '',
   number: '',
   colonia: '',
@@ -246,6 +247,7 @@ function openCreateModal() {
     tradeName: '',
     rfc: '',
     sector: '',
+    companySize: '',
     street: '',
     number: '',
     colonia: '',
@@ -272,6 +274,7 @@ async function openEditModal(company) {
       tradeName: c.tradeName || '',
       rfc: (c.rfc || '').toUpperCase(),
       sector: c.sector || '',
+      companySize: c.companySize || '',
       street: c.street || '',
       number: c.number || '',
       colonia: c.colonia || '',
@@ -305,6 +308,10 @@ async function handleSubmit() {
     formError.value = 'Ingrese el correo electrónico de contacto.'
     return
   }
+  if (!form.value.companySize) {
+    formError.value = 'Seleccione el tamaño de la empresa.'
+    return
+  }
 
   isSubmitting.value = true
 
@@ -314,6 +321,7 @@ async function handleSubmit() {
     tradeName: form.value.tradeName.trim() || undefined,
     rfc: form.value.rfc.trim() ? form.value.rfc.trim().toUpperCase() : null,
     sector: form.value.sector.trim() || undefined,
+    companySize: form.value.companySize.trim() || undefined,
     street: form.value.street.trim() || undefined,
     number: form.value.number.trim() || undefined,
     colonia: form.value.colonia.trim() || undefined,
@@ -947,6 +955,7 @@ onMounted(() => {
                     {{ sortBy.toLowerCase() === 'rfc' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
+                <th>Sector / Tamaño</th>
                 <th>Ubicación</th>
                 <th class="tecnm-th-sortable" @click="handleSort('ContactName')">
                   Contacto Principal
@@ -991,6 +1000,21 @@ onMounted(() => {
                   <span v-else>—</span>
                 </td>
                 <td>{{ (c.rfc || '—').toUpperCase() }}</td>
+                <td>
+                  <div v-if="c.sector || c.companySize" style="display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center;">
+                    <span v-if="c.sector" class="tecnm-badge tecnm-badge-secondary" style="font-size: 0.72rem;">
+                      {{ c.sector }}
+                    </span>
+                    <span
+                      v-if="c.companySize"
+                      class="tecnm-badge"
+                      style="font-size: 0.72rem; font-weight: 600; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;"
+                    >
+                      {{ c.companySize }}
+                    </span>
+                  </div>
+                  <span v-else class="tecnm-text-muted">—</span>
+                </td>
                 <td>
                   <div v-if="c.city || c.state">
                     {{ [c.city, c.state].filter(Boolean).join(', ') }}
@@ -1379,17 +1403,38 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="tecnm-form-group">
-            <label for="companySectorInput" class="tecnm-label">Sector Industrial / Servicios</label>
-            <input
-              id="companySectorInput"
-              v-model="form.sector"
-              type="text"
-              class="tecnm-form-control"
-              placeholder="Ej. Tecnológico, Industrial, Público, Privado"
-              maxlength="100"
-              :disabled="isSubmitting"
-            />
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+            <div class="tecnm-form-group">
+              <label for="companySectorInput" class="tecnm-label">Sector</label>
+              <select
+                id="companySectorInput"
+                v-model="form.sector"
+                class="tecnm-form-control"
+                :disabled="isSubmitting"
+              >
+                <option value="">-- Seleccionar Sector --</option>
+                <option value="Privado">Privado</option>
+                <option value="Público">Público</option>
+                <option value="Social">Social</option>
+                <option value="Educativo">Educativo</option>
+              </select>
+            </div>
+
+            <div class="tecnm-form-group">
+              <label for="companySizeInput" class="tecnm-label">Tamaño de Empresa *</label>
+              <select
+                id="companySizeInput"
+                v-model="form.companySize"
+                class="tecnm-form-control"
+                :disabled="isSubmitting"
+                required
+              >
+                <option value="">-- Seleccionar Tamaño --</option>
+                <option value="Chica">1 - Chica</option>
+                <option value="Mediana">2 - Mediana</option>
+                <option value="Grande">3 - Grande</option>
+              </select>
+            </div>
           </div>
 
           <!-- Bloque Dirección Dividida -->
@@ -1893,7 +1938,8 @@ onMounted(() => {
             </div>
 
             <div style="font-size: 0.8rem; color: #475569; margin-bottom: 0.65rem; line-height: 1.45;">
-              • <strong>Empresa (14 columnas)</strong>: Todos los datos son obligatorios salvo <em>RazonSocial</em>. El RFC debe tener 12 o 13 caracteres alfanuméricos.<br />
+              • <strong>Empresa (15 columnas)</strong>: Todos los datos de la empresa son obligatorios salvo <em>RazonSocial</em>. El RFC debe tener 12 o 13 caracteres. Si la empresa ya existe (por RFC o Nombre), el sistema no duplica registros sino que completa automáticamente los campos faltantes.<br />
+              • <strong>Tamaño de Empresa (Obligatorio)</strong>: Se indica numéricamente del 1 al 3 (<strong><code>1</code></strong> = Chica, <strong><code>2</code></strong> = Mediana, <strong><code>3</code></strong> = Grande).<br />
               • <strong>Convenio (6 columnas)</strong>: Si escribe <em>NumeroConvenio</em>, son requeridos <em>AlcanceConvenio</em> (GENERAL o ESPECIFICOS), <em>ClavePIT</em> y <em>TipoCIA</em>.<br />
               • <strong>Vigencia</strong>: <em>FechaCaducidad</em> en <code>DD/MM/AAAA</code> (ej. 31/12/2026). Si se deja vacía = <strong>Vigencia Indefinida</strong>.<br />
               • <strong>Proceso</strong>: <em>EstadoProceso</em> solo acepta <code>EN_RENOVACION</code>, <code>CANCELADO</code>, o vacío (normal).
@@ -1937,8 +1983,19 @@ onMounted(() => {
                   <tr>
                     <td><strong>Sector</strong></td>
                     <td><span class="tecnm-badge tecnm-badge-danger" style="font-size: 0.7rem;">Sí</span></td>
-                    <td>Industrial, Servicios, Público, etc.</td>
-                    <td>Siderúrgico / Metalmecánico</td>
+                    <td>Privado, Público, Social, Educativo</td>
+                    <td>Privado</td>
+                  </tr>
+                  <tr style="background: #fdf6ec;">
+                    <td><strong>Tamaño</strong></td>
+                    <td><span class="tecnm-badge tecnm-badge-danger" style="font-size: 0.7rem;">Sí</span></td>
+                    <td>
+                      Número del 1 al 3:<br />
+                      <strong><code>1</code></strong> = Chica<br />
+                      <strong><code>2</code></strong> = Mediana<br />
+                      <strong><code>3</code></strong> = Grande
+                    </td>
+                    <td><code>2</code> (o <code>Mediana</code>)</td>
                   </tr>
                   <tr>
                     <td><strong>Calle</strong></td>

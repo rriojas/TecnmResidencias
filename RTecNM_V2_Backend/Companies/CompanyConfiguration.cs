@@ -40,6 +40,10 @@ public class CompanyConfiguration : IEntityTypeConfiguration<Company>
             .HasColumnName("sector")
             .HasMaxLength(100);
 
+        builder.Property(c => c.CompanySize)
+            .HasColumnName("company_size")
+            .HasMaxLength(50);
+
         builder.Property(c => c.Address)
             .HasColumnName("address")
             .HasMaxLength(300);

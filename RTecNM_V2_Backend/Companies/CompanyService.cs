@@ -56,6 +56,11 @@ public class CompanyService : ICompanyService
         }
 
         string? cleanRfc = !string.IsNullOrWhiteSpace(dto.Rfc) ? dto.Rfc.Trim().ToUpperInvariant() : null;
+        var normalizedSize = NormalizeCompanySize(dto.CompanySize);
+        if (string.IsNullOrWhiteSpace(normalizedSize))
+        {
+            return Result<CompanyResponseDto>.Failure("El tamaño de la empresa es obligatorio (1 - Chica, 2 - Mediana, 3 - Grande)");
+        }
         if (cleanRfc != null)
         {
             var existingRfc = await _repository.GetByRfcAsync(cleanRfc);
@@ -85,6 +90,7 @@ public class CompanyService : ICompanyService
             TradeName = !string.IsNullOrWhiteSpace(dto.TradeName) ? dto.TradeName.Trim() : null,
             Rfc = cleanRfc,
             Sector = dto.Sector?.Trim(),
+            CompanySize = NormalizeCompanySize(dto.CompanySize),
             Address = compositeAddress,
             Street = street,
             Number = number,
@@ -152,6 +158,15 @@ public class CompanyService : ICompanyService
         company.TradeName = !string.IsNullOrWhiteSpace(dto.TradeName) ? dto.TradeName.Trim() : null;
         company.Rfc = cleanRfc;
         company.Sector = dto.Sector?.Trim();
+        var normalizedSize = NormalizeCompanySize(dto.CompanySize);
+        if (string.IsNullOrWhiteSpace(normalizedSize) && string.IsNullOrWhiteSpace(company.CompanySize))
+        {
+            return Result<CompanyResponseDto>.Failure("El tamaño de la empresa es obligatorio (1 - Chica, 2 - Mediana, 3 - Grande)");
+        }
+        if (!string.IsNullOrWhiteSpace(normalizedSize))
+        {
+            company.CompanySize = normalizedSize;
+        }
         company.Address = compositeAddress ?? company.Address;
         company.Street = street ?? company.Street;
         company.Number = number ?? company.Number;
@@ -220,9 +235,13 @@ public class CompanyService : ICompanyService
             "Nombre", "RazonSocial", "NombreComercial", "RFC", "Sector", "Calle", "Numero", "Colonia", "Ciudad", "Estado", "CodigoPostal", "NombreContacto", "CorreoContacto", "TeléfonoContacto",
             "NumeroConvenio", "FechaCaducidad", "EstadoProceso", "AlcanceConvenio", "ClavePIT", "TipoCIA"
         };
+        var optionalColumns = new List<string>
+        {
+            "Tamaño", "Tamano", "TamanoEmpresa", "TamañoEmpresa", "CompanySize"
+        };
 
         using var stream = file.OpenReadStream();
-        var (isValid, errorMessage, rows) = ExcelHelper.ParseExcelFile(stream, expectedColumns);
+        var (isValid, errorMessage, rows) = ExcelHelper.ParseExcelFile(stream, expectedColumns, optionalColumns);
 
         // Fallback para admitir plantilla base de empresas (14 columnas) si no trae convenios
         if (!isValid)
@@ -232,7 +251,7 @@ public class CompanyService : ICompanyService
             {
                 "Nombre", "RazonSocial", "NombreComercial", "RFC", "Sector", "Calle", "Numero", "Colonia", "Ciudad", "Estado", "CodigoPostal", "NombreContacto", "CorreoContacto", "TeléfonoContacto"
             };
-            var baseParse = ExcelHelper.ParseExcelFile(stream, baseColumns);
+            var baseParse = ExcelHelper.ParseExcelFile(stream, baseColumns, optionalColumns);
             if (baseParse.IsValid)
             {
                 isValid = true;
@@ -294,6 +313,13 @@ public class CompanyService : ICompanyService
             if (string.IsNullOrWhiteSpace(sector))
             {
                 return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Sector es obligatorio (ej. PUBLICO, SOCIAL, PRIVADO, EDUCATIVO).", 400);
+            }
+
+            var sizeRaw = (row.GetValueOrDefault("Tamaño") ?? row.GetValueOrDefault("Tamano") ?? row.GetValueOrDefault("TamanoEmpresa") ?? row.GetValueOrDefault("TamañoEmpresa") ?? row.GetValueOrDefault("CompanySize"))?.Trim();
+            var normalizedSize = NormalizeCompanySize(sizeRaw);
+            if (string.IsNullOrWhiteSpace(normalizedSize))
+            {
+                return Result<BatchImportResultDto>.Failure($"Fila {checkRowNum}: El Tamaño de la empresa es obligatorio. Indique 1 (Chica), 2 (Mediana) o 3 (Grande).", 400);
             }
 
             if (string.IsNullOrWhiteSpace(calle))
@@ -433,6 +459,13 @@ public class CompanyService : ICompanyService
                     existing.Sector = sector;
                     modified = true;
                 }
+                var rawSize = (row.GetValueOrDefault("Tamaño") ?? row.GetValueOrDefault("Tamano") ?? row.GetValueOrDefault("TamanoEmpresa") ?? row.GetValueOrDefault("TamañoEmpresa") ?? row.GetValueOrDefault("CompanySize"))?.Trim();
+                var parsedSize = NormalizeCompanySize(rawSize);
+                if (string.IsNullOrWhiteSpace(existing.CompanySize) && !string.IsNullOrWhiteSpace(parsedSize))
+                {
+                    existing.CompanySize = parsedSize;
+                    modified = true;
+                }
                 if (string.IsNullOrWhiteSpace(existing.Street) && !string.IsNullOrWhiteSpace(calle))
                 {
                     existing.Street = calle;
@@ -503,6 +536,9 @@ public class CompanyService : ICompanyService
                     compositeAddress = $"{calle} #{numero}, Col. {colonia}, {ciudad}, {estado}, C.P. {codigoPostal}".Trim();
                 }
 
+                var rawSizeForNew = (row.GetValueOrDefault("Tamaño") ?? row.GetValueOrDefault("Tamano") ?? row.GetValueOrDefault("TamanoEmpresa") ?? row.GetValueOrDefault("TamañoEmpresa") ?? row.GetValueOrDefault("CompanySize"))?.Trim();
+                var companySizeForNew = NormalizeCompanySize(rawSizeForNew);
+
                 var newCompany = new Company
                 {
                     Name = primaryName,
@@ -510,6 +546,7 @@ public class CompanyService : ICompanyService
                     TradeName = !string.IsNullOrWhiteSpace(tradeName) ? tradeName : null,
                     Rfc = cleanRfc,
                     Sector = sector,
+                    CompanySize = companySizeForNew,
                     Address = compositeAddress,
                     Street = calle,
                     Number = numero,
@@ -736,6 +773,16 @@ public class CompanyService : ICompanyService
         return Result<bool>.Success(true);
     }
 
+    public static string? NormalizeCompanySize(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        var s = raw.Trim().ToUpperInvariant();
+        if (s == "1" || s.Contains("CHICA") || s.Contains("PEQUENA") || s.Contains("PEQUEÑA")) return "Chica";
+        if (s == "2" || s.Contains("MEDIAN")) return "Mediana";
+        if (s == "3" || s.Contains("GRAND")) return "Grande";
+        return StringSanitizer.SanitizeText(raw);
+    }
+
     private static CompanyResponseDto MapToResponseDto(Company company) => new(
         company.Id,
         company.Name,
@@ -743,6 +790,7 @@ public class CompanyService : ICompanyService
         company.TradeName,
         company.Rfc,
         company.Sector,
+        company.CompanySize,
         company.Address,
         company.Street,
         company.Number,

@@ -202,6 +202,9 @@ const sortedStudents = computed(() => {
     } else if (field === 'IsActive') {
       valA = a.isActive ? 1 : 0
       valB = b.isActive ? 1 : 0
+    } else if (field === 'Gender') {
+      valA = a.gender || ''
+      valB = b.gender || ''
     } else {
       valA = a[field] ?? ''
       valB = b[field] ?? ''
@@ -305,13 +308,23 @@ async function openEditModal(student) {
     const s = res.data
     isEditMode.value = true
     editingStudentId.value = s.id
+    const rawG = s.gender ? String(s.gender).trim().toUpperCase() : ''
+    let normG = 'Masculino'
+    if (rawG === 'F' || rawG.startsWith('FEM') || rawG.startsWith('MUJ')) {
+      normG = 'Femenino'
+    } else if (rawG === 'M' || rawG.startsWith('MASC') || rawG === 'H' || rawG.startsWith('HOMB')) {
+      normG = 'Masculino'
+    } else if (s.gender) {
+      normG = s.gender
+    }
+
     form.value = {
       controlNumber: s.controlNumber || '',
       firstName: s.firstName || '',
       lastName: s.lastName || '',
       lastName2: s.lastName2 || '',
       curp: s.curp || '',
-      gender: s.gender || 'Masculino',
+      gender: normG,
       email: s.email || '',
       careerId: s.careerId || 1,
       academicPeriodId: s.academicPeriodId || 1,
@@ -362,7 +375,7 @@ async function handleSubmit() {
         lastName: form.value.lastName.trim().replace(/\s+/g, ' '),
         lastName2: form.value.lastName2 ? form.value.lastName2.trim().replace(/\s+/g, ' ') : undefined,
         curp: form.value.curp ? form.value.curp.replace(/\s+/g, '').toUpperCase() : undefined,
-        gender: form.value.gender || undefined,
+        gender: form.value.gender || 'Masculino',
         careerId: Number(form.value.careerId),
         academicPeriodId: form.value.academicPeriodId ? Number(form.value.academicPeriodId) : undefined,
         gpa: form.value.gpa !== '' ? Number(form.value.gpa) : undefined,
@@ -378,7 +391,7 @@ async function handleSubmit() {
         lastName: form.value.lastName.trim().replace(/\s+/g, ' '),
         lastName2: form.value.lastName2 ? form.value.lastName2.trim().replace(/\s+/g, ' ') : undefined,
         curp: form.value.curp ? form.value.curp.replace(/\s+/g, '').toUpperCase() : undefined,
-        gender: form.value.gender || undefined,
+        gender: form.value.gender || 'Masculino',
         email: form.value.email.replace(/\s+/g, '').toLowerCase(),
         careerId: Number(form.value.careerId),
         academicPeriodId: form.value.academicPeriodId ? Number(form.value.academicPeriodId) : undefined,
@@ -760,6 +773,15 @@ onMounted(() => {
                 </th>
                 <th
                   class="tecnm-th-sortable"
+                  @click="handleSort('Gender')"
+                >
+                  Género
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'Gender' }">
+                    {{ sortBy === 'Gender' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
+                </th>
+                <th
+                  class="tecnm-th-sortable"
                   @click="handleSort('CareerId')"
                 >
                   Programa Educativo
@@ -799,12 +821,12 @@ onMounted(() => {
             </thead>
             <tbody id="studentsTableBody">
               <tr v-if="isLoading">
-                <td colspan="7" class="tecnm-table-empty">
+                <td colspan="8" class="tecnm-table-empty">
                   Cargando catálogo de estudiantes...
                 </td>
               </tr>
               <tr v-else-if="sortedStudents.length === 0">
-                <td colspan="7" class="tecnm-table-empty">
+                <td colspan="8" class="tecnm-table-empty">
                   <span v-if="includeInactive">No hay estudiantes inactivos (deshabilitados) registrados.</span>
                   <span v-else>No se encontraron estudiantes activos registrados con los filtros seleccionados.</span>
                 </td>
@@ -816,6 +838,17 @@ onMounted(() => {
               >
                 <td><strong>{{ s.controlNumber }}</strong></td>
                 <td>{{ s.fullName || `${s.firstName} ${s.lastName}` }}</td>
+                <td>
+                  <span
+                    v-if="s.gender"
+                    class="tecnm-badge"
+                    :style="s.gender === 'Femenino' ? 'background: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8;' : 'background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;'"
+                    style="font-size: 0.75rem; font-weight: 600;"
+                  >
+                    {{ s.gender }}
+                  </span>
+                  <span v-else class="tecnm-text-muted">—</span>
+                </td>
                 <td>{{ CAREERS[s.careerId] || s.career || 'No especificada' }}</td>
                 <td>{{ s.email }}</td>
                 <td>
@@ -1223,8 +1256,11 @@ onMounted(() => {
                   </tr>
                   <tr>
                     <td style="padding: 0.35rem 0.6rem;"><code>Sexo</code></td>
-                    <td style="padding: 0.35rem 0.6rem;">Género</td>
-                    <td style="padding: 0.35rem 0.6rem;"><em>M, F, Masculino, Femenino</em></td>
+                    <td style="padding: 0.35rem 0.6rem;">Género del alumno</td>
+                    <td style="padding: 0.35rem 0.6rem;">
+                      <strong><code>M</code></strong> = Masculino<br />
+                      <strong><code>F</code></strong> = Femenino
+                    </td>
                   </tr>
                   <tr>
                     <td style="padding: 0.35rem 0.6rem;"><code>Carrera</code></td>
@@ -1268,7 +1304,7 @@ onMounted(() => {
               </table>
             </div>
             <div style="margin-top: 0.5rem; font-size: 0.78rem; color: #64748b; line-height: 1.35;">
-              ℹ <em>Si un alumno ya está registrado (matrícula repetida), sus datos y los 3 requisitos se actualizarán. Si cumple los 3 requisitos (<code>SI</code>), su bloqueo automático se desactivará permitiéndole el acceso.</em>
+              ℹ <em>Si un alumno ya existe en el sistema (matrícula registrada), volver a subir el archivo no crea duplicados; actualiza y completa automáticamente los campos faltantes (como género o requisitos pendientes). Si cumple los 3 requisitos (<code>1</code>), su bloqueo automático se desactivará.</em>
             </div>
           </div>
 

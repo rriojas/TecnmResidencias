@@ -9,6 +9,7 @@ public class Company : BaseEntity
     public string? TradeName { get; set; }
     public string? Rfc { get; set; }
     public string? Sector { get; set; }
+    public string? CompanySize { get; set; }
     public string? Address { get; set; }
 
     public string? Street { get; set; }

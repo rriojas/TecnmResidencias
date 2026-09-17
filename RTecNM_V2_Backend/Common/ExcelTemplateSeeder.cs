@@ -40,6 +40,7 @@ public static class ExcelTemplateSeeder
         companyTable.Columns.Add("NombreComercial");
         companyTable.Columns.Add("RFC");
         companyTable.Columns.Add("Sector");
+        companyTable.Columns.Add("Tamaño");
         companyTable.Columns.Add("Calle");
         companyTable.Columns.Add("Numero");
         companyTable.Columns.Add("Colonia");
