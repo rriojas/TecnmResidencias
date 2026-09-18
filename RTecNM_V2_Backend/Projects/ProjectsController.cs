@@ -215,6 +215,17 @@ public class ProjectsController : ControllerBase
         return Ok(new { message = "Anteproyecto reactivado exitosamente." });
     }
 
+    [HttpPatch("{id:long}/reset-to-draft")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> ResetToDraft(long id)
+    {
+        var result = await _projectService.ResetToDraftAsync(id);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
+
     [HttpPost("accreditation")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> CreateAccreditation([FromForm] CreateAccreditationDto dto)

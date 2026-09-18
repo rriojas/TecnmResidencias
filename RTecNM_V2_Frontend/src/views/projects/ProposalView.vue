@@ -449,6 +449,25 @@ async function reactivateProposal(proposal) {
   }
 }
 
+async function resetToDraft(proposal) {
+  if (!authStore.isAdmin) return
+  const confirmed = await confirm({
+    title: 'Restablecer a Borrador',
+    message: `¿Está seguro de restablecer el anteproyecto "${proposal.title}" a estado de borrador? Esto permitirá al estudiante editarlo y reenviarlo a revisión, o tramitarlo por InnovaTecNM. Se eliminarán los comentarios de revisión.`,
+    okText: 'Restablecer a Borrador',
+    cancelText: 'Cancelar',
+  })
+  if (!confirmed) return
+
+  try {
+    await apiClient.patch(`/v1/projects/${proposal.id}/reset-to-draft`)
+    showAlert('Anteproyecto restablecido a borrador exitosamente.', 'success')
+    loadStudentProposals()
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al restablecer a borrador.', 'danger')
+  }
+}
+
 async function downloadProposalPdf(proposal) {
   if (!proposal) return
   try {
@@ -771,6 +790,14 @@ onMounted(() => {
                       @click="reactivateProposal(p)"
                     >
                       Reactivar
+                    </button>
+                    <button
+                      v-if="authStore.isAdmin && ['approved', 'aprobado', 'in_progress', 'inprogress', 'en_progreso', 'completed', 'completado', 'rejected', 'rechazado'].includes((p.status||'').toLowerCase())"
+                      type="button"
+                      class="tecnm-btn tecnm-btn-warning tecnm-btn-sm"
+                      @click="resetToDraft(p)"
+                    >
+                      Restablecer a Borrador
                     </button>
                   </div>
                 </td>

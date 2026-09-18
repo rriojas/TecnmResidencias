@@ -25,4 +25,5 @@ public interface IProjectService
     Task<Result<ProjectResponseDto>> CreateAccreditationProjectAsync(CreateAccreditationDto dto, string uploadsRootPath);
     Task<Result<ProjectResponseDto>> ReviewAccreditationAsync(long id, ReviewAccreditationDto dto);
     Task<Result<ProjectResponseDto>> ResubmitAccreditationAsync(long id, ResubmitAccreditationDto dto, string uploadsRootPath);
+    Task<Result<ProjectResponseDto>> ResetToDraftAsync(long id);
 }

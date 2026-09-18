@@ -680,6 +680,27 @@ public class ProjectService : IProjectService
         return Result<bool>.Success(true);
     }
 
+    public async Task<Result<ProjectResponseDto>> ResetToDraftAsync(long id)
+    {
+        if (!_currentUser.IsInRole(UserRole.Admin))
+            return Result<ProjectResponseDto>.Failure("Solo el Administrador puede restablecer un anteproyecto a borrador.", 403);
+
+        var project = await _repository.GetByIdAsync(id);
+        if (project == null)
+            return Result<ProjectResponseDto>.Failure("Anteproyecto no encontrado.", 404);
+
+        if (project.Status is not (ProjectStatus.Approved or ProjectStatus.InProgress or ProjectStatus.Completed or ProjectStatus.Rejected))
+            return Result<ProjectResponseDto>.Failure("Solo se pueden restablecer anteproyectos aprobados, en progreso, completados o rechazados.", 400);
+
+        project.Status = ProjectStatus.Draft;
+        project.ReviewComments = null;
+        project.UpdatedAt = DateTime.UtcNow;
+        project.UpdatedBy = _currentUser.UserId;
+
+        await _repository.UpdateAsync(project);
+        return Result<ProjectResponseDto>.Success(MapToDto(project));
+    }
+
     private static PaginatedResult<ProjectResponseDto> MapPaged(PaginatedResult<Project> paged)
     {
         var dtos = paged.Items.Select(MapToDto);
