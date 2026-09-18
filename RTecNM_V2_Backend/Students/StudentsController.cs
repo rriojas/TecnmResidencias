@@ -70,7 +70,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator,advisor,asesor")]
     public async Task<IActionResult> GetById(long id)
     {
         var result = await _studentService.GetByIdAsync(id);

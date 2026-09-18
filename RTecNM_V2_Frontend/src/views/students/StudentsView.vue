@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useConfirm } from '@/composables/useConfirm'
 import { useAudit } from '@/composables/useAudit'
@@ -9,6 +9,7 @@ import apiClient from '@/services/api'
 import TecnmPagination from '@/components/common/TecnmPagination.vue'
 import TecnmBadge from '@/components/common/TecnmBadge.vue'
 
+const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const { confirm } = useConfirm()
@@ -253,6 +254,26 @@ function onSearchInput() {
     pageNumber.value = 1
     loadStudents()
   }, 300)
+}
+
+function handleOpenSearch() {
+  openSearch({
+    initialSource: 'STUDENTS',
+    onSelect: (item) => {
+      if (!item) return
+      if (item.is_active === false || item.isActive === false) {
+        includeInactive.value = true
+      }
+      const itemCareerId = item.career_id ?? item.careerId
+      if (itemCareerId && selectedCareerFilter.value !== 'all' && Number(selectedCareerFilter.value) !== Number(itemCareerId)) {
+        selectedCareerFilter.value = 'all'
+      }
+      const query = item.control_number || item.controlNumber || item.full_name || item.fullName || String(item.id || '')
+      searchTerm.value = query
+      pageNumber.value = 1
+      loadStudents()
+    },
+  })
 }
 
 function onInactiveToggleChange() {
@@ -617,6 +638,11 @@ async function loadCareersOptions() {
 }
 
 onMounted(() => {
+  if (route.query.search) {
+    searchTerm.value = String(route.query.search)
+  } else if (route.query.controlNumber) {
+    searchTerm.value = String(route.query.controlNumber)
+  }
   loadCareersOptions()
   loadStudents()
 })
@@ -634,7 +660,7 @@ onMounted(() => {
         <button
           type="button"
           class="tecnm-btn tecnm-btn-secondary"
-          @click="openSearch({ initialSource: 'STUDENTS' })"
+          @click="handleOpenSearch"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />

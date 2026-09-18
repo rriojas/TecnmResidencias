@@ -222,14 +222,25 @@ async function loadProjects({ silent = false } = {}) {
   }
 }
 
-function toggleSort(field) {
-  if (sortBy.value === field) {
+function handleOpenSearch() {
+  openSearch({
+    initialSource: 'PROJECTS',
+    onSelect: (item) => {
+      if (!item) return
+      searchTerm.value = item.title || item.student_name || item.studentName || String(item.id || '')
+      pageNumber.value = 1
+      loadProjects()
+    },
+  })
+}
+
+function handleSort(col) {
+  if (sortBy.value === col) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
   } else {
-    sortBy.value = field
+    sortBy.value = col
     sortDir.value = 'asc'
   }
-  pageNumber.value = 1
   loadProjects({ silent: true })
 }
 
@@ -534,7 +545,7 @@ onMounted(() => {
         <button
           type="button"
           class="tecnm-btn tecnm-btn-secondary"
-          @click="openSearch({ initialSource: 'PROJECTS' })"
+          @click="handleOpenSearch"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />

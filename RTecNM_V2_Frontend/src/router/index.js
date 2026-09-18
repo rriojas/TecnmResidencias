@@ -41,7 +41,7 @@ const routes = [
     meta: {
       requiresAuth: true,
       title: 'Perfil de Estudiante - Sistema de Residencias',
-      roles: ['admin', 'vinculacion', 'departmenthead', 'academic', 'director', 'jefecarrera', 'careerhead', 'coordinadora', 'coordinator', 'student'],
+      roles: ['admin', 'vinculacion', 'departmenthead', 'academic', 'advisor', 'asesor', 'director', 'jefecarrera', 'careerhead', 'coordinadora', 'coordinator', 'student'],
       navActive: 'students',
     },
   },
