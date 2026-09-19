@@ -10,10 +10,10 @@ public interface IProjectService
     Task<Result<ProjectResponseDto>> GetProjectByIdAsync(long id);
     Task<Result<ProjectResponseDto>> GetProjectByStudentIdAsync(long studentId);
     Task<Result<ProjectResponseDto>> GetMyCurrentProjectAsync();
-    Task<Result<PaginatedResult<ProjectResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, long? careerId = null);
-    Task<Result<byte[]>> ExportPdfAsync(string? status, string? search, string? sortBy, string? sortDir, bool includeInactive = false, long? careerId = null);
+    Task<Result<PaginatedResult<ProjectResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, long? careerId = null, bool includeCancelled = false);
+    Task<Result<byte[]>> ExportPdfAsync(string? status, string? search, string? sortBy, string? sortDir, bool includeInactive = false, long? careerId = null, bool includeCancelled = false);
     Task<Result<byte[]>> GetProjectPdfAsync(long id);
-    Task<Result<PaginatedResult<ProjectResponseDto>>> GetMyProjectsPagedAsync(PaginationQuery query, bool includeInactive = false);
+    Task<Result<PaginatedResult<ProjectResponseDto>>> GetMyProjectsPagedAsync(PaginationQuery query, bool includeInactive = false, bool includeCancelled = false);
     Task<Result<PaginatedResult<ProjectResponseDto>>> GetAdvisorProjectsPagedAsync(PaginationQuery query);
     Task<Result<PaginatedResult<ProjectResponseDto>>> GetProjectsByStudentIdPagedAsync(long studentId, PaginationQuery query);
     Task<Result<List<ProjectOptionDto>>> GetOptionsAsync();

@@ -7,7 +7,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import TecnmPagination from '@/components/common/TecnmPagination.vue'
 import TecnmAutocomplete from '@/components/common/TecnmAutocomplete.vue'
 import TecnmBadge from '@/components/common/TecnmBadge.vue'
-import apiClient from '@/services/api'
+import apiClient, { getUploadErrorMessage } from '@/services/api'
 
 const authStore = useAuthStore()
 const { open: openGlobalSearch } = useGlobalSearch()
@@ -427,14 +427,14 @@ function onFileSelected(e) {
   const allowed = ['.pdf', '.jpg', '.jpeg', '.png']
   const ext = '.' + (file.name.split('.').pop() || '').toLowerCase()
   if (!allowed.includes(ext)) {
-    showAlert('Solo se permiten archivos en formato PDF, JPG o PNG.', 'danger')
+    showAlert('No se pudo seleccionar: formato no permitido (solo PDF, JPG o PNG).', 'danger')
     e.target.value = ''
     clearLocalPreview()
     return
   }
 
-  if (file.size > 10 * 1024 * 1024) {
-    showAlert('El archivo seleccionado excede el límite máximo de 10MB.', 'danger')
+  if (file.size > 5 * 1024 * 1024) {
+    showAlert('No se pudo seleccionar: el archivo supera el límite permitido de 5MB.', 'danger')
     e.target.value = ''
     clearLocalPreview()
     return
@@ -485,15 +485,12 @@ async function handleUploadSubmit() {
   formData.append('file', uploadForm.value.file)
 
   try {
-    await apiClient.post('/v1/documents', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    await apiClient.post('/v1/documents', formData)
     showAlert('¡Documento subido correctamente al expediente!', 'success')
     closeUploadModal()
     await loadDocuments()
   } catch (err) {
-    const msg = err.response?.data?.message || 'Error al subir el documento.'
-    showAlert(msg, 'danger')
+    showAlert(getUploadErrorMessage(err, 'subir el documento'), 'danger')
   } finally {
     isSubmitting.value = false
   }
@@ -980,7 +977,7 @@ onMounted(() => {
           </div>
 
           <div class="tecnm-form-group">
-            <label for="documentFile" class="tecnm-label">Archivo PDF o Imagen (Máximo 10MB) *</label>
+            <label for="documentFile" class="tecnm-label">Archivo PDF o Imagen (Solo hasta 5MB) *</label>
             <input
               id="documentFile"
               type="file"
@@ -989,6 +986,7 @@ onMounted(() => {
               required
               @change="onFileSelected"
             />
+            <span class="tecnm-form-hint">Solo se permiten archivos en formato PDF, JPG o PNG de hasta 5MB.</span>
           </div>
 
           <div

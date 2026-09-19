@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import TecnmModal from '@/components/common/TecnmModal.vue'
-import apiClient from '@/services/api'
+import apiClient, { getUploadErrorMessage } from '@/services/api'
 
 const props = defineProps({
   modelValue: {
@@ -74,15 +74,15 @@ function handleFileChange(event) {
   const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png']
   const ext = '.' + file.name.split('.').pop().toLowerCase()
   if (!allowedExtensions.includes(ext)) {
-    fileError.value = 'Formato no válido. Solo se admiten documentos PDF o imágenes (JPG, PNG).'
+    fileError.value = 'No se pudo seleccionar: formato no permitido (solo PDF, JPG o PNG).'
     selectedFile.value = null
     fileName.value = ''
     fileSizeText.value = ''
     return
   }
 
-  if (file.size > 10 * 1024 * 1024) {
-    fileError.value = 'El archivo supera el tamaño máximo permitido de 10MB.'
+  if (file.size > 5 * 1024 * 1024) {
+    fileError.value = 'No se pudo seleccionar: el archivo supera el límite permitido de 5MB.'
     selectedFile.value = null
     fileName.value = ''
     fileSizeText.value = ''
@@ -113,23 +113,19 @@ async function handleSubmit() {
   formData.append('file', selectedFile.value)
 
   try {
+    let res
     if (props.isResubmit) {
-      await apiClient.post(`/v1/projects/${props.projectId}/accreditation/resubmit`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      res = await apiClient.post(`/v1/projects/${props.projectId}/accreditation/resubmit`, formData)
     } else {
       formData.append('eventType', 'innovatec')
       formData.append('projectTitle', projectTitle.value.trim())
-      await apiClient.post('/v1/projects/accreditation', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      res = await apiClient.post('/v1/projects/accreditation', formData)
     }
 
-    emit('success')
+    emit('success', res?.data)
     emit('update:modelValue', false)
   } catch (err) {
-    errorMessage.value =
-      err.response?.data?.message || 'Error al procesar la solicitud de acreditación. Intente nuevamente.'
+    errorMessage.value = getUploadErrorMessage(err, 'procesar la acreditación')
   } finally {
     isSubmitting.value = false
   }
@@ -159,7 +155,7 @@ async function handleSubmit() {
       <ul class="tecnm-mt-1 tecnm-mb-0" style="padding-left: 1.25rem; line-height: 1.45;">
         <li>Esta modalidad es exclusiva para estudiantes acreditados en la <strong>Cumbre Nacional InnovaTecNM a nivel nacional</strong>.</li>
         <li><strong>No requieres</strong> anteproyecto ordinario, asesor docente ni registro de objetivos.</li>
-        <li>Sube tu constancia oficial nacional con sellos y firmas legibles (PDF o imagen, máx. 10MB).</li>
+        <li>Sube tu constancia oficial nacional con sellos y firmas legibles (PDF o imagen, solo hasta 5MB).</li>
         <li>La Jefatura de Carrera o Administración validará el documento para <strong>liberar tu residencia con calificación de 100%</strong>.</li>
       </ul>
     </div>
@@ -223,7 +219,7 @@ async function handleSubmit() {
           {{ fileError }}
         </span>
         <span class="tecnm-form-hint">
-          Formatos admitidos: PDF, JPG o PNG. Tamaño máximo: 10MB.
+          Solo se permiten archivos en formato PDF, JPG o PNG de hasta 5MB.
         </span>
       </div>
     </form>

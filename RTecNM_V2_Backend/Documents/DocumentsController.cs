@@ -41,7 +41,7 @@ public class DocumentsController : ControllerBase
     }
 
     /// <summary>
-    /// Subir expediente o evidencia digital en PDF (máx 10MB)
+    /// Subir expediente o evidencia digital en PDF (máx 5MB)
     /// </summary>
     [HttpPost]
     [Consumes("multipart/form-data")]

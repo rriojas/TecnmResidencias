@@ -37,9 +37,9 @@ public class DocumentService : IDocumentService
             throw new ArgumentException("El archivo es obligatorio y no puede estar vacío.");
         }
 
-        if (dto.File.Length > 10 * 1024 * 1024) // 10MB
+        if (dto.File.Length > 5 * 1024 * 1024) // 5MB
         {
-            throw new ArgumentException("El tamaño del archivo excede el límite máximo de 10MB.");
+            throw new ArgumentException("El tamaño del archivo excede el límite máximo de 5MB.");
         }
 
         var extension = Path.GetExtension(dto.File.FileName).ToLowerInvariant();

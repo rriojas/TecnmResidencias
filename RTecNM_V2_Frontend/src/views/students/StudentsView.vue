@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useConfirm } from '@/composables/useConfirm'
 import { useAudit } from '@/composables/useAudit'
 import { useGlobalSearch } from '@/composables/useGlobalSearch'
-import apiClient from '@/services/api'
+import apiClient, { getUploadErrorMessage } from '@/services/api'
 import TecnmPagination from '@/components/common/TecnmPagination.vue'
 import TecnmBadge from '@/components/common/TecnmBadge.vue'
 
@@ -114,7 +114,15 @@ function openImportModal() {
 function handleFileChange(event) {
   const files = event.target.files
   if (files && files.length > 0) {
-    importFile.value = files[0]
+    const file = files[0]
+    if (file.size > 5 * 1024 * 1024) {
+      importError.value = 'No se pudo seleccionar: el archivo supera el límite permitido de 5MB.'
+      importFile.value = null
+      event.target.value = ''
+      return
+    }
+    importFile.value = file
+    importError.value = ''
   } else {
     importFile.value = null
   }
@@ -149,9 +157,7 @@ async function handleImportSubmit() {
     }
     loadStudents()
   } catch (err) {
-    importError.value =
-      err.response?.data?.message ||
-      'Error al procesar el archivo Excel. Verifique que cumpla con el formato y columnas requeridas.'
+    importError.value = getUploadErrorMessage(err, 'importar los alumnos')
   } finally {
     isImporting.value = false
   }
@@ -1366,7 +1372,7 @@ onMounted(() => {
           </div>
 
           <div class="tecnm-form-group">
-            <label for="studentExcelFile" class="tecnm-label">Seleccionar Archivo Excel (.xlsx / .xls) *</label>
+            <label for="studentExcelFile" class="tecnm-label">Seleccionar Archivo Excel (.xlsx / .xls) (Hasta 5MB) *</label>
             <input
               id="studentExcelFile"
               type="file"
@@ -1376,6 +1382,7 @@ onMounted(() => {
               required
               @change="handleFileChange"
             />
+            <small class="tecnm-hint">Solo se permiten archivos de hasta 5MB (.xlsx o .xls).</small>
           </div>
 
           <div class="tecnm-modal-footer">

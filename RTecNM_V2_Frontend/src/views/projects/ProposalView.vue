@@ -16,8 +16,10 @@ const { open: openSearch } = useGlobalSearch()
 
 // Estado
 const proposals = ref([])
+const searchTerm = ref('')
 const statusFilter = ref('all')
 const includeInactive = ref(false)
+const includeCancelled = ref(false)
 const isLoading = ref(false)
 const isSubmitting = ref(false)
 
@@ -86,7 +88,7 @@ const isStaff = computed(() => {
 function canCancelProposal(proposal) {
   if (!proposal || authStore.isReadOnly || authStore.hasRole('vinculacion')) return false
   const st = String(proposal.status || '').toLowerCase()
-  if (!proposal.isActive || st === 'cancelled' || st === 'completed') return false
+  if (!proposal.isActive || ['cancelled', 'cancelado', 'completed', 'completado'].includes(st)) return false
   if (isStaff.value) return true
   // Si es estudiante: NO puede cancelar una vez que ya fue aprobado o está en curso
   return CANCELLABLE_STUDENT_STATUSES.includes(st)
@@ -110,7 +112,7 @@ const activeProposal = computed(() => {
   if (isStaff.value) return null
   return proposals.value.find((p) => {
     const st = (p.status || '').toLowerCase()
-    return ACTIVE_STATUSES.includes(st) && p.isActive !== false
+    return ACTIVE_STATUSES.includes(st) && p.isActive !== false && !['cancelled', 'cancelado'].includes(st)
   })
 })
 
@@ -128,7 +130,7 @@ const latestAccreditationProject = computed(() => {
 const isAccreditationActive = computed(() => {
   if (!latestAccreditationProject.value || isStaff.value) return false
   const st = String(latestAccreditationProject.value.status || '').toLowerCase()
-  return !['rejected', 'cancelled'].includes(st)
+  return latestAccreditationProject.value.isActive !== false && !['rejected', 'rechazado', 'cancelled', 'cancelado'].includes(st)
 })
 
 const isAccreditationUnderReview = computed(() => {
@@ -180,6 +182,10 @@ async function loadStudentProposals() {
       pageNumber: pageNumber.value,
       pageSize: pageSize.value,
       includeInactive: includeInactive.value,
+      includeCancelled: includeCancelled.value,
+    }
+    if (searchTerm.value && searchTerm.value.trim()) {
+      params.search = searchTerm.value.trim()
     }
     if (statusFilter.value && statusFilter.value !== 'all') {
       params.status = statusFilter.value
@@ -423,7 +429,7 @@ async function cancelProposal(proposal) {
   if (authStore.isReadOnly) return
   const confirmed = await confirm({
     title: 'Cancelar Solicitud de Anteproyecto',
-    message: `¿Está seguro de cancelar el anteproyecto "${proposal.title}"? Esto liberará tu registro para presentar una nueva propuesta.`,
+    message: `¿Está seguro de cancelar el anteproyecto "${proposal.title}"? Esto liberará tu registro para presentar una nueva propuesta o tramitar por InnovaTecNM.`,
     okText: 'Cancelar Anteproyecto',
     cancelText: 'Volver',
   })
@@ -432,6 +438,9 @@ async function cancelProposal(proposal) {
   try {
     await apiClient.patch(`/v1/projects/${proposal.id}/cancel`)
     showAlert('Solicitud de anteproyecto cancelada correctamente.', 'success')
+    if (isDetailOpen.value && selectedProject.value?.id === proposal.id) {
+      selectedProject.value.status = 'cancelled'
+    }
     loadStudentProposals()
   } catch (err) {
     showAlert(err.response?.data?.message || 'Error al cancelar anteproyecto.', 'danger')
@@ -439,10 +448,22 @@ async function cancelProposal(proposal) {
 }
 
 async function reactivateProposal(proposal) {
-  if (authStore.isReadOnly) return
+  if (!authStore.isAdmin) return
+  const confirmed = await confirm({
+    title: 'Reactivar Anteproyecto',
+    message: `¿Está seguro de reactivar el anteproyecto "${proposal.title}" (#${proposal.id})? Pasará a estado de revisión.`,
+    okText: 'Reactivar',
+    cancelText: 'Cancelar',
+  })
+  if (!confirmed) return
+
   try {
     await apiClient.patch(`/v1/projects/${proposal.id}/activate`)
     showAlert('Anteproyecto reactivado correctamente.', 'success')
+    if (isDetailOpen.value && selectedProject.value?.id === proposal.id) {
+      selectedProject.value.status = 'pending'
+      selectedProject.value.isActive = true
+    }
     loadStudentProposals()
   } catch (err) {
     showAlert(err.response?.data?.message || 'Error al reactivar anteproyecto.', 'danger')
@@ -462,9 +483,35 @@ async function resetToDraft(proposal) {
   try {
     await apiClient.patch(`/v1/projects/${proposal.id}/reset-to-draft`)
     showAlert('Anteproyecto restablecido a borrador exitosamente.', 'success')
+    if (isDetailOpen.value && selectedProject.value?.id === proposal.id) {
+      selectedProject.value.status = 'draft'
+      selectedProject.value.reviewComments = null
+    }
     loadStudentProposals()
   } catch (err) {
     showAlert(err.response?.data?.message || 'Error al restablecer a borrador.', 'danger')
+  }
+}
+
+async function deleteProposal(proposal) {
+  if (!authStore.isAdmin) return
+  const confirmed = await confirm({
+    title: 'Eliminar Anteproyecto',
+    message: `¿Está seguro de eliminar el anteproyecto "${proposal.title}" (#${proposal.id})? Esto reiniciará el proceso del alumno para que pueda registrar una nueva propuesta o tramitar por InnovaTecNM.`,
+    okText: 'Eliminar Anteproyecto',
+    cancelText: 'Cancelar',
+  })
+  if (!confirmed) return
+
+  try {
+    await apiClient.delete(`/v1/projects/${proposal.id}`)
+    showAlert('Anteproyecto eliminado correctamente. Proceso del alumno reiniciado.', 'success')
+    if (isDetailOpen.value && selectedProject.value?.id === proposal.id) {
+      isDetailOpen.value = false
+    }
+    loadStudentProposals()
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al dar de baja el anteproyecto.', 'danger')
   }
 }
 
@@ -632,13 +679,24 @@ onMounted(() => {
         <h3 class="tecnm-card-title">{{ isStaff ? 'Historial de Anteproyectos Registrados' : 'Mis Anteproyectos Registrados' }}</h3>
       </div>
       <div class="tecnm-card-toolbar">
+        <div class="tecnm-form-group tecnm-mb-0 tecnm-search-box" style="margin-bottom: 0; min-width: 240px;">
+          <input
+            id="proposalSearchInput"
+            v-model="searchTerm"
+            type="search"
+            class="tecnm-form-control"
+            placeholder="Buscar por título, estudiante, empresa..."
+            @input="pageNumber = 1; loadStudentProposals()"
+          />
+        </div>
+
         <div class="tecnm-form-group tecnm-mb-0 tecnm-filter-group" style="margin-bottom: 0;">
           <label for="proposalStatusFilter" class="tecnm-label tecnm-sr-only">Filtrar por Estatus</label>
           <select
             id="proposalStatusFilter"
             v-model="statusFilter"
             class="tecnm-form-control"
-            @change="loadStudentProposals"
+            @change="pageNumber = 1; loadStudentProposals()"
           >
             <option value="all">Todos los Estatus</option>
             <option value="draft">Borradores</option>
@@ -658,12 +716,26 @@ onMounted(() => {
                 id="proposalIncludeInactiveToggle"
                 v-model="includeInactive"
                 type="checkbox"
-                @change="loadStudentProposals"
+                @change="pageNumber = 1; loadStudentProposals()"
               />
               <span class="tecnm-switch-slider"></span>
             </span>
             Mostrar inactivos
           </label>
+
+          <label class="tecnm-switch-label">
+            <span class="tecnm-switch">
+              <input
+                id="proposalIncludeCancelledToggle"
+                v-model="includeCancelled"
+                type="checkbox"
+                @change="pageNumber = 1; loadStudentProposals()"
+              />
+              <span class="tecnm-switch-slider"></span>
+            </span>
+            Mostrar cancelados
+          </label>
+
           <button
             id="refreshProposalsBtn"
             type="button"
@@ -784,7 +856,7 @@ onMounted(() => {
                       Cancelar solicitud
                     </button>
                     <button
-                      v-if="(!p.isActive || (p.status||'').toLowerCase() === 'cancelled') && authStore.canManageRegistry && !authStore.isReadOnly && !authStore.hasRole('vinculacion')"
+                      v-if="authStore.isAdmin && (!p.isActive || ['cancelled', 'cancelado'].includes((p.status||'').toLowerCase()))"
                       type="button"
                       class="tecnm-btn tecnm-btn-success tecnm-btn-sm"
                       @click="reactivateProposal(p)"
@@ -798,6 +870,14 @@ onMounted(() => {
                       @click="resetToDraft(p)"
                     >
                       Restablecer a Borrador
+                    </button>
+                    <button
+                      v-if="authStore.isAdmin"
+                      type="button"
+                      class="tecnm-btn tecnm-btn-danger tecnm-btn-sm"
+                      @click="deleteProposal(p)"
+                    >
+                      Eliminar
                     </button>
                   </div>
                 </td>
@@ -1336,15 +1416,99 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="tecnm-modal-footer">
-          <button
-            v-if="PRINTABLE_STATUSES.includes((selectedProject.status || '').toLowerCase())"
-            type="button"
-            class="tecnm-btn tecnm-btn-primary"
-            @click="downloadProposalPdf(selectedProject)"
-          >
-            Descargar PDF Oficial
-          </button>
+        <div class="tecnm-modal-footer tecnm-d-flex tecnm-justify-between tecnm-align-center tecnm-flex-wrap tecnm-gap-2">
+          <div class="tecnm-d-flex tecnm-align-center tecnm-flex-wrap tecnm-gap-2">
+            <!-- Editar -->
+            <button
+              v-if="!authStore.isReadOnly && !authStore.hasRole('vinculacion') && (isStaff ? !['completed', 'cancelled', 'cancelado'].includes((selectedProject.status||'').toLowerCase()) : (DRAFT_STATUSES.includes((selectedProject.status||'').toLowerCase()) && !isAccreditationType(selectedProject)))"
+              type="button"
+              class="tecnm-btn tecnm-btn-secondary"
+              @click="isDetailOpen = false; openEditModal(selectedProject)"
+            >
+              {{ isStaff ? 'Editar Anteproyecto' : 'Editar Borrador' }}
+            </button>
+
+            <!-- Enviar a revisión -->
+            <button
+              v-if="!authStore.isReadOnly && !authStore.hasRole('vinculacion') && ['draft', 'rejected', 'rechazado'].includes((selectedProject.status||'').toLowerCase()) && !isAccreditationType(selectedProject)"
+              type="button"
+              class="tecnm-btn tecnm-btn-primary"
+              @click="submitProposal(selectedProject); isDetailOpen = false"
+            >
+              Enviar a Revisión
+            </button>
+
+            <!-- Ir a Dictamen / Revisión (personal académico / jefatura) -->
+            <router-link
+              v-if="isStaff && ['pending', 'pendiente', 'proposed', 'under_review'].includes((selectedProject.status||'').toLowerCase())"
+              to="/projects/review"
+              class="tecnm-btn tecnm-btn-primary"
+              @click="isDetailOpen = false"
+            >
+              Ir a Dictamen
+            </router-link>
+
+            <!-- Auditoría -->
+            <button
+              v-if="authStore.canSeeAudit"
+              type="button"
+              class="tecnm-btn tecnm-btn-secondary"
+              @click="handleAudit(selectedProject)"
+            >
+              Auditoría
+            </button>
+
+            <!-- Descargar PDF -->
+            <button
+              v-if="PRINTABLE_STATUSES.includes((selectedProject.status || '').toLowerCase())"
+              type="button"
+              class="tecnm-btn tecnm-btn-secondary"
+              @click="downloadProposalPdf(selectedProject)"
+            >
+              Descargar PDF Oficial
+            </button>
+
+            <!-- Cancelar solicitud -->
+            <button
+              v-if="canCancelProposal(selectedProject)"
+              type="button"
+              class="tecnm-btn tecnm-btn-danger"
+              @click="cancelProposal(selectedProject)"
+            >
+              Cancelar Solicitud
+            </button>
+
+            <!-- Restablecer a Borrador (Solo Admin) -->
+            <button
+              v-if="authStore.isAdmin && ['approved', 'aprobado', 'in_progress', 'inprogress', 'en_progreso', 'completed', 'completado', 'rejected', 'rechazado'].includes((selectedProject.status||'').toLowerCase())"
+              type="button"
+              class="tecnm-btn tecnm-btn-warning"
+              @click="resetToDraft(selectedProject)"
+            >
+              Restablecer a Borrador
+            </button>
+
+            <!-- Reactivar (Solo Admin) -->
+            <button
+              v-if="authStore.isAdmin && (!selectedProject.isActive || ['cancelled', 'cancelado'].includes((selectedProject.status||'').toLowerCase()))"
+              type="button"
+              class="tecnm-btn tecnm-btn-success"
+              @click="reactivateProposal(selectedProject)"
+            >
+              Reactivar
+            </button>
+
+            <!-- Eliminar (Solo Admin) -->
+            <button
+              v-if="authStore.isAdmin"
+              type="button"
+              class="tecnm-btn tecnm-btn-danger"
+              @click="deleteProposal(selectedProject)"
+            >
+              Eliminar
+            </button>
+          </div>
+
           <button
             type="button"
             class="tecnm-btn tecnm-btn-secondary"

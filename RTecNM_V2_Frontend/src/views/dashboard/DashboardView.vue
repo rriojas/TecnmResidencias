@@ -230,6 +230,12 @@ const advisorInitials = computed(() => {
 // Computados para Estudiante
 const latestStudentProject = computed(() => {
   if (!studentProjects.value.length) return null
+  // Solo tomar en cuenta proyectos activos (excluir cancelados o dados de baja lógica)
+  const activeOnly = studentProjects.value.filter(
+    (p) => p.isActive !== false && !['cancelled', 'cancelado'].includes((p.status || '').toLowerCase())
+  )
+  if (!activeOnly.length) return null
+
   const priority = {
     in_progress: 1,
     approved: 2,
@@ -239,15 +245,20 @@ const latestStudentProject = computed(() => {
     draft: 6,
     completed: 7,
     rejected: 8,
-    cancelled: 9,
   }
-  const sorted = [...studentProjects.value].sort((a, b) => {
+  const sorted = [...activeOnly].sort((a, b) => {
     const pa = priority[(a.status || '').toLowerCase()] || 99
     const pb = priority[(b.status || '').toLowerCase()] || 99
     if (pa !== pb) return pa - pb
     return new Date(b.createdAt) - new Date(a.createdAt)
   })
   return sorted[0] || null
+})
+
+const hasCancelledProjects = computed(() => {
+  return studentProjects.value.some(
+    (p) => ['cancelled', 'cancelado'].includes((p.status || '').toLowerCase()) || p.isActive === false
+  )
 })
 
 const isAccreditationModalOpen = ref(false)
@@ -258,8 +269,18 @@ function openAccreditationModal(resubmit = false) {
   isAccreditationModalOpen.value = true
 }
 
-async function handleAccreditationSuccess() {
+async function handleAccreditationSuccess(newProject) {
   showAlert('¡Constancia de InnovaTecNM enviada a dictamen! Tu trámite está siendo analizado por la Jefatura de Carrera.', 'info')
+  if (newProject && newProject.id) {
+    const list = [...studentProjects.value]
+    const idx = list.findIndex((p) => p.id === newProject.id)
+    if (idx !== -1) {
+      list[idx] = newProject
+    } else {
+      list.unshift(newProject)
+    }
+    studentProjects.value = list
+  }
   await loadDashboard()
 }
 
@@ -543,16 +564,18 @@ async function loadDashboard() {
       }
     } else if (role === 'student') {
       const [sRes, pRes] = await Promise.all([
-        apiClient.get('/v1/students/me').catch(() => ({ data: null })),
-        apiClient.get('/v1/projects/me', { params: { pageNumber: 1, pageSize: 10 } }).catch(() => ({ data: { items: [] } })),
+        apiClient.get('/v1/students/me', { params: { _t: Date.now() } }).catch(() => ({ data: null })),
+        apiClient.get('/v1/projects/me', { params: { pageNumber: 1, pageSize: 10, includeInactive: true, _t: Date.now() } }).catch(() => ({ data: { items: [] } })),
       ])
       studentProfile.value = sRes.data
-      studentProjects.value = pRes.data?.items || []
+      if (pRes.data?.items) {
+        studentProjects.value = pRes.data.items
+      }
 
       if (latestStudentProject.value) {
         const [dRes, aRes] = await Promise.all([
-          apiClient.get(`/v1/documents/project/${latestStudentProject.value.id}`, { params: { pageNumber: 1, pageSize: 50 } }).catch(() => ({ data: { items: [] } })),
-          apiClient.get(`/v1/projects/${latestStudentProject.value.id}/activities`).catch(() => ({ data: [] })),
+          apiClient.get(`/v1/documents/project/${latestStudentProject.value.id}`, { params: { pageNumber: 1, pageSize: 50, _t: Date.now() } }).catch(() => ({ data: { items: [] } })),
+          apiClient.get(`/v1/projects/${latestStudentProject.value.id}/activities`, { params: { _t: Date.now() } }).catch(() => ({ data: [] })),
         ])
         studentDocs.value = dRes.data?.items || []
 
@@ -1818,6 +1841,14 @@ onMounted(() => {
                 </router-link>
               </div>
             </div>
+          </div>
+
+          <!-- Aviso si el anteproyecto anterior fue cancelado y no hay proyecto activo -->
+          <div
+            v-if="hasCancelledProjects && !latestStudentProject"
+            class="tecnm-alert tecnm-alert-warning tecnm-mb-3"
+          >
+            <span><strong>Aviso de Trámite:</strong> Tu solicitud de anteproyecto anterior fue cancelada o dada de baja. Tu expediente se encuentra liberado para registrar una nueva propuesta de anteproyecto o tramitar tu residencia mediante InnovaTecNM Nacional.</span>
           </div>
 
           <!-- Banner Opción Acreditación InnovaTecNM Nacional si no tiene proyecto o fue denegado -->

@@ -1039,16 +1039,16 @@ onMounted(() => {
         </div>
 
         <div class="tecnm-modal-footer">
-          <!-- Botón de Soft Delete (solo admin/jefatura y si no es read-only ni jefe de carrera) -->
+          <!-- Botón de Soft Delete (solo admin) -->
           <button
-            v-if="authStore.canManageRegistry && !authStore.isReadOnly && !authStore.hasRole('vinculacion') && !authStore.isCareerHead"
+            v-if="authStore.isAdmin && !authStore.isReadOnly"
             id="modalSoftDeleteBtn"
             type="button"
             class="tecnm-btn tecnm-btn-danger"
             :disabled="isSubmitting"
             @click="handleSoftDelete"
           >
-            Eliminar (Soft Delete)
+            Eliminar
           </button>
 
           <!-- Descargar PDF si está aprobado / en curso -->

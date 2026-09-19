@@ -307,11 +307,11 @@ public class ProjectService : IProjectService
         return Result<ProjectResponseDto>.Success(MapToDto(project));
     }
 
-    public async Task<Result<PaginatedResult<ProjectResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, long? careerId = null)
+    public async Task<Result<PaginatedResult<ProjectResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, long? careerId = null, bool includeCancelled = false)
     {
         // Vista Estudiante: únicamente sus registros.
         if (_currentUser.IsInRole(UserRole.Student))
-            return await GetMyProjectsPagedAsync(query);
+            return await GetMyProjectsPagedAsync(query, includeInactive, includeCancelled);
 
         // Vista Administradores / Jefes de División / Vinculación / Dirección: ven todos los anteproyectos.
         if (_currentUser.IsInRole(UserRole.Admin) ||
@@ -319,7 +319,7 @@ public class ProjectService : IProjectService
             _currentUser.IsInRole(UserRole.DepartmentHead) ||
             _currentUser.IsInRole(UserRole.Director))
         {
-            var pagedAll = await _repository.GetPagedAsync(query, status, includeInactive, careerId);
+            var pagedAll = await _repository.GetPagedAsync(query, status, includeInactive, careerId, includeCancelled);
             return Result<PaginatedResult<ProjectResponseDto>>.Success(MapPaged(pagedAll));
         }
 
@@ -328,16 +328,16 @@ public class ProjectService : IProjectService
             return await GetAdvisorProjectsPagedAsync(query);
 
         // Fallback general: todos los registros.
-        var paged = await _repository.GetPagedAsync(query, status, includeInactive, careerId);
+        var paged = await _repository.GetPagedAsync(query, status, includeInactive, careerId, includeCancelled);
         return Result<PaginatedResult<ProjectResponseDto>>.Success(MapPaged(paged));
     }
 
-    public async Task<Result<byte[]>> ExportPdfAsync(string? status, string? search, string? sortBy, string? sortDir, bool includeInactive = false, long? careerId = null)
+    public async Task<Result<byte[]>> ExportPdfAsync(string? status, string? search, string? sortBy, string? sortDir, bool includeInactive = false, long? careerId = null, bool includeCancelled = false)
     {
         if (!IsStaff())
             return Result<byte[]>.Failure("No tiene permisos para exportar anteproyectos.", 403);
 
-        var projects = await _repository.GetAllForExportAsync(status, search, sortBy, sortDir, includeInactive, careerId);
+        var projects = await _repository.GetAllForExportAsync(status, search, sortBy, sortDir, includeInactive, careerId, includeCancelled);
         var definition = new PdfTableDefinition
         {
             Title = "Anteproyectos de Residencia Profesional - TecNM Campus Monclova",
@@ -406,12 +406,12 @@ public class ProjectService : IProjectService
         return Result<PaginatedResult<ProjectResponseDto>>.Success(MapPaged(paged));
     }
 
-    public async Task<Result<PaginatedResult<ProjectResponseDto>>> GetMyProjectsPagedAsync(PaginationQuery query, bool includeInactive = false)
+    public async Task<Result<PaginatedResult<ProjectResponseDto>>> GetMyProjectsPagedAsync(PaginationQuery query, bool includeInactive = false, bool includeCancelled = false)
     {
         // Vista Administrador/Jefatura: todos los registros (evita filtrar por usuario actual).
         if (IsStaff())
         {
-            var all = await _repository.GetPagedAsync(query, "all", includeInactive);
+            var all = await _repository.GetPagedAsync(query, "all", includeInactive, null, includeCancelled);
             return Result<PaginatedResult<ProjectResponseDto>>.Success(MapPaged(all));
         }
 
@@ -419,7 +419,7 @@ public class ProjectService : IProjectService
         if (student is null)
             return Result<PaginatedResult<ProjectResponseDto>>.Failure("No se encontró un perfil de estudiante asociado a tu cuenta.", 404);
 
-        var paged = await _repository.GetPagedByStudentIdAsync(student.Id, query, includeInactive);
+        var paged = await _repository.GetPagedByStudentIdAsync(student.Id, query, includeInactive, includeCancelled);
         return Result<PaginatedResult<ProjectResponseDto>>.Success(MapPaged(paged));
     }
 
@@ -646,22 +646,58 @@ public class ProjectService : IProjectService
 
     public async Task<Result<bool>> SoftDeleteAsync(long id)
     {
+        if (!_currentUser.IsInRole(UserRole.Admin))
+            return Result<bool>.Failure("Solo el Administrador puede dar de baja lógica anteproyectos.", 403);
+
         var project = await _repository.GetByIdAsync(id);
         if (project == null)
             return Result<bool>.Failure("Anteproyecto no encontrado.", 404);
 
         project.IsActive = false;
+        project.Status = ProjectStatus.Cancelled;
         project.DeletedAt = DateTime.UtcNow;
         project.DeletedBy = _currentUser.UserId;
         project.UpdatedAt = DateTime.UtcNow;
         project.UpdatedBy = _currentUser.UserId;
 
         await _repository.UpdateAsync(project);
+
+        // Reiniciar el proceso del alumno: desvincular asesor si coincide y soft-delete de documentos del proyecto
+        var student = await _studentRepository.GetByIdAsync(project.StudentId);
+        if (student != null && student.AdvisorId == project.AdvisorId)
+        {
+            student.AdvisorId = null;
+            student.AdvisorAssignedAt = null;
+            await _studentRepository.UpdateAsync(student);
+        }
+
+        try
+        {
+            var docs = await _documentRepository.GetPagedByProjectIdAsync(project.Id, new PaginationQuery { PageNumber = 1, PageSize = 100 });
+            if (docs?.Items != null)
+            {
+                foreach (var doc in docs.Items.Where(d => d.IsActive))
+                {
+                    doc.IsActive = false;
+                    doc.DeletedAt = DateTime.UtcNow;
+                    doc.DeletedBy = _currentUser.UserId;
+                    await _documentRepository.UpdateAsync(doc);
+                }
+            }
+        }
+        catch
+        {
+            // Ignorar errores al limpiar documentos
+        }
+
         return Result<bool>.Success(true);
     }
 
     public async Task<Result<bool>> ActivateAsync(long id)
     {
+        if (!_currentUser.IsInRole(UserRole.Admin))
+            return Result<bool>.Failure("Solo el Administrador puede reactivar un anteproyecto cancelado o inactivo.", 403);
+
         var project = await _repository.GetByIdAsync(id);
         if (project == null)
             return Result<bool>.Failure("Anteproyecto no encontrado.", 404);
@@ -809,8 +845,8 @@ public class ProjectService : IProjectService
         if (dto.File == null || dto.File.Length == 0)
             return Result<ProjectResponseDto>.Failure("La constancia o formato de acreditación es obligatorio.");
 
-        if (dto.File.Length > 10 * 1024 * 1024)
-            return Result<ProjectResponseDto>.Failure("El archivo excede el límite máximo permitido de 10MB.");
+        if (dto.File.Length > 5 * 1024 * 1024)
+            return Result<ProjectResponseDto>.Failure("El archivo excede el límite máximo permitido de 5MB.");
 
         var extension = Path.GetExtension(dto.File.FileName).ToLowerInvariant();
         var allowedExts = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
@@ -1061,8 +1097,8 @@ public class ProjectService : IProjectService
         if (project.Status == ProjectStatus.Completed)
             return Result<ProjectResponseDto>.Failure("El trámite de acreditación ya fue concluido y liberado.", 400);
 
-        if (dto.File.Length > 10 * 1024 * 1024)
-            return Result<ProjectResponseDto>.Failure("El archivo excede el tamaño máximo permitido de 10MB.");
+        if (dto.File.Length > 5 * 1024 * 1024)
+            return Result<ProjectResponseDto>.Failure("El archivo excede el tamaño máximo permitido de 5MB.");
 
         var extension = Path.GetExtension(dto.File.FileName).ToLowerInvariant();
         var allowedExts = new[] { ".pdf", ".jpg", ".jpeg", ".png" };

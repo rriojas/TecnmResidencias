@@ -40,7 +40,7 @@ public class ProjectRepository : IProjectRepository
     public async Task<Project?> GetByStudentIdAsync(long studentId)
     {
         return await QueryWithDetails()
-            .FirstOrDefaultAsync(p => p.StudentId == studentId && p.IsActive);
+            .FirstOrDefaultAsync(p => p.StudentId == studentId && p.IsActive && p.Status != ProjectStatus.Cancelled);
     }
 
     public async Task<Project?> GetActiveByStudentIdAsync(long studentId, bool excludeDraft = false)
@@ -58,7 +58,7 @@ public class ProjectRepository : IProjectRepository
         .ToArray();
 
         return await QueryWithDetails()
-            .Where(p => p.StudentId == studentId && p.IsActive && activeStatuses.Contains(p.Status))
+            .Where(p => p.StudentId == studentId && p.IsActive && p.Status != ProjectStatus.Cancelled && activeStatuses.Contains(p.Status))
             .OrderByDescending(p => p.Status == ProjectStatus.InProgress)
             .ThenByDescending(p => p.Status == ProjectStatus.Approved)
             .ThenByDescending(p => p.CreatedAt)
@@ -68,7 +68,7 @@ public class ProjectRepository : IProjectRepository
     public async Task<Project?> GetPrimaryProjectByStudentIdAsync(long studentId)
     {
         return await QueryWithDetails()
-            .Where(p => p.StudentId == studentId && p.IsActive)
+            .Where(p => p.StudentId == studentId && p.IsActive && p.Status != ProjectStatus.Cancelled)
             .OrderByDescending(p => p.Status == ProjectStatus.InProgress)
             .ThenByDescending(p => p.Status == ProjectStatus.Approved)
             .ThenByDescending(p => p.Status == ProjectStatus.UnderReview || p.Status == ProjectStatus.Pending || p.Status == ProjectStatus.Proposed)
@@ -78,11 +78,16 @@ public class ProjectRepository : IProjectRepository
             .FirstOrDefaultAsync();
     }
 
-    public async Task<PaginatedResult<Project>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, long? careerId = null)
+    public async Task<PaginatedResult<Project>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, long? careerId = null, bool includeCancelled = false)
     {
         IQueryable<Project> q = QueryWithDetails();
         if (!includeInactive)
             q = q.Where(p => p.IsActive);
+
+        if (!includeCancelled && (string.IsNullOrWhiteSpace(status) || status.Equals("all", StringComparison.OrdinalIgnoreCase)))
+        {
+            q = q.Where(p => p.Status != ProjectStatus.Cancelled);
+        }
 
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
@@ -126,11 +131,16 @@ public class ProjectRepository : IProjectRepository
         return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
     }
 
-    public async Task<List<Project>> GetAllForExportAsync(string? status, string? search, string? sortBy, string? sortDir, bool includeInactive = false, long? careerId = null)
+    public async Task<List<Project>> GetAllForExportAsync(string? status, string? search, string? sortBy, string? sortDir, bool includeInactive = false, long? careerId = null, bool includeCancelled = false)
     {
         IQueryable<Project> q = QueryWithDetails().AsNoTracking();
         if (!includeInactive)
             q = q.Where(p => p.IsActive);
+
+        if (!includeCancelled && (string.IsNullOrWhiteSpace(status) || status.Equals("all", StringComparison.OrdinalIgnoreCase)))
+        {
+            q = q.Where(p => p.Status != ProjectStatus.Cancelled);
+        }
 
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
@@ -174,12 +184,22 @@ public class ProjectRepository : IProjectRepository
         return await q.Take(1000).ToListAsync();
     }
 
-    public async Task<PaginatedResult<Project>> GetPagedByStudentIdAsync(long studentId, PaginationQuery query, bool includeInactive = false)
+    public async Task<PaginatedResult<Project>> GetPagedByStudentIdAsync(long studentId, PaginationQuery query, bool includeInactive = false, bool includeCancelled = false)
     {
         var q = QueryWithDetails()
             .Where(p => p.StudentId == studentId);
         if (!includeInactive)
             q = q.Where(p => p.IsActive);
+
+        if (!includeCancelled)
+            q = q.Where(p => p.Status != ProjectStatus.Cancelled);
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var term = query.Search.Trim().ToLowerInvariant();
+            q = q.Where(p => p.Title.ToLower().Contains(term)
+                             || (p.Company != null && p.Company.Name.ToLower().Contains(term)));
+        }
 
         q = q.OrderByDescending(p => p.CreatedAt);
 

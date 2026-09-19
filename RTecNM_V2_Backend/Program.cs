@@ -20,6 +20,18 @@ using TecNM.Residency.Students;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configuración de límites de tamaño para subida de archivos (15MB de buffer para archivos de hasta 5MB)
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.Limits.MaxRequestBodySize = 15 * 1024 * 1024;
+});
+
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 15 * 1024 * 1024;
+    options.ValueLengthLimit = 15 * 1024 * 1024;
+});
+
 builder.Services.AddControllers();
 
 builder.Services.AddCors(options =>

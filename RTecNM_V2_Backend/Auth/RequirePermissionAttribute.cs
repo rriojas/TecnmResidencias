@@ -26,9 +26,9 @@ public class RequirePermissionAttribute : Attribute, IAsyncAuthorizationFilter
             return Task.CompletedTask;
         }
 
-        // Bypass SuperAdmin (IsAdmin claim)
+        // Bypass SuperAdmin / Admin role
         var isAdminClaim = user.FindFirst("isAdmin")?.Value ?? user.FindFirst("is_admin")?.Value;
-        if (isAdminClaim == "true")
+        if (isAdminClaim == "true" || user.IsInRole("admin") || user.IsInRole("Admin") || user.HasClaim(System.Security.Claims.ClaimTypes.Role, "admin"))
         {
             return Task.CompletedTask;
         }
