@@ -83,7 +83,6 @@ else
 fi
 
 # 2. Verificación de puertos ocupados
-check_and_confirm_port 5439 "PostgreSQL Base de Datos"
 check_and_confirm_port 5185 "Backend API .NET"
 
 # 3. Verificar/Iniciar PostgreSQL con Docker Compose
@@ -91,6 +90,7 @@ echo -e "\n${YELLOW}🐘 Verificando Base de Datos PostgreSQL...${NC}"
 if command -v docker >/dev/null 2>&1; then
     PG_RUNNING=$(docker ps --filter "name=residencia-v2-db" --filter "status=running" --format "{{.Names}}" 2>/dev/null || true)
     if [ -z "$PG_RUNNING" ]; then
+        check_and_confirm_port 5439 "PostgreSQL Base de Datos"
         echo -e "   ${CYAN}⚙️  Levantando contenedor PostgreSQL (residencia-v2-db en puerto 5439 / BD: postgre_recidencias)...${NC}"
         cd "$SCRIPT_DIR"
         if docker compose version >/dev/null 2>&1; then

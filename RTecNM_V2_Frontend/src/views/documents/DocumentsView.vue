@@ -690,13 +690,13 @@ onMounted(() => {
           <span><strong>Expediente Digital Concluido:</strong> Este proyecto de residencia profesional ha sido finalizado. Puedes consultar y descargar todos los documentos y evidencias registradas.</span>
         </div>
         <div v-else-if="isProjectPending" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
-          <span><strong>Anteproyecto en Dictamen:</strong> Tu solicitud se encuentra en revisión. Ya puedes subir tu <strong>Anteproyecto Técnico</strong> y tu <strong>Carta de Aceptación</strong> para que el Jefe de Carrera los revise. Los formatos restantes se habilitarán tras la aprobación.</span>
+          <span><strong>Anteproyecto en Dictamen:</strong> Tu solicitud se encuentra en revisión. Ya puedes subir tu <strong>Carta de Aceptación</strong> para que el Jefe de Carrera la revise. Los formatos restantes se habilitarán tras la aprobación.</span>
         </div>
         <div v-else-if="isProjectDraft" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
-          <span><strong>Anteproyecto en Borrador:</strong> Puedes subir tu <strong>Anteproyecto Técnico</strong> y tu <strong>Carta de Aceptación</strong> desde aquí o revisar tu solicitud en <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
+          <span><strong>Anteproyecto en Borrador:</strong> Puedes subir tu <strong>Carta de Aceptación</strong> desde aquí o revisar tu solicitud en <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
         </div>
         <div v-else-if="isProjectRejected" class="tecnm-alert tecnm-alert-warning" role="alert" style="margin-bottom: 1rem;">
-          <span><strong>Anteproyecto con Observaciones:</strong> Puedes subir una versión corregida de tu <strong>Anteproyecto Técnico</strong> o <strong>Carta de Aceptación</strong> para atender las observaciones recibidas.</span>
+          <span><strong>Anteproyecto con Observaciones:</strong> Puedes subir una versión corregida de tu <strong>Carta de Aceptación</strong> o atender las observaciones en tu <router-link to="/projects/proposal"><strong>Solicitud de Anteproyecto</strong></router-link>.</span>
         </div>
       </template>
 
