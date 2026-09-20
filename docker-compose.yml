@@ -26,6 +26,8 @@ services:
     build:
       context: ./RTecNM_V2_Backend
       dockerfile: Dockerfile
+      pull: false
+    pull_policy: if_not_present
     container_name: residencia-v2-backend
     restart: unless-stopped
     ports:
@@ -53,6 +55,8 @@ services:
     build:
       context: ./RTecNM_V2_Frontend
       dockerfile: Dockerfile
+      pull: false
+    pull_policy: if_not_present
     container_name: residencia-v2-frontend
     restart: unless-stopped
     ports:

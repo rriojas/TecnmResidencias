@@ -106,23 +106,16 @@ if [ "$SKIP_PROMPT" = false ] && [ -t 0 ]; then
     esac
 fi
 
-# 3. Pre-construcción segura de imágenes (Dry-run antes de detener nada)
-echo -e "\n${CYAN}[3/6] Compilando nuevas imágenes de Backend y Frontend en paralelo...${NC}"
-echo -e "   ${YELLOW}⏳ Esto garantiza que si hay un error de compilación, el servicio actual NO sufra interrupción.${NC}"
+# 3. Pre-construcción segura de imágenes (Usa imágenes base locales existentes)
+echo -e "\n${CYAN}[3/6] Compilando nuevas imágenes de Backend y Frontend (usando imágenes base locales)...${NC}"
+echo -e "   ${YELLOW}⏳ Compilación local sin consultar registros externos para máxima estabilidad.${NC}"
 
-# Pre-descarga de imágenes base para evitar timeout de BuildKit con Docker Hub
-echo -e "   ${YELLOW}🔍 Verificando imágenes base en Docker Hub...${NC}"
-docker pull node:20-alpine 2>/dev/null || true
-docker pull nginx:alpine 2>/dev/null || true
+# DOCKER_BUILDKIT=0 fuerza el uso de las imágenes existentes en caché sin hacer ping a Docker Hub
+export DOCKER_BUILDKIT=0
 
 if ! docker compose build backend frontend; then
-    echo -e "\n${RED}❌ ERROR CRÍTICO: La compilación de las nuevas imágenes falló.${NC}"
+    echo -e "\n${RED}❌ ERROR CRÍTICO: La compilación de las imágenes falló.${NC}"
     echo -e "${YELLOW}👉 El servicio de producción actual continúa intacto y sin afectación.${NC}"
-    echo -e "${YELLOW}💡 Si el fallo es 'TLS handshake timeout' al consultar docker.io:${NC}"
-    echo -e "   1. Configura DNS públicos en Docker (/etc/docker/daemon.json):"
-    echo -e "      {\"dns\": [\"8.8.8.8\", \"1.1.1.1\"]}"
-    echo -e "   2. Reinicia Docker: sudo systemctl restart docker"
-    echo -e "   3. O prueba: docker pull node:20-alpine && docker pull nginx:alpine"
     exit 1
 fi
 echo -e "   ${GREEN}✅ Imágenes construidas correctamente sin errores.${NC}"
