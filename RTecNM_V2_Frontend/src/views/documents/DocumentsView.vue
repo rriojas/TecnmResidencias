@@ -471,9 +471,9 @@ async function handleUploadSubmit() {
   }
 
   if (isStudent.value && !isProjectApproved.value) {
-    const preApprovalAllowed = ['anteproyecto', 'carta_aceptacion', 'solicitud', 'otro']
+    const preApprovalAllowed = ['carta_aceptacion', 'otro']
     if (!preApprovalAllowed.includes(uploadForm.value.documentType)) {
-      showAlert('En esta etapa previa al dictamen, solo puedes subir tu Anteproyecto Técnico o tu Carta de Aceptación.', 'warning')
+      showAlert('En esta etapa previa al dictamen, solo se requiere subir tu Carta de Aceptación de la empresa.', 'warning')
       return
     }
   }
@@ -964,9 +964,9 @@ onMounted(() => {
               required
             >
               <option value="">-- Seleccionar Tipo --</option>
-              <option value="anteproyecto">Anteproyecto Técnico *</option>
-              <option value="carta_aceptacion">Carta de Aceptación *</option>
-              <option value="solicitud">Solicitud de Residencia Profesional</option>
+              <option value="carta_aceptacion">Carta de Aceptación / Aprobación *</option>
+              <option v-if="isProjectApproved || isStaff" value="anteproyecto">Anteproyecto Técnico</option>
+              <option v-if="isProjectApproved || isStaff" value="solicitud">Solicitud de Residencia Profesional</option>
               <option v-if="isProjectApproved || isStaff" value="carta_presentacion">Carta de Presentación</option>
               <option v-if="isProjectApproved || isStaff" value="dictamen">Dictamen de Aprobación</option>
               <option v-if="isProjectApproved || isStaff" value="manual_usuario">Manual de Usuario</option>

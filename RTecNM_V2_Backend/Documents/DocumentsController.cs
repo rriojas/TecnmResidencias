@@ -63,13 +63,11 @@ public class DocumentsController : ControllerBase
             if (projectResult.Data.Status.Equals("cancelled", StringComparison.OrdinalIgnoreCase) && !isStaff)
                 return StatusCode(400, new { message = "El anteproyecto se encuentra cancelado. No se permiten cargas al expediente." });
 
-            var isPreApprovalDoc = dto.DocumentType.Equals(DocumentType.Anteproyecto, StringComparison.OrdinalIgnoreCase)
-                || dto.DocumentType.Equals(DocumentType.CartaAceptacion, StringComparison.OrdinalIgnoreCase)
-                || dto.DocumentType.Equals(DocumentType.Solicitud, StringComparison.OrdinalIgnoreCase)
+            var isPreApprovalDoc = dto.DocumentType.Equals(DocumentType.CartaAceptacion, StringComparison.OrdinalIgnoreCase)
                 || dto.DocumentType.Equals(DocumentType.ConstanciaAcreditacion, StringComparison.OrdinalIgnoreCase);
 
             if (!projectResult.Data.CanUploadDocuments && !isStaff && !isPreApprovalDoc)
-                return StatusCode(400, new { message = "El anteproyecto aún no ha sido aprobado. En esta etapa solo se permite cargar el Anteproyecto Técnico y la Carta de Aceptación." });
+                return StatusCode(400, new { message = "El anteproyecto aún no ha sido aprobado. En esta etapa solo se requiere cargar la Carta de Aceptación / Aprobación de la empresa." });
         }
 
         try
