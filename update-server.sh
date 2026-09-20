@@ -106,16 +106,33 @@ if [ "$SKIP_PROMPT" = false ] && [ -t 0 ]; then
     esac
 fi
 
+# Intento de mitigación de IPv6 (evita TLS handshake timeouts de 50s en servidores con IPv6 no enrutado)
+if [ -w /proc/sys/net/ipv6/conf/all/disable_ipv6 ]; then
+    echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null || true
+elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1 || true
+    sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1 >/dev/null 2>&1 || true
+fi
+
 # 3. Pre-construcción segura de imágenes
-echo -e "\n${CYAN}[3/6] Compilando nuevas imágenes de Backend y Frontend en paralelo...${NC}"
+echo -e "\n${CYAN}[3/6] Compilando nuevas imágenes de Backend y Frontend...${NC}"
 echo -e "   ${YELLOW}⏳ Esto garantiza que si hay un error de compilación, el servicio actual NO sufra interrupción.${NC}"
 
-if ! docker compose build backend frontend; then
-    echo -e "\n${RED}❌ ERROR CRÍTICO: La compilación de las imágenes falló.${NC}"
+echo -e "   ${CYAN}⚙️  Compilando Backend API (.NET 10)...${NC}"
+if ! docker compose build backend; then
+    echo -e "\n${RED}❌ ERROR CRÍTICO: La compilación del Backend falló.${NC}"
     echo -e "${YELLOW}👉 El servicio de producción actual continúa intacto y sin afectación.${NC}"
     exit 1
 fi
-echo -e "   ${GREEN}✅ Imágenes construidas correctamente sin errores.${NC}"
+echo -e "   ${GREEN}✅ Backend compilado exitosamente.${NC}"
+
+echo -e "   ${CYAN}🌐 Compilando Frontend Web (Vue 3 + Nginx)...${NC}"
+if ! docker compose build frontend; then
+    echo -e "\n${RED}❌ ERROR CRÍTICO: La compilación del Frontend falló.${NC}"
+    echo -e "${YELLOW}👉 El servicio de producción actual continúa intacto y sin afectación.${NC}"
+    exit 1
+fi
+echo -e "   ${GREEN}✅ Frontend compilado exitosamente.${NC}"
 
 # 4. Actualización en caliente de contenedores (Zero Downtime / Hot Swap)
 echo -e "\n${CYAN}[4/6] Aplicando actualización a los contenedores en producción...${NC}"
