@@ -26,6 +26,7 @@ services:
     build:
       context: ./RTecNM_V2_Backend
       dockerfile: Dockerfile
+      network: host
       pull: false
     pull_policy: if_not_present
     container_name: residencia-v2-backend
@@ -55,6 +56,7 @@ services:
     build:
       context: ./RTecNM_V2_Frontend
       dockerfile: Dockerfile
+      network: host
       pull: false
     pull_policy: if_not_present
     container_name: residencia-v2-frontend
