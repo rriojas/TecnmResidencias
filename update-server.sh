@@ -106,12 +106,9 @@ if [ "$SKIP_PROMPT" = false ] && [ -t 0 ]; then
     esac
 fi
 
-# 3. Pre-construcción segura de imágenes (Usa imágenes base locales existentes)
-echo -e "\n${CYAN}[3/6] Compilando nuevas imágenes de Backend y Frontend (usando imágenes base locales)...${NC}"
-echo -e "   ${YELLOW}⏳ Compilación local sin consultar registros externos para máxima estabilidad.${NC}"
-
-# DOCKER_BUILDKIT=0 fuerza el uso de las imágenes existentes en caché sin hacer ping a Docker Hub
-export DOCKER_BUILDKIT=0
+# 3. Pre-construcción segura de imágenes
+echo -e "\n${CYAN}[3/6] Compilando nuevas imágenes de Backend y Frontend en paralelo...${NC}"
+echo -e "   ${YELLOW}⏳ Esto garantiza que si hay un error de compilación, el servicio actual NO sufra interrupción.${NC}"
 
 if ! docker compose build backend frontend; then
     echo -e "\n${RED}❌ ERROR CRÍTICO: La compilación de las imágenes falló.${NC}"
