@@ -127,7 +127,8 @@ fi
 echo -e "   ${GREEN}✅ Backend compilado exitosamente.${NC}"
 
 echo -e "   ${CYAN}🌐 Compilando Frontend Web (Vue 3 + Nginx)...${NC}"
-if ! docker compose build frontend; then
+# DOCKER_BUILDKIT=0 usa directamente la imagen local de node y nginx en caché sin tocar Docker Hub
+if ! DOCKER_BUILDKIT=0 docker compose build frontend; then
     echo -e "\n${RED}❌ ERROR CRÍTICO: La compilación del Frontend falló.${NC}"
     echo -e "${YELLOW}👉 El servicio de producción actual continúa intacto y sin afectación.${NC}"
     exit 1
