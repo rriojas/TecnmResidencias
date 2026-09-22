@@ -1,4 +1,6 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
+using MiniExcelLibs;
 using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
 using TecNM.Residency.Common.Notifications;
@@ -362,7 +364,7 @@ public class DocumentService : IDocumentService
         return result;
     }
 
-    public async Task<PaginatedResult<DocumentMatrixItemDto>> GetDocumentMatrixAsync(PaginationQuery query, long? careerId = null, string? completionStatus = null)
+    private async Task<List<DocumentMatrixItemDto>> BuildDocumentMatrixItemsAsync(string? search, long? careerId, string? completionStatus)
     {
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
@@ -400,9 +402,9 @@ public class DocumentService : IDocumentService
             q = q.Where(p => p.Student!.CareerId == careerId.Value);
         }
 
-        if (!string.IsNullOrWhiteSpace(query.Search))
+        if (!string.IsNullOrWhiteSpace(search))
         {
-            var term = query.Search.Trim().ToLowerInvariant();
+            var term = search.Trim().ToLowerInvariant();
             q = q.Where(p =>
                 p.Title.ToLower().Contains(term) ||
                 p.Student!.FirstName.ToLower().Contains(term) ||
@@ -420,9 +422,6 @@ public class DocumentService : IDocumentService
             DocumentType.Dictamen,
             DocumentType.Libranza
         };
-
-        var pageNumber = Math.Max(1, query.PageNumber);
-        var pageSize = Math.Clamp(query.PageSize, 1, 100);
 
         var allMatchingProjects = await q.ToListAsync();
         var projectIds = allMatchingProjects.Select(p => p.Id).ToList();
@@ -483,6 +482,16 @@ public class DocumentService : IDocumentService
             });
         }
 
+        return matrixItems;
+    }
+
+    public async Task<PaginatedResult<DocumentMatrixItemDto>> GetDocumentMatrixAsync(PaginationQuery query, long? careerId = null, string? completionStatus = null)
+    {
+        var matrixItems = await BuildDocumentMatrixItemsAsync(query.Search, careerId, completionStatus);
+
+        var pageNumber = Math.Max(1, query.PageNumber);
+        var pageSize = Math.Clamp(query.PageSize, 1, 100);
+
         var totalCount = matrixItems.Count;
         var pagedItems = matrixItems
             .Skip((pageNumber - 1) * pageSize)
@@ -497,5 +506,63 @@ public class DocumentService : IDocumentService
             pageNumber,
             pageSize
         );
+    }
+
+    public async Task<Result<byte[]>> ExportDocumentMatrixExcelAsync(string? search = null, long? careerId = null, string? completionStatus = null)
+    {
+        var items = await BuildDocumentMatrixItemsAsync(search, careerId, completionStatus);
+
+        var table = new DataTable("Expedientes");
+        table.Columns.Add("No. Control", typeof(string));
+        table.Columns.Add("Estudiante", typeof(string));
+        table.Columns.Add("Carrera", typeof(string));
+        table.Columns.Add("Anteproyecto", typeof(string));
+        table.Columns.Add("Empresa", typeof(string));
+        table.Columns.Add("Solicitud (1=Entregado, 0=Faltante)", typeof(int));
+        table.Columns.Add("Carta Aceptación (1=Entregado, 0=Faltante)", typeof(int));
+        table.Columns.Add("Dictamen (1=Entregado, 0=Faltante)", typeof(int));
+        table.Columns.Add("Liberación (1=Entregado, 0=Faltante)", typeof(int));
+        table.Columns.Add("Total Entregados", typeof(int));
+        table.Columns.Add("Estatus Expediente", typeof(string));
+        table.Columns.Add("Avance", typeof(string));
+
+        foreach (var item in items)
+        {
+            table.Rows.Add(
+                item.StudentControlNumber,
+                item.StudentName,
+                item.CareerName,
+                item.ProjectTitle,
+                item.CompanyName ?? "—",
+                item.Documents.ContainsKey("solicitud") ? 1 : 0,
+                item.Documents.ContainsKey("carta_aceptacion") ? 1 : 0,
+                item.Documents.ContainsKey("dictamen") ? 1 : 0,
+                item.Documents.ContainsKey("libranza") ? 1 : 0,
+                item.UploadedCount,
+                item.IsCompleted ? "Completado" : "Incompleto",
+                $"{item.UploadedCount}/{item.RequiredCount}"
+            );
+        }
+
+        var legendTable = new DataTable("Leyenda");
+        legendTable.Columns.Add("Columna / Concepto", typeof(string));
+        legendTable.Columns.Add("Valor", typeof(string));
+        legendTable.Columns.Add("Significado / Descripción", typeof(string));
+
+        legendTable.Rows.Add("Solicitud, Carta Aceptación, Dictamen, Liberación", "1", "Documento entregado y registrado en sistema");
+        legendTable.Rows.Add("Solicitud, Carta Aceptación, Dictamen, Liberación", "0", "Documento faltante / pendiente de entrega");
+        legendTable.Rows.Add("Total Entregados", "0 a 4", "Suma numérica de documentos entregados (permite conteo/fórmulas directas)");
+        legendTable.Rows.Add("Estatus Expediente", "Completado", "Expediente con 4 de 4 documentos entregados");
+        legendTable.Rows.Add("Estatus Expediente", "Incompleto", "Expediente con documentos pendientes (< 4)");
+
+        var sheets = new Dictionary<string, object>
+        {
+            ["Expedientes"] = table,
+            ["Leyenda_Simbologia"] = legendTable
+        };
+
+        using var ms = new MemoryStream();
+        MiniExcel.SaveAs(ms, sheets);
+        return Result<byte[]>.Success(ms.ToArray());
     }
 }

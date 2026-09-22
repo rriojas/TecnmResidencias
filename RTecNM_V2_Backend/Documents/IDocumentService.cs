@@ -12,4 +12,5 @@ public interface IDocumentService
     Task<bool> ActivateAsync(long id);
     Task<List<PendingAcceptanceDto>> GetPendingAcceptanceLettersAsync(long? careerId = null);
     Task<PaginatedResult<DocumentMatrixItemDto>> GetDocumentMatrixAsync(PaginationQuery query, long? careerId = null, string? completionStatus = null);
+    Task<Result<byte[]>> ExportDocumentMatrixExcelAsync(string? search = null, long? careerId = null, string? completionStatus = null);
 }

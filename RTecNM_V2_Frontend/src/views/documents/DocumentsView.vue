@@ -47,6 +47,7 @@ const matrixCareerFilter = ref(
     : ''
 )
 const matrixCompletionFilter = ref('')
+const isExportingMatrix = ref(false)
 
 const currentProject = ref(null)
 const documents = ref([])
@@ -291,6 +292,45 @@ function onMatrixPageChange(p) {
 function handleMatrixSearch() {
   matrixPage.value = 1
   loadMatrix()
+}
+
+async function handleExportMatrixExcel() {
+  if (isExportingMatrix.value) return
+  isExportingMatrix.value = true
+  try {
+    const params = {}
+    if (matrixSearch.value.trim()) {
+      params.search = matrixSearch.value.trim()
+    }
+    if (matrixCareerFilter.value) {
+      params.careerId = matrixCareerFilter.value
+    }
+    if (matrixCompletionFilter.value) {
+      params.completionStatus = matrixCompletionFilter.value
+    }
+
+    const res = await apiClient.get('/v1/documents/matrix/export', {
+      params,
+      responseType: 'blob',
+    })
+
+    const blob = new Blob([res.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `expedientes_digitales_${new Date().toISOString().slice(0, 10)}.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    showAlert('Archivo Excel descargado correctamente.', 'success')
+  } catch (err) {
+    showAlert('Error al descargar el archivo Excel de expedientes.', 'danger')
+  } finally {
+    isExportingMatrix.value = false
+  }
 }
 
 async function openProjectDetail(item) {
@@ -875,6 +915,20 @@ onMounted(() => {
 
         <button type="button" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" @click="handleMatrixSearch">
           Filtrar
+        </button>
+
+        <button
+          id="exportMatrixExcelBtn"
+          type="button"
+          class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+          :disabled="isExportingMatrix || matrixLoading"
+          title="Descargar matriz completa en Excel con los filtros seleccionados"
+          @click="handleExportMatrixExcel"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+          </svg>
+          <span>{{ isExportingMatrix ? 'Descargando...' : 'Descargar Excel' }}</span>
         </button>
       </div>
 

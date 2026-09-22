@@ -202,4 +202,19 @@ public class DocumentsController : ControllerBase
         var result = await _documentService.GetDocumentMatrixAsync(query, careerId, completionStatus);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Exporta la matriz completa de expedientes digitales a Excel (.xlsx) respetando filtros
+    /// </summary>
+    [HttpGet("matrix/export")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator,advisor")]
+    public async Task<IActionResult> ExportDocumentMatrixExcel([FromQuery] string? search = null, [FromQuery] long? careerId = null, [FromQuery] string? completionStatus = null)
+    {
+        var result = await _documentService.ExportDocumentMatrixExcelAsync(search, careerId, completionStatus);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, result.ErrorMessage);
+
+        var fileName = $"expedientes_digitales_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+        return File(result.Data!, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+    }
 }
