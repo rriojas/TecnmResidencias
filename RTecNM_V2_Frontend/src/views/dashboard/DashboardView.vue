@@ -96,6 +96,27 @@ const assignmentCoveragePercent = computed(() => {
 const selectedAdvisorForModal = ref(null)
 const isWorkloadModalOpen = ref(false)
 
+const pendingAcceptanceList = ref([])
+const isPendingAcceptanceLoading = ref(false)
+
+async function loadPendingAcceptance() {
+  if (authStore.currentRole === 'student') return
+  isPendingAcceptanceLoading.value = true
+  try {
+    const params = {}
+    if (selectedCareerFilter.value !== 'all') {
+      params.careerId = selectedCareerFilter.value
+    }
+    const res = await apiClient.get('/v1/documents/pending-acceptance', { params })
+    pendingAcceptanceList.value = res.data || []
+  } catch (err) {
+    console.error('Error al cargar alumnos sin carta de aceptación:', err)
+    pendingAcceptanceList.value = []
+  } finally {
+    isPendingAcceptanceLoading.value = false
+  }
+}
+
 function openAdvisorWorkloadModal(advId) {
   selectedAdvisorForModal.value = advId
   isWorkloadModalOpen.value = true
@@ -598,6 +619,10 @@ async function loadDashboard() {
       const rawItems = advProjRes.data?.items || (Array.isArray(advProjRes.data) ? advProjRes.data : [])
       advisorProjects.value = rawItems.filter((p) => p.isActive !== false)
     }
+
+    if (authStore.currentRole !== 'student') {
+      loadPendingAcceptance()
+    }
   } catch (err) {
     console.error('Error al inicializar dashboard:', err)
   } finally {
@@ -609,6 +634,9 @@ async function loadDashboard() {
 watch(selectedCareerFilter, () => {
   if (isStaff.value) {
     loadStaffMetrics()
+  }
+  if (authStore.currentRole !== 'student') {
+    loadPendingAcceptance()
   }
 })
 
@@ -1142,6 +1170,79 @@ onMounted(() => {
     <div class="dashboard-grid">
       <!-- Columna Principal -->
       <div class="dashboard-main">
+        <!-- ======================================================== -->
+        <!-- SEGUIMIENTO: ALUMNOS SIN CARTA DE ACEPTACIÓN -->
+        <!-- ======================================================== -->
+        <div v-if="authStore.currentRole !== 'student'" class="tecnm-card tecnm-mb-4">
+          <div class="tecnm-card-header">
+            <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" class="tecnm-header-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+              </svg>
+              <h3 class="tecnm-card-title">
+                Seguimiento: Alumnos sin Carta de Aceptación
+                <span v-if="selectedCareerFilter !== 'all'" class="tecnm-card-subtitle-tag">
+                  ({{ CAREERS[selectedCareerFilter] }})
+                </span>
+              </h3>
+            </div>
+            <router-link to="/documents" class="tecnm-link-action">
+              Ir a Expediente Digital &rarr;
+            </router-link>
+          </div>
+          <div class="tecnm-card-body tecnm-p-0">
+            <div class="tecnm-table-responsive">
+              <table class="tecnm-table tecnm-table-striped">
+                <thead>
+                  <tr>
+                    <th>Estudiante</th>
+                    <th>Proyecto y Empresa</th>
+                    <th>Carrera</th>
+                    <th>Estatus de Entrega</th>
+                    <th style="text-align: right;">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="isPendingAcceptanceLoading">
+                    <td colspan="5" class="tecnm-table-empty">Consultando alumnos pendientes de carta de aceptación...</td>
+                  </tr>
+                  <tr v-else-if="pendingAcceptanceList.length === 0">
+                    <td colspan="5" class="tecnm-table-empty" style="color: var(--tecnm-success, #10b981);">
+                      ✓ Todos los alumnos con residencia activa han entregado su Carta de Aceptación.
+                    </td>
+                  </tr>
+                  <tr v-for="item in pendingAcceptanceList" v-else :key="item.projectId">
+                    <td>
+                      <strong>{{ item.studentName }}</strong>
+                      <div class="tecnm-text-sub">Ctrl: {{ item.studentControlNumber }}</div>
+                    </td>
+                    <td>
+                      <div class="tecnm-project-title-cell">{{ item.projectTitle }}</div>
+                      <div class="tecnm-text-sub">{{ item.companyName || 'Empresa Receptora' }}</div>
+                    </td>
+                    <td>
+                      <span>{{ item.careerName || CAREERS[item.careerId] || '—' }}</span>
+                    </td>
+                    <td>
+                      <span class="tecnm-badge tecnm-badge-warning" style="font-weight: 600;">
+                        No ha subido su carta
+                      </span>
+                    </td>
+                    <td style="text-align: right;">
+                      <router-link
+                        :to="{ path: '/documents', query: { projectId: item.projectId } }"
+                        class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                      >
+                        Expediente
+                      </router-link>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <!-- ======================================================== -->
         <!-- VISTA ADMIN: Tablas de Anteproyectos y Pendientes -->
         <!-- ======================================================== -->

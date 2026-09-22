@@ -10,4 +10,6 @@ public interface IDocumentService
     Task<DocumentResponseDto?> UpdateStatusAsync(long id, UpdateDocumentStatusDto dto);
     Task<bool> SoftDeleteAsync(long id);
     Task<bool> ActivateAsync(long id);
+    Task<List<PendingAcceptanceDto>> GetPendingAcceptanceLettersAsync(long? careerId = null);
+    Task<PaginatedResult<DocumentMatrixItemDto>> GetDocumentMatrixAsync(PaginationQuery query, long? careerId = null, string? completionStatus = null);
 }

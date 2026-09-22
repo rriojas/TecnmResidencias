@@ -28,9 +28,7 @@ window.openDocumentAuditModal = (id) => {
 
 const documentTypeLabels = {
     'solicitud': 'Solicitud de Residencia',
-    'carta_presentacion': 'Carta de Presentación',
     'carta_aceptacion': 'Carta de Aceptación',
-    'anteproyecto': 'Anteproyecto Técnico',
     'dictamen': 'Dictamen de Aprobación',
     'manual_usuario': 'Manual de Usuario',
     'manual_tecnico': 'Manual Técnico',

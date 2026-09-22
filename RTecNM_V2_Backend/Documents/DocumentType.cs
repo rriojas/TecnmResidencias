@@ -16,9 +16,7 @@ public static class DocumentType
     public static readonly HashSet<string> ValidTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         Solicitud,
-        CartaPresentacion,
         CartaAceptacion,
-        Anteproyecto,
         Dictamen,
         ManualUsuario,
         ManualTecnico,
@@ -27,5 +25,12 @@ public static class DocumentType
         Otro
     };
 
+    public static readonly HashSet<string> OmittedTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        Anteproyecto,
+        CartaPresentacion
+    };
+
     public static bool IsValid(string type) => ValidTypes.Contains(type);
+    public static bool IsOmitted(string type) => OmittedTypes.Contains(type);
 }

@@ -530,6 +530,13 @@ a:hover {
   color: var(--tecnm-text-primary);
 }
 
+.tecnm-header-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--tecnm-blue-primary, #1b396a);
+  flex-shrink: 0;
+}
+
 .tecnm-card-body {
   padding: 0;
 }

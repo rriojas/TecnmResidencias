@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useGlobalSearch } from '@/composables/useGlobalSearch'
 import { useAudit } from '@/composables/useAudit'
@@ -9,6 +10,7 @@ import TecnmAutocomplete from '@/components/common/TecnmAutocomplete.vue'
 import TecnmBadge from '@/components/common/TecnmBadge.vue'
 import apiClient, { getUploadErrorMessage } from '@/services/api'
 
+const route = useRoute()
 const authStore = useAuthStore()
 const { open: openGlobalSearch } = useGlobalSearch()
 const { showAudit } = useAudit()
@@ -26,6 +28,25 @@ const isStaff = computed(() =>
 const canEvaluateDoc = computed(() =>
   !authStore.isReadOnly && (isStaff.value || isAdvisor.value)
 )
+
+// Modo de visualización: 'matrix' (tabla general para staff) o 'detail' (expediente de un proyecto)
+const viewMode = ref('matrix')
+const matrixItems = ref([])
+const matrixLoading = ref(false)
+const matrixPage = ref(1)
+const matrixPageSize = ref(10)
+const matrixTotalCount = ref(0)
+const matrixTotalPages = ref(0)
+const matrixSearch = ref('')
+const careersList = ref([])
+const matrixCareerFilter = ref(
+  authStore.isCareerHead && authStore.userCareerId
+    ? String(authStore.userCareerId)
+    : authStore.isCoordinator && authStore.userCareerIds.length > 0
+    ? String(authStore.userCareerIds[0])
+    : ''
+)
+const matrixCompletionFilter = ref('')
 
 const currentProject = ref(null)
 const documents = ref([])
@@ -152,9 +173,7 @@ const statusForm = ref({
 
 const documentTypeLabels = {
   solicitud: 'Solicitud de Residencia',
-  carta_presentacion: 'Carta de Presentación',
   carta_aceptacion: 'Carta de Aceptación',
-  anteproyecto: 'Anteproyecto Técnico',
   dictamen: 'Dictamen de Aprobación',
   manual_usuario: 'Manual de Usuario',
   manual_tecnico: 'Manual Técnico',
@@ -230,11 +249,90 @@ const projectStatusLabel = computed(() => {
   return st
 })
 
+async function loadCareers() {
+  try {
+    const res = await apiClient.get('/v1/careers/all')
+    careersList.value = res.data || []
+  } catch {}
+}
+
+async function loadMatrix() {
+  matrixLoading.value = true
+  try {
+    const params = {
+      pageNumber: matrixPage.value,
+      pageSize: matrixPageSize.value,
+      search: matrixSearch.value.trim(),
+    }
+    if (matrixCareerFilter.value) {
+      params.careerId = matrixCareerFilter.value
+    }
+    if (matrixCompletionFilter.value) {
+      params.completionStatus = matrixCompletionFilter.value
+    }
+    const res = await apiClient.get('/v1/documents/matrix', { params })
+    const data = res.data || {}
+    matrixItems.value = data.items || []
+    matrixTotalCount.value = data.totalCount || 0
+    matrixTotalPages.value = data.totalPages || 0
+  } catch (err) {
+    console.error('Error al cargar matriz de expedientes:', err)
+    showAlert('Error al consultar matriz de expedientes.', 'danger')
+  } finally {
+    matrixLoading.value = false
+  }
+}
+
+function onMatrixPageChange(p) {
+  matrixPage.value = p
+  loadMatrix()
+}
+
+function handleMatrixSearch() {
+  matrixPage.value = 1
+  loadMatrix()
+}
+
+async function openProjectDetail(item) {
+  isLoading.value = true
+  try {
+    const res = await apiClient.get(`/v1/projects/${item.projectId}`)
+    currentProject.value = res.data
+    viewMode.value = 'detail'
+    pageNumber.value = 1
+    await loadDocuments()
+  } catch (err) {
+    showAlert('No se pudo cargar el expediente del proyecto.', 'danger')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+function backToMatrix() {
+  viewMode.value = 'matrix'
+  loadMatrix()
+}
+
 async function initPage() {
   if (isStudent.value) {
+    viewMode.value = 'detail'
     await resolveStudentProject()
   } else {
-    await loadInitialProjectForStaff()
+    await loadCareers()
+    const qPid = route.query.projectId
+    if (qPid) {
+      try {
+        const res = await apiClient.get(`/v1/projects/${qPid}`)
+        if (res.data) {
+          currentProject.value = res.data
+          viewMode.value = 'detail'
+          await loadDocuments()
+          return
+        }
+      } catch {}
+    }
+    viewMode.value = 'matrix'
+    await loadMatrix()
   }
 }
 
@@ -345,7 +443,10 @@ async function loadDocuments() {
       { params }
     )
     const data = res.data || {}
-    documents.value = data.items || []
+    const items = data.items || []
+    documents.value = items.filter(
+      (d) => d.documentType !== 'anteproyecto' && d.documentType !== 'carta_presentacion'
+    )
     totalCount.value = data.totalCount || 0
     totalPages.value = data.totalPages || 0
   } catch (err) {
@@ -402,7 +503,7 @@ function openUploadModal() {
   }
   uploadForm.value = {
     projectId: currentProject.value?.id || null,
-    documentType: !isProjectApproved.value ? 'anteproyecto' : '',
+    documentType: !isProjectApproved.value ? 'carta_aceptacion' : '',
     file: null,
   }
   uploadInitialProject.value = currentProject.value
@@ -488,7 +589,12 @@ async function handleUploadSubmit() {
     await apiClient.post('/v1/documents', formData)
     showAlert('¡Documento subido correctamente al expediente!', 'success')
     closeUploadModal()
-    await loadDocuments()
+    if (viewMode.value === 'matrix') {
+      await loadMatrix()
+    }
+    if (currentProject.value?.id) {
+      await loadDocuments()
+    }
   } catch (err) {
     showAlert(getUploadErrorMessage(err, 'subir el documento'), 'danger')
   } finally {
@@ -638,6 +744,14 @@ onMounted(() => {
       </div>
       <div class="tecnm-page-actions">
         <button
+          v-if="!isStudent && viewMode === 'detail'"
+          type="button"
+          class="tecnm-btn tecnm-btn-secondary"
+          @click="backToMatrix"
+        >
+          &larr; Ver Lista General
+        </button>
+        <button
           v-if="!isStudent"
           type="button"
           class="tecnm-btn tecnm-btn-secondary"
@@ -708,11 +822,158 @@ onMounted(() => {
       </div>
     </template>
 
-    <!-- Tarjeta Principal con Lista de Documentos -->
-    <div class="tecnm-card">
+    <!-- ======================================================== -->
+    <!-- TABLA GENERAL: MATRIZ DE EXPEDIENTES DIGITALES POR RESIDENTE -->
+    <!-- ======================================================== -->
+    <div v-if="!isStudent && viewMode === 'matrix'" class="tecnm-card">
       <div class="tecnm-card-header">
-        <h3 class="tecnm-card-title">Documentos Cargados en el Expediente</h3>
+        <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" class="tecnm-header-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776" />
+          </svg>
+          <h3 class="tecnm-card-title">Matriz de Expedientes Digitales por Residente</h3>
+        </div>
+        <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+          <span class="tecnm-badge tecnm-badge-neutral">{{ matrixTotalCount }} Residentes Registrados</span>
+        </div>
       </div>
+
+      <div class="tecnm-card-toolbar" style="flex-wrap: wrap; gap: 0.75rem;">
+        <div class="tecnm-search-box" style="flex: 1; min-width: 250px;">
+          <input
+            v-model="matrixSearch"
+            type="search"
+            class="tecnm-form-control tecnm-form-control-sm"
+            placeholder="Buscar por estudiante, no. de control o anteproyecto..."
+            @keyup.enter="handleMatrixSearch"
+          />
+        </div>
+
+        <select
+          v-if="!authStore.isCareerHead"
+          v-model="matrixCareerFilter"
+          class="tecnm-form-control tecnm-form-control-sm"
+          style="width: auto; min-width: 180px;"
+          @change="handleMatrixSearch"
+        >
+          <option value="">Todas las Carreras</option>
+          <option v-for="c in careersList" :key="c.id" :value="String(c.id)">
+            {{ c.name }}
+          </option>
+        </select>
+
+        <select
+          v-model="matrixCompletionFilter"
+          class="tecnm-form-control tecnm-form-control-sm"
+          style="width: auto; min-width: 190px;"
+          @change="handleMatrixSearch"
+        >
+          <option value="">Todos los Estados</option>
+          <option value="completed">Completados (100% de archivos)</option>
+          <option value="incomplete">Incompletos (Archivos faltantes)</option>
+        </select>
+
+        <button type="button" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" @click="handleMatrixSearch">
+          Filtrar
+        </button>
+      </div>
+
+      <div class="tecnm-card-body tecnm-p-0">
+        <div class="tecnm-table-responsive">
+          <table class="tecnm-table tecnm-table-striped">
+            <thead>
+              <tr>
+                <th>Estudiante</th>
+                <th>Carrera</th>
+                <th title="Solicitud de Residencia">Solicitud</th>
+                <th title="Carta de Aceptación">C. Aceptación</th>
+                <th title="Dictamen de Aprobación">Dictamen</th>
+                <th title="Oficio de Liberación">Liberación</th>
+                <th>Estatus Expediente</th>
+                <th style="text-align: right;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="matrixLoading">
+                <td colspan="8" class="tecnm-table-empty">Cargando matriz de expedientes...</td>
+              </tr>
+              <tr v-else-if="matrixItems.length === 0">
+                <td colspan="8" class="tecnm-table-empty">No se encontraron expedientes con los criterios seleccionados.</td>
+              </tr>
+              <tr v-for="item in matrixItems" v-else :key="item.projectId">
+                <td>
+                  <strong>{{ item.studentName }}</strong>
+                  <div class="tecnm-text-sub">Ctrl: {{ item.studentControlNumber }}</div>
+                </td>
+                <td>
+                  <span>{{ item.careerName }}</span>
+                </td>
+                <td>
+                  <span v-if="item.documents['solicitud']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
+                  <span v-else class="tecnm-badge tecnm-badge-warning" style="font-weight: 600;" title="Sin entregar">Faltante</span>
+                </td>
+                <td>
+                  <span v-if="item.documents['carta_aceptacion']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
+                  <span v-else class="tecnm-badge tecnm-badge-warning" style="font-weight: 600;" title="Sin entregar">Faltante</span>
+                </td>
+                <td>
+                  <span v-if="item.documents['dictamen']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
+                  <span v-else class="tecnm-badge tecnm-badge-warning" style="font-weight: 600;" title="Sin entregar">Faltante</span>
+                </td>
+                <td>
+                  <span v-if="item.documents['libranza']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
+                  <span v-else class="tecnm-badge tecnm-badge-warning" style="font-weight: 600;" title="Sin entregar">Faltante</span>
+                </td>
+                <td>
+                  <span v-if="item.isCompleted" class="tecnm-badge tecnm-badge-success" style="font-weight: 700;">
+                    ✓ Completado
+                  </span>
+                  <span v-else class="tecnm-badge tecnm-badge-warning">
+                    Incompleto ({{ item.uploadedCount }}/{{ item.requiredCount }})
+                  </span>
+                </td>
+                <td style="text-align: right;">
+                  <button
+                    type="button"
+                    class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                    @click="openProjectDetail(item)"
+                  >
+                    Ver Archivos &rarr;
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tecnm-card-footer">
+        <TecnmPagination
+          :current-page="matrixPage"
+          :total-pages="matrixTotalPages"
+          :total-count="matrixTotalCount"
+          :page-size="matrixPageSize"
+          @update:current-page="onMatrixPageChange"
+          @page-change="loadMatrix"
+        />
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- DETALLE DE EXPEDIENTE: ARCHIVOS DE UN ANTEPROYECTO -->
+    <!-- ======================================================== -->
+    <template v-if="isStudent || viewMode === 'detail'">
+      <div v-if="!isStudent" class="tecnm-mb-3">
+        <button type="button" class="tecnm-btn tecnm-btn-outline tecnm-btn-sm" @click="backToMatrix">
+          &larr; Volver a la Lista General de Alumnos y Archivos
+        </button>
+      </div>
+
+      <!-- Tarjeta Principal con Lista de Documentos -->
+      <div class="tecnm-card">
+        <div class="tecnm-card-header">
+          <h3 class="tecnm-card-title">Documentos Cargados en el Expediente</h3>
+        </div>
 
       <div class="tecnm-card-toolbar">
         <div id="projectSearchContainer" class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
@@ -918,6 +1179,7 @@ onMounted(() => {
         />
       </div>
     </div>
+    </template>
 
     <!-- Modal Subir Documento -->
     <div
@@ -965,9 +1227,7 @@ onMounted(() => {
             >
               <option value="">-- Seleccionar Tipo --</option>
               <option value="carta_aceptacion">Carta de Aceptación / Aprobación *</option>
-              <option v-if="isProjectApproved || isStaff" value="anteproyecto">Anteproyecto Técnico</option>
               <option v-if="isProjectApproved || isStaff" value="solicitud">Solicitud de Residencia Profesional</option>
-              <option v-if="isProjectApproved || isStaff" value="carta_presentacion">Carta de Presentación</option>
               <option v-if="isProjectApproved || isStaff" value="dictamen">Dictamen de Aprobación</option>
               <option v-if="isProjectApproved || isStaff" value="manual_usuario">Manual de Usuario</option>
               <option v-if="isProjectApproved || isStaff" value="manual_tecnico">Manual Técnico</option>

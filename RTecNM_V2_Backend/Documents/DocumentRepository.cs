@@ -15,13 +15,13 @@ public class DocumentRepository : IDocumentRepository
     public async Task<Document?> GetByIdAsync(long id)
     {
         return await _context.Set<Document>()
-            .FirstOrDefaultAsync(d => d.Id == id);
+            .FirstOrDefaultAsync(d => d.Id == id && d.DocumentType != DocumentType.Anteproyecto && d.DocumentType != DocumentType.CartaPresentacion);
     }
 
     public async Task<PaginatedResult<Document>> GetPagedByProjectIdAsync(long projectId, PaginationQuery query, bool includeInactive = false)
     {
         IQueryable<Document> q = _context.Set<Document>()
-            .Where(d => d.ProjectId == projectId);
+            .Where(d => d.ProjectId == projectId && d.DocumentType != DocumentType.Anteproyecto && d.DocumentType != DocumentType.CartaPresentacion);
 
         if (!includeInactive)
             q = q.Where(d => d.IsActive);

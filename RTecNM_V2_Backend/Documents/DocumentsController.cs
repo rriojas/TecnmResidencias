@@ -180,4 +180,26 @@ public class DocumentsController : ControllerBase
         }
         return Ok(new { message = "Documento reactivado exitosamente." });
     }
+
+    /// <summary>
+    /// Lista de alumnos con proyecto activo que no han subido su carta de aceptación
+    /// </summary>
+    [HttpGet("pending-acceptance")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator,advisor")]
+    public async Task<IActionResult> GetPendingAcceptanceLetters([FromQuery] long? careerId = null)
+    {
+        var result = await _documentService.GetPendingAcceptanceLettersAsync(careerId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Matriz consolidada de expedientes digitales con filtros y paginación
+    /// </summary>
+    [HttpGet("matrix")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator,advisor")]
+    public async Task<IActionResult> GetDocumentMatrix([FromQuery] PaginationQuery query, [FromQuery] long? careerId = null, [FromQuery] string? completionStatus = null)
+    {
+        var result = await _documentService.GetDocumentMatrixAsync(query, careerId, completionStatus);
+        return Ok(result);
+    }
 }

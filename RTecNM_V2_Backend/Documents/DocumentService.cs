@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
 using TecNM.Residency.Common.Notifications;
 using TecNM.Residency.Projects;
@@ -13,6 +15,7 @@ public class DocumentService : IDocumentService
     private readonly ICurrentUserService _currentUser;
     private readonly IEmailQueue _emailQueue;
     private readonly IEmailTemplateService _emailTemplateService;
+    private readonly AppDbContext _context;
 
     public DocumentService(
         IDocumentRepository repository,
@@ -20,7 +23,8 @@ public class DocumentService : IDocumentService
         IStudentRepository studentRepository,
         ICurrentUserService currentUser,
         IEmailQueue emailQueue,
-        IEmailTemplateService emailTemplateService)
+        IEmailTemplateService emailTemplateService,
+        AppDbContext context)
     {
         _repository = repository;
         _projectRepository = projectRepository;
@@ -28,6 +32,7 @@ public class DocumentService : IDocumentService
         _currentUser = currentUser;
         _emailQueue = emailQueue;
         _emailTemplateService = emailTemplateService;
+        _context = context;
     }
 
     public async Task<DocumentResponseDto> UploadDocumentAsync(UploadDocumentDto dto, string uploadsRootPath)
@@ -47,6 +52,11 @@ public class DocumentService : IDocumentService
         if (!allowedExtensions.Contains(extension))
         {
             throw new ArgumentException("Solo se permiten archivos en formato PDF, JPG o PNG.");
+        }
+
+        if (DocumentType.IsOmitted(dto.DocumentType))
+        {
+            throw new ArgumentException("El anteproyecto técnico y la carta de presentación no se suben como archivos al expediente digital.");
         }
 
         if (!DocumentType.IsValid(dto.DocumentType))
@@ -279,5 +289,213 @@ public class DocumentService : IDocumentService
             DeletedBy = doc.DeletedBy,
             DeletedAt = doc.DeletedAt
         };
+    }
+
+    public async Task<List<PendingAcceptanceDto>> GetPendingAcceptanceLettersAsync(long? careerId = null)
+    {
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            careerId = _currentUser.CareerId;
+        }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            if (careerId.HasValue && _currentUser.CareerIds.Contains(careerId.Value))
+            {
+                // mantener
+            }
+            else if (_currentUser.CareerIds.Count > 0)
+            {
+                careerId = _currentUser.CareerIds.FirstOrDefault();
+            }
+        }
+
+        var query = _context.Projects
+            .Include(p => p.Student)
+            .Include(p => p.Company)
+            .Where(p => p.IsActive && p.Student != null && p.Student.IsActive)
+            .Where(p => p.Status != ProjectStatus.Cancelled && p.Status != ProjectStatus.Draft);
+
+        if (_currentUser.Role == UserRole.Advisor)
+        {
+            var adv = await _context.Advisors.FirstOrDefaultAsync(a => a.UserId == _currentUser.UserId && a.IsActive);
+            if (adv != null)
+            {
+                query = query.Where(p => p.AdvisorId == adv.Id || p.Student!.AdvisorId == adv.Id);
+            }
+        }
+
+        if (careerId.HasValue && careerId.Value > 0)
+        {
+            query = query.Where(p => p.Student!.CareerId == careerId.Value);
+        }
+
+        var acceptedProjectIds = await _context.Documents
+            .Where(d => d.IsActive && d.DocumentType == DocumentType.CartaAceptacion)
+            .Select(d => d.ProjectId)
+            .Distinct()
+            .ToListAsync();
+
+        var pendingProjects = await query
+            .Where(p => !acceptedProjectIds.Contains(p.Id))
+            .OrderByDescending(p => p.CreatedAt)
+            .Take(50)
+            .ToListAsync();
+
+        var careers = await _context.Careers.ToDictionaryAsync(c => c.Id, c => c.Name);
+
+        var result = pendingProjects.Select(p => new PendingAcceptanceDto
+        {
+            StudentId = p.StudentId,
+            StudentControlNumber = p.Student?.ControlNumber ?? string.Empty,
+            StudentName = $"{p.Student?.FirstName} {p.Student?.LastName} {p.Student?.LastName2}".Trim(),
+            CareerId = p.Student?.CareerId ?? 0,
+            CareerName = p.Student != null && careers.TryGetValue(p.Student.CareerId, out var cName) ? cName : "Carrera",
+            ProjectId = p.Id,
+            ProjectTitle = p.Title,
+            CompanyName = p.Company?.Name,
+            ProjectStatus = p.Status.ToString(),
+            HasAcceptanceLetter = false,
+            StatusLabel = "Sin carta de aceptación",
+            ProjectCreatedAt = p.CreatedAt
+        }).ToList();
+
+        return result;
+    }
+
+    public async Task<PaginatedResult<DocumentMatrixItemDto>> GetDocumentMatrixAsync(PaginationQuery query, long? careerId = null, string? completionStatus = null)
+    {
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            careerId = _currentUser.CareerId;
+        }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            if (careerId.HasValue && _currentUser.CareerIds.Contains(careerId.Value))
+            {
+                // mantener
+            }
+            else if (_currentUser.CareerIds.Count > 0)
+            {
+                careerId = _currentUser.CareerIds.FirstOrDefault();
+            }
+        }
+
+        var q = _context.Projects
+            .Include(p => p.Student)
+            .Include(p => p.Company)
+            .Where(p => p.IsActive && p.Student != null && p.Student.IsActive)
+            .Where(p => p.Status != ProjectStatus.Cancelled);
+
+        if (_currentUser.Role == UserRole.Advisor)
+        {
+            var adv = await _context.Advisors.FirstOrDefaultAsync(a => a.UserId == _currentUser.UserId && a.IsActive);
+            if (adv != null)
+            {
+                q = q.Where(p => p.AdvisorId == adv.Id || p.Student!.AdvisorId == adv.Id);
+            }
+        }
+
+        if (careerId.HasValue && careerId.Value > 0)
+        {
+            q = q.Where(p => p.Student!.CareerId == careerId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var term = query.Search.Trim().ToLowerInvariant();
+            q = q.Where(p =>
+                p.Title.ToLower().Contains(term) ||
+                p.Student!.FirstName.ToLower().Contains(term) ||
+                p.Student!.LastName.ToLower().Contains(term) ||
+                (p.Student.LastName2 != null && p.Student.LastName2.ToLower().Contains(term)) ||
+                p.Student.ControlNumber.ToLower().Contains(term));
+        }
+
+        q = q.OrderByDescending(p => p.CreatedAt);
+
+        var coreTypes = new[]
+        {
+            DocumentType.Solicitud,
+            DocumentType.CartaAceptacion,
+            DocumentType.Dictamen,
+            DocumentType.Libranza
+        };
+
+        var pageNumber = Math.Max(1, query.PageNumber);
+        var pageSize = Math.Clamp(query.PageSize, 1, 100);
+
+        var allMatchingProjects = await q.ToListAsync();
+        var projectIds = allMatchingProjects.Select(p => p.Id).ToList();
+
+        var docs = await _context.Documents
+            .Where(d => d.IsActive && projectIds.Contains(d.ProjectId))
+            .Where(d => d.DocumentType != DocumentType.Anteproyecto && d.DocumentType != DocumentType.CartaPresentacion)
+            .ToListAsync();
+
+        var docsByProject = docs.GroupBy(d => d.ProjectId).ToDictionary(g => g.Key, g => g.ToList());
+        var careers = await _context.Careers.ToDictionaryAsync(c => c.Id, c => c.Name);
+
+        var matrixItems = new List<DocumentMatrixItemDto>();
+
+        foreach (var p in allMatchingProjects)
+        {
+            var pDocs = docsByProject.GetValueOrDefault(p.Id, new List<Document>());
+            var docMap = new Dictionary<string, DocumentFileSummaryDto>();
+            foreach (var d in pDocs)
+            {
+                docMap[d.DocumentType.ToLowerInvariant()] = new DocumentFileSummaryDto
+                {
+                    Id = d.Id,
+                    DocumentType = d.DocumentType,
+                    FileName = d.FileName,
+                    Status = d.Status,
+                    UploadedAt = d.UploadedAt
+                };
+            }
+
+            int uploadedCount = coreTypes.Count(t => docMap.ContainsKey(t.ToLowerInvariant()));
+            int requiredCount = coreTypes.Length;
+            bool isCompleted = uploadedCount == requiredCount;
+
+            if (!string.IsNullOrWhiteSpace(completionStatus))
+            {
+                if (completionStatus.Equals("completed", StringComparison.OrdinalIgnoreCase) && !isCompleted)
+                    continue;
+                if (completionStatus.Equals("incomplete", StringComparison.OrdinalIgnoreCase) && isCompleted)
+                    continue;
+            }
+
+            matrixItems.Add(new DocumentMatrixItemDto
+            {
+                ProjectId = p.Id,
+                StudentId = p.StudentId,
+                StudentControlNumber = p.Student?.ControlNumber ?? string.Empty,
+                StudentName = $"{p.Student?.FirstName} {p.Student?.LastName} {p.Student?.LastName2}".Trim(),
+                CareerId = p.Student?.CareerId ?? 0,
+                CareerName = p.Student != null && careers.TryGetValue(p.Student.CareerId, out var cn) ? cn : "Carrera",
+                ProjectTitle = p.Title,
+                CompanyName = p.Company?.Name,
+                ProjectStatus = p.Status.ToString(),
+                Documents = docMap,
+                UploadedCount = uploadedCount,
+                RequiredCount = requiredCount,
+                IsCompleted = isCompleted
+            });
+        }
+
+        var totalCount = matrixItems.Count;
+        var pagedItems = matrixItems
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+        return PaginatedResult<DocumentMatrixItemDto>.Create(
+            pagedItems,
+            totalCount,
+            pageNumber,
+            pageSize
+        );
     }
 }
