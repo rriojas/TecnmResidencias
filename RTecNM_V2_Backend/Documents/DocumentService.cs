@@ -96,10 +96,13 @@ public class DocumentService : IDocumentService
                 _ => "application/pdf"
             };
 
+        var normalizedType = dto.DocumentType.ToLowerInvariant();
+        if (normalizedType == DocumentType.CartaAprobacion) normalizedType = DocumentType.CartaAceptacion;
+
         var document = new Document
         {
             ProjectId = dto.ProjectId,
-            DocumentType = dto.DocumentType.ToLowerInvariant(),
+            DocumentType = normalizedType,
             FileName = dto.File.FileName,
             FilePath = relativePath,
             FileSize = dto.File.Length,
@@ -315,6 +318,7 @@ public class DocumentService : IDocumentService
             .Include(p => p.Student)
             .Include(p => p.Company)
             .Where(p => p.IsActive && p.Student != null && p.Student.IsActive)
+            .Where(p => p.ProjectType != "acreditacion_innovatec" && p.ProjectType != "acreditacion_hackatec")
             .Where(p => p.Status != ProjectStatus.Cancelled && p.Status != ProjectStatus.Draft);
 
         if (_currentUser.Role == UserRole.Advisor)
@@ -332,7 +336,7 @@ public class DocumentService : IDocumentService
         }
 
         var acceptedProjectIds = await _context.Documents
-            .Where(d => d.IsActive && d.DocumentType == DocumentType.CartaAceptacion)
+            .Where(d => d.IsActive && (d.DocumentType == DocumentType.CartaAceptacion || d.DocumentType == DocumentType.CartaAprobacion))
             .Select(d => d.ProjectId)
             .Distinct()
             .ToListAsync();
@@ -442,7 +446,10 @@ public class DocumentService : IDocumentService
             var docMap = new Dictionary<string, DocumentFileSummaryDto>();
             foreach (var d in pDocs)
             {
-                docMap[d.DocumentType.ToLowerInvariant()] = new DocumentFileSummaryDto
+                var docTypeKey = d.DocumentType.ToLowerInvariant();
+                if (docTypeKey == DocumentType.CartaAprobacion) docTypeKey = DocumentType.CartaAceptacion;
+
+                docMap[docTypeKey] = new DocumentFileSummaryDto
                 {
                     Id = d.Id,
                     DocumentType = d.DocumentType,
@@ -452,9 +459,12 @@ public class DocumentService : IDocumentService
                 };
             }
 
-            int uploadedCount = coreTypes.Count(t => docMap.ContainsKey(t.ToLowerInvariant()));
-            int requiredCount = coreTypes.Length;
-            bool isCompleted = uploadedCount == requiredCount;
+            bool isAccreditation = p.ProjectType is "acreditacion_innovatec" or "acreditacion_hackatec";
+            int requiredCount = isAccreditation ? 1 : coreTypes.Length;
+            int uploadedCount = isAccreditation
+                ? (docMap.ContainsKey(DocumentType.ConstanciaAcreditacion.ToLowerInvariant()) ? 1 : 0)
+                : coreTypes.Count(t => docMap.ContainsKey(t.ToLowerInvariant()));
+            bool isCompleted = uploadedCount >= requiredCount;
 
             if (!string.IsNullOrWhiteSpace(completionStatus))
             {
@@ -478,7 +488,9 @@ public class DocumentService : IDocumentService
                 Documents = docMap,
                 UploadedCount = uploadedCount,
                 RequiredCount = requiredCount,
-                IsCompleted = isCompleted
+                IsCompleted = isCompleted,
+                IsAccreditation = isAccreditation,
+                ProjectType = p.ProjectType
             });
         }
 
@@ -534,12 +546,12 @@ public class DocumentService : IDocumentService
                 item.CareerName,
                 item.ProjectTitle,
                 item.CompanyName ?? "—",
-                item.Documents.ContainsKey("solicitud") ? 1 : 0,
-                item.Documents.ContainsKey("carta_aceptacion") ? 1 : 0,
-                item.Documents.ContainsKey("dictamen") ? 1 : 0,
-                item.Documents.ContainsKey("libranza") ? 1 : 0,
+                item.IsAccreditation ? 1 : (item.Documents.ContainsKey("solicitud") ? 1 : 0),
+                item.IsAccreditation ? 1 : (item.Documents.ContainsKey("carta_aceptacion") ? 1 : 0),
+                item.IsAccreditation ? 1 : (item.Documents.ContainsKey("dictamen") ? 1 : 0),
+                item.IsAccreditation ? 1 : (item.Documents.ContainsKey("libranza") ? 1 : 0),
                 item.UploadedCount,
-                item.IsCompleted ? "Completado" : "Incompleto",
+                item.IsCompleted ? (item.IsAccreditation ? "Acreditado (InnovaTec)" : "Completado") : "Incompleto",
                 $"{item.UploadedCount}/{item.RequiredCount}"
             );
         }

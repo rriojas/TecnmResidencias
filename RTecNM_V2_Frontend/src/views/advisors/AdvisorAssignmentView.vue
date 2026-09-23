@@ -228,7 +228,7 @@ async function openBatchModal() {
 
 const filteredBatchStudents = computed(() => {
   const unassigned = (allStudentsForBatch.value.length > 0 ? allStudentsForBatch.value : students.value)
-    .filter(s => !s.advisorId)
+    .filter(s => !s.advisorId && s.hasProject && s.hasAcceptanceLetter)
   if (!batchSearch.value.trim()) return unassigned
   const term = batchSearch.value.trim().toLowerCase()
   return unassigned.filter(s =>
@@ -425,6 +425,12 @@ onMounted(() => {
                   <span v-if="authStore.isReadOnly" class="tecnm-text-sub" style="font-weight: 500;">
                     {{ s.advisorName || 'Sin Asesor Asignado' }}
                   </span>
+                  <span v-else-if="!s.hasProject" class="tecnm-badge tecnm-badge-danger" style="font-size: 0.75rem;" title="El residente aún no registra un anteproyecto">
+                    Sin Anteproyecto
+                  </span>
+                  <span v-else-if="!s.hasAcceptanceLetter" class="tecnm-badge tecnm-badge-warning" style="font-size: 0.75rem;" title="El residente aún no cuenta con carta de aceptación oficial cargada">
+                    Sin Carta de Aceptación
+                  </span>
                   <TecnmAutocomplete
                     v-else
                     :key="`${s.id}-${s.advisorId || 'none'}`"
@@ -496,7 +502,7 @@ onMounted(() => {
             />
           </div>
 
-          <div class="tecnm-form-group" style="margin-bottom: 1rem;">
+          <div class="tecnm-form-group" style="margin-bottom: 0.75rem;">
             <label class="tecnm-label">Buscar estudiantes para asignar</label>
             <input
               v-model="batchSearch"
@@ -505,6 +511,10 @@ onMounted(() => {
               placeholder="Buscar por nombre, apellidos o número de control..."
               @input="batchPage = 1"
             />
+          </div>
+
+          <div class="tecnm-alert tecnm-alert-info" style="font-size: 0.8125rem; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">
+            ℹ️ Solo se listan estudiantes sin asesor que cuentan con anteproyecto y carta de aceptación oficial registrada.
           </div>
 
           <div class="tecnm-table-responsive" style="max-height: 320px; overflow-y: auto; border: 1px solid var(--tecnm-border-color); border-radius: 6px;">

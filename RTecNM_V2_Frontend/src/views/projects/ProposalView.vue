@@ -296,10 +296,14 @@ async function openDetailModal(proposal) {
     cartaAceptacionDoc.value = null
 
     try {
-      const dRes = await apiClient.get(`/v1/documents?projectId=${proposal.id}`)
+      const dRes = await apiClient.get(`/v1/documents/project/${proposal.id}`, {
+        params: { pageSize: 50, _t: Date.now() },
+      })
       const docs = dRes.data?.items || []
-      accreditationDoc.value = docs.find((d) => d.documentType === 'constancia_acreditacion' && d.isActive) || null
-      cartaAceptacionDoc.value = docs.find((d) => d.documentType === 'carta_aceptacion' && d.isActive) || null
+      accreditationDoc.value =
+        docs.find((d) => ['constancia_acreditacion', 'acreditacion'].includes((d.documentType || '').toLowerCase()) && d.isActive) || null
+      cartaAceptacionDoc.value =
+        docs.find((d) => ['carta_aceptacion', 'carta_aprobacion'].includes((d.documentType || '').toLowerCase()) && d.isActive) || null
     } catch {}
 
     isDetailOpen.value = true

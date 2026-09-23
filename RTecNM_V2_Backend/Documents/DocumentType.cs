@@ -5,6 +5,7 @@ public static class DocumentType
     public const string Solicitud = "solicitud";
     public const string CartaPresentacion = "carta_presentacion";
     public const string CartaAceptacion = "carta_aceptacion";
+    public const string CartaAprobacion = "carta_aprobacion";
     public const string Anteproyecto = "anteproyecto";
     public const string Dictamen = "dictamen";
     public const string ManualUsuario = "manual_usuario";
@@ -17,6 +18,7 @@ public static class DocumentType
     {
         Solicitud,
         CartaAceptacion,
+        CartaAprobacion,
         Dictamen,
         ManualUsuario,
         ManualTecnico,

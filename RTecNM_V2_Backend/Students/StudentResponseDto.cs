@@ -20,6 +20,10 @@ public class StudentResponseDto
     public bool IsPresentationLetterSent { get; set; }
     public DateTime? PresentationLetterSentAt { get; set; }
 
+    public bool HasProject { get; set; }
+    public bool HasAcceptanceLetter { get; set; }
+    public string? ProjectTitle { get; set; }
+
     public bool HasComplementaryActivities { get; set; }
     public bool HasSocialService { get; set; }
     public bool HasSpecialRequirements { get; set; }

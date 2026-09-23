@@ -212,12 +212,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const canSeeAudit = computed(() => {
-    return (
-      !isReadOnly.value &&
-      (isAdmin.value ||
-        hasPermission('admin.reports') ||
-        hasRole('admin', 'departmenthead'))
-    )
+    return !isReadOnly.value && (isAdmin.value || hasRole('admin'))
   })
 
   const canManageRegistry = computed(() => {

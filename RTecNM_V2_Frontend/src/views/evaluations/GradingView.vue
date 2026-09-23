@@ -675,7 +675,7 @@ onMounted(() => {
                       Editar
                     </button>
                     <button
-                      v-if="!authStore.isCareerHead"
+                      v-if="authStore.canSeeAudit"
                       type="button"
                       class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                       @click="handleOpenAudit(e)"

@@ -93,6 +93,16 @@ const accreditationDoc = ref(null)
 const cartaAceptacionDoc = ref(null)
 const isSubmitting = ref(false)
 
+const canAssignAdvisor = computed(() => {
+  if (authStore.isReadOnly) return false
+  return (
+    authStore.isAdmin ||
+    authStore.isCareerHead ||
+    authStore.hasRole('jefecarrera', 'careerhead', 'departmenthead', 'academic') ||
+    authStore.hasPermission('projects.advisor.assign')
+  )
+})
+
 // Catálogo de Carreras
 const defaultCareersMap = {
   1: 'Ing. Informática',
@@ -254,15 +264,33 @@ async function openReviewModal(project) {
     cartaAceptacionDoc.value = null
 
     try {
-      const dRes = await apiClient.get(`/v1/documents?projectId=${project.id}`)
+      const dRes = await apiClient.get(`/v1/documents/project/${project.id}`, {
+        params: { pageSize: 50, _t: Date.now() },
+      })
       const docs = dRes.data?.items || []
-      accreditationDoc.value = docs.find((d) => d.documentType === 'constancia_acreditacion' && d.isActive) || null
-      cartaAceptacionDoc.value = docs.find((d) => d.documentType === 'carta_aceptacion' && d.isActive) || null
+      accreditationDoc.value =
+        docs.find((d) => ['constancia_acreditacion', 'acreditacion'].includes((d.documentType || '').toLowerCase()) && d.isActive) || null
+      cartaAceptacionDoc.value =
+        docs.find((d) => ['carta_aceptacion', 'carta_aprobacion'].includes((d.documentType || '').toLowerCase()) && d.isActive) || null
     } catch {}
 
     isReviewModalOpen.value = true
   } catch {
     showAlert('Error al cargar datos del anteproyecto.', 'danger')
+  }
+}
+
+async function openDoc(doc) {
+  if (!doc?.id) return
+  try {
+    const res = await apiClient.get(`/v1/documents/${doc.id}/download`, {
+      responseType: 'blob',
+    })
+    const file = new Blob([res.data], { type: res.headers['content-type'] || 'application/pdf' })
+    const fileUrl = window.URL.createObjectURL(file)
+    window.open(fileUrl, '_blank')
+  } catch {
+    showAlert('Error al abrir el documento.', 'danger')
   }
 }
 
@@ -360,9 +388,13 @@ async function handleAssignAdvisor() {
     await apiClient.post('/v1/advisors/assign', {
       advisorId: Number(selectedAdvisorId.value),
       projectId: selectedProject.value.id,
+      advisorType: 'internal',
     })
     const updatedRes = await apiClient.get(`/v1/projects/${selectedProject.value.id}`)
     selectedProject.value = updatedRes.data
+    initialReviewAdvisor.value = updatedRes.data.advisorId
+      ? { id: updatedRes.data.advisorId, fullName: updatedRes.data.advisorName }
+      : null
     showAlert('Asesor asignado al anteproyecto exitosamente.', 'success')
     loadProjects({ silent: true })
   } catch (err) {
@@ -385,6 +417,16 @@ async function handleApprove() {
 
   isSubmitting.value = true
   try {
+    if (selectedAdvisorId.value && Number(selectedAdvisorId.value) !== Number(selectedProject.value.advisorId)) {
+      try {
+        await apiClient.post('/v1/advisors/assign', {
+          advisorId: Number(selectedAdvisorId.value),
+          projectId: selectedProject.value.id,
+          advisorType: 'internal',
+        })
+      } catch {}
+    }
+
     await apiClient.patch(`/v1/projects/${selectedProject.value.id}/status`, {
       status: 'approved',
       comments: reviewComments.value.trim() || undefined,
@@ -839,7 +881,7 @@ onMounted(() => {
               </div>
               <div>
                 <h4 class="tecnm-field-label">Asesor Interno Asignado</h4>
-                <p class="tecnm-field-value">
+                <p class="tecnm-field-value" style="margin-bottom: 0.35rem;">
                   <span v-if="selectedProject.advisorName" class="tecnm-badge tecnm-badge-success" style="font-size: 0.85rem;">
                     {{ selectedProject.advisorName }}
                   </span>
@@ -847,6 +889,39 @@ onMounted(() => {
                     Pendiente de asignación
                   </span>
                 </p>
+
+                <!-- Asignar Asesor Interno directamente debajo del campo cuando esté disponible con Carta de Aceptación -->
+                <div
+                  v-if="canAssignAdvisor && cartaAceptacionDoc && !['completed', 'cancelled'].includes((selectedProject.status || '').toLowerCase())"
+                  style="margin-top: 0.5rem;"
+                >
+                  <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 220px;">
+                      <TecnmAutocomplete
+                        v-model="selectedAdvisorId"
+                        endpoint="/v1/advisors"
+                        global-search-source="ADVISORS"
+                        placeholder="Buscar asesor académico por nombre..."
+                        :initial-item="initialReviewAdvisor"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                      :disabled="isSubmitting || !selectedAdvisorId || Number(selectedAdvisorId) === Number(selectedProject.advisorId)"
+                      @click="handleAssignAdvisor"
+                    >
+                      {{ selectedProject.advisorName ? 'Cambiar Asesor' : 'Asignar Asesor' }}
+                    </button>
+                  </div>
+                </div>
+                <div
+                  v-else-if="canAssignAdvisor && !cartaAceptacionDoc && !['completed', 'cancelled'].includes((selectedProject.status || '').toLowerCase())"
+                  class="tecnm-text-muted"
+                  style="margin-top: 0.35rem; font-size: 0.75rem;"
+                >
+                  <em>La asignación se habilitará al contar con la carta de aceptación.</em>
+                </div>
               </div>
             </div>
 
@@ -870,48 +945,27 @@ onMounted(() => {
                       El estudiante aún no ha adjuntado su carta de aceptación emitida por la empresa receptora.
                     </div>
                   </div>
-                  <button
-                    v-if="cartaAceptacionDoc"
-                    type="button"
-                    class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
-                    @click="downloadDoc(cartaAceptacionDoc, 'Carta_Aceptacion.pdf')"
-                  >
-                    Descargar / Ver Carta &rarr;
-                  </button>
+                  <div v-if="cartaAceptacionDoc" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <button
+                      type="button"
+                      class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                      @click="openDoc(cartaAceptacionDoc)"
+                    >
+                      Abrir Carta &rarr;
+                    </button>
+                    <button
+                      type="button"
+                      class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                      @click="downloadDoc(cartaAceptacionDoc, 'Carta_Aceptacion.pdf')"
+                      title="Descargar archivo"
+                    >
+                      Descargar
+                    </button>
+                  </div>
                   <span v-else class="tecnm-badge tecnm-badge-warning" style="font-size: 0.75rem;">
                     Pendiente de carga
                   </span>
                 </div>
-              </div>
-            </div>
-
-            <!-- Selector de Asesor para Jefatura / División Académica -->
-            <div
-              v-if="!authStore.isReadOnly && (authStore.isAdmin || authStore.hasRole('departmenthead', 'academic')) && !['completed', 'cancelled'].includes((selectedProject.status || '').toLowerCase())"
-              class="tecnm-form-group"
-              style="background: var(--tecnm-bg-light, #f8fafc); padding: 1rem; border-radius: 8px; border: 1px solid var(--tecnm-border-color, #e2e8f0); margin-bottom: 1rem;"
-            >
-              <label class="tecnm-label" style="font-weight: 600;">
-                Asignar / Cambiar Asesor Académico por Anteproyecto:
-              </label>
-              <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;">
-                <div style="flex: 1;">
-                  <TecnmAutocomplete
-                    v-model="selectedAdvisorId"
-                    endpoint="/v1/advisors"
-                    global-search-source="ADVISORS"
-                    placeholder="Buscar asesor académico por nombre..."
-                    :initial-item="initialReviewAdvisor"
-                  />
-                </div>
-                <button
-                  type="button"
-                  class="tecnm-btn tecnm-btn-primary"
-                  :disabled="isSubmitting || !selectedAdvisorId || Number(selectedAdvisorId) === Number(selectedProject.advisorId)"
-                  @click="handleAssignAdvisor"
-                >
-                  Guardar Asesor
-                </button>
               </div>
             </div>
 
@@ -1031,14 +1085,6 @@ onMounted(() => {
             Descargar PDF Oficial
           </button>
 
-          <!-- Asignar Asesor Interno directo si está aprobado y es proyecto ordinario -->
-          <router-link
-            v-if="!isAccreditation(selectedProject) && PRINTABLE_STATUSES.includes((selectedProject.status || '').toLowerCase()) && (authStore.isAdmin || authStore.hasRole('departmenthead', 'academic') || authStore.isCareerHead)"
-            to="/advisors/assignments"
-            class="tecnm-btn tecnm-btn-primary"
-          >
-            Asignar Asesor &rarr;
-          </router-link>
 
           <!-- Botones de Dictamen para Acreditación InnovaTecNM Nacional -->
           <template v-if="isAccreditation(selectedProject) && isDictaminable(selectedProject.status) && !authStore.isReadOnly && !authStore.hasRole('vinculacion')">

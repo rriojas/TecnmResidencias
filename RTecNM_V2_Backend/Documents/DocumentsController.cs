@@ -86,6 +86,27 @@ public class DocumentsController : ControllerBase
     }
 
     /// <summary>
+    /// Listar documentos cargados por query param de proyecto
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> GetAll([FromQuery] long? projectId, [FromQuery] PaginationQuery query, [FromQuery] bool includeInactive = false)
+    {
+        if (projectId.HasValue)
+        {
+            var denied = await EnsureProjectAccessAsync(projectId.Value);
+            if (denied is not null) return denied;
+
+            var result = await _documentService.GetByProjectPagedAsync(projectId.Value, query, includeInactive);
+            if (!result.IsSuccess)
+                return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+            return Ok(result.Data);
+        }
+
+        return BadRequest(new { message = "El parámetro projectId es requerido." });
+    }
+
+    /// <summary>
     /// Listar documentos cargados por ID de proyecto
     /// </summary>
     [HttpGet("project/{projectId}")]

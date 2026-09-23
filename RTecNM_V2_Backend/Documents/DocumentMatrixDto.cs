@@ -24,4 +24,6 @@ public class DocumentMatrixItemDto
     public int UploadedCount { get; set; }
     public int RequiredCount { get; set; }
     public bool IsCompleted { get; set; }
+    public bool IsAccreditation { get; set; }
+    public string? ProjectType { get; set; }
 }

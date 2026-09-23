@@ -741,6 +741,7 @@ onMounted(async () => {
                         Editar
                       </button>
                       <button
+                        v-if="authStore.canSeeAudit"
                         type="button"
                         class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                         @click="handleOpenRoleAudit(r)"
@@ -965,6 +966,7 @@ onMounted(async () => {
                         Editar Usuario
                       </button>
                       <button
+                        v-if="authStore.canSeeAudit"
                         type="button"
                         class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                         @click="handleOpenUserAudit(u)"

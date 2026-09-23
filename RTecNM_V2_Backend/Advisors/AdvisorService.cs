@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
+using TecNM.Residency.Documents;
 using TecNM.Residency.Projects;
 using TecNM.Residency.Students;
 
@@ -287,6 +288,29 @@ public class AdvisorService : IAdvisorService
         if (project == null)
         {
             return Result<bool>.Failure("Anteproyecto no encontrado.", 404);
+        }
+
+        bool isAccreditation = project.ProjectType is "acreditacion_innovatec" or "acreditacion_hackatec";
+        bool hasValidDoc = false;
+
+        if (isAccreditation)
+        {
+            hasValidDoc = await _context.Documents.AnyAsync(d =>
+                d.ProjectId == project.Id &&
+                d.IsActive &&
+                d.DocumentType == DocumentType.ConstanciaAcreditacion);
+        }
+        else
+        {
+            hasValidDoc = await _context.Documents.AnyAsync(d =>
+                d.ProjectId == project.Id &&
+                d.IsActive &&
+                (d.DocumentType == DocumentType.CartaAceptacion || d.DocumentType == DocumentType.CartaAprobacion));
+        }
+
+        if (!hasValidDoc)
+        {
+            return Result<bool>.Failure("No se puede asignar un asesor: el anteproyecto no cuenta con carta de aceptación oficial registrada.", 400);
         }
 
         project.AdvisorId = dto.AdvisorId;

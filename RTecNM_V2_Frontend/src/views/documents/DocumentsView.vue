@@ -963,24 +963,28 @@ onMounted(() => {
                   <span>{{ item.careerName }}</span>
                 </td>
                 <td>
-                  <span v-if="item.documents['solicitud']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
+                  <span v-if="item.isAccreditation" class="tecnm-badge tecnm-badge-secondary" title="Exento por InnovaTecNM">Exento</span>
+                  <span v-else-if="item.documents['solicitud']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
                   <span v-else class="tecnm-badge tecnm-badge-warning" style="font-weight: 600;" title="Sin entregar">Faltante</span>
                 </td>
                 <td>
-                  <span v-if="item.documents['carta_aceptacion']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
+                  <span v-if="item.isAccreditation" class="tecnm-badge tecnm-badge-secondary" title="Exento por InnovaTecNM">Exento</span>
+                  <span v-else-if="item.documents['carta_aceptacion']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
                   <span v-else class="tecnm-badge tecnm-badge-warning" style="font-weight: 600;" title="Sin entregar">Faltante</span>
                 </td>
                 <td>
-                  <span v-if="item.documents['dictamen']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
+                  <span v-if="item.isAccreditation" class="tecnm-badge tecnm-badge-secondary" title="Exento por InnovaTecNM">Exento</span>
+                  <span v-else-if="item.documents['dictamen']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
                   <span v-else class="tecnm-badge tecnm-badge-warning" style="font-weight: 600;" title="Sin entregar">Faltante</span>
                 </td>
                 <td>
-                  <span v-if="item.documents['libranza']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
+                  <span v-if="item.isAccreditation" class="tecnm-badge tecnm-badge-secondary" title="Exento por InnovaTecNM">Exento</span>
+                  <span v-else-if="item.documents['libranza']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
                   <span v-else class="tecnm-badge tecnm-badge-warning" style="font-weight: 600;" title="Sin entregar">Faltante</span>
                 </td>
                 <td>
                   <span v-if="item.isCompleted" class="tecnm-badge tecnm-badge-success" style="font-weight: 700;">
-                    ✓ Completado
+                    {{ item.isAccreditation ? '✓ Acreditado (InnovaTec)' : '✓ Completado' }}
                   </span>
                   <span v-else class="tecnm-badge tecnm-badge-warning">
                     Incompleto ({{ item.uploadedCount }}/{{ item.requiredCount }})
@@ -1202,6 +1206,7 @@ onMounted(() => {
                       Evaluar
                     </button>
                     <button
+                      v-if="authStore.canSeeAudit"
                       type="button"
                       class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                       @click="handleOpenAudit(doc)"

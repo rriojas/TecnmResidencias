@@ -3,6 +3,7 @@ using TecNM.Residency.Advisors;
 using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
 using TecNM.Residency.Common.Notifications;
+using TecNM.Residency.Documents;
 using TecNM.Residency.Projects;
 
 using TecNM.Residency.Common.EmailVerification;
@@ -53,7 +54,40 @@ public class StudentService : IStudentService
     public async Task<Result<PaginatedResult<StudentResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, bool onlyApprovedProject = false, long? careerId = null)
     {
         var paged = await _studentRepository.GetPagedAsync(query, status, includeInactive, onlyApprovedProject, careerId);
-        var dtos = paged.Items.Select(MapToResponseDto);
+        var studentIds = paged.Items.Select(s => s.Id).ToList();
+
+        var projects = await _context.Projects
+            .Where(p => studentIds.Contains(p.StudentId) && p.IsActive)
+            .Select(p => new { p.Id, p.StudentId, p.Title, p.ProjectType })
+            .ToListAsync();
+
+        var projectIds = projects.Select(p => p.Id).ToList();
+        var acceptedProjectIds = await _context.Documents
+            .Where(d => projectIds.Contains(d.ProjectId) && d.IsActive &&
+                (d.DocumentType == DocumentType.CartaAceptacion ||
+                 d.DocumentType == DocumentType.CartaAprobacion ||
+                 d.DocumentType == DocumentType.ConstanciaAcreditacion))
+            .Select(d => d.ProjectId)
+            .Distinct()
+            .ToListAsync();
+
+        var acceptedProjectSet = new HashSet<long>(acceptedProjectIds);
+        var projectByStudent = projects
+            .GroupBy(p => p.StudentId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.Id).First());
+
+        var dtos = paged.Items.Select(s =>
+        {
+            var dto = MapToResponseDto(s);
+            if (projectByStudent.TryGetValue(s.Id, out var proj))
+            {
+                dto.HasProject = true;
+                dto.ProjectTitle = proj.Title;
+                dto.HasAcceptanceLetter = acceptedProjectSet.Contains(proj.Id);
+            }
+            return dto;
+        });
+
         var result = PaginatedResult<StudentResponseDto>.Create(
             dtos, paged.TotalCount, paged.PageNumber, paged.PageSize);
         return Result<PaginatedResult<StudentResponseDto>>.Success(result);
@@ -102,7 +136,20 @@ public class StudentService : IStudentService
         if (student is null)
             return Result<StudentResponseDto>.Failure("Estudiante no encontrado", 404);
 
-        return Result<StudentResponseDto>.Success(MapToResponseDto(student));
+        var dto = MapToResponseDto(student);
+        var project = await _projectRepository.GetByStudentIdAsync(id);
+        if (project != null && project.IsActive)
+        {
+            dto.HasProject = true;
+            dto.ProjectTitle = project.Title;
+            dto.HasAcceptanceLetter = await _context.Documents.AnyAsync(d =>
+                d.ProjectId == project.Id && d.IsActive &&
+                (d.DocumentType == DocumentType.CartaAceptacion ||
+                 d.DocumentType == DocumentType.CartaAprobacion ||
+                 d.DocumentType == DocumentType.ConstanciaAcreditacion));
+        }
+
+        return Result<StudentResponseDto>.Success(dto);
     }
 
     public async Task<Result<StudentResponseDto>> GetMeAsync(long userId)
@@ -345,6 +392,35 @@ public class StudentService : IStudentService
         if (advisor is null)
             return Result<StudentResponseDto>.Failure("Asesor institucional no encontrado.", 404);
 
+        var project = await _projectRepository.GetByStudentIdAsync(studentId);
+        if (project is null || !project.IsActive)
+        {
+            return Result<StudentResponseDto>.Failure("No se puede asignar un asesor sin que el estudiante cuente con un anteproyecto registrado.", 400);
+        }
+
+        bool isAccreditation = project.ProjectType is "acreditacion_innovatec" or "acreditacion_hackatec";
+        bool hasValidDoc = false;
+
+        if (isAccreditation)
+        {
+            hasValidDoc = await _context.Documents.AnyAsync(d =>
+                d.ProjectId == project.Id &&
+                d.IsActive &&
+                d.DocumentType == DocumentType.ConstanciaAcreditacion);
+        }
+        else
+        {
+            hasValidDoc = await _context.Documents.AnyAsync(d =>
+                d.ProjectId == project.Id &&
+                d.IsActive &&
+                (d.DocumentType == DocumentType.CartaAceptacion || d.DocumentType == DocumentType.CartaAprobacion));
+        }
+
+        if (!hasValidDoc)
+        {
+            return Result<StudentResponseDto>.Failure("No se puede asignar un asesor: el anteproyecto no cuenta con carta de aceptación oficial registrada.", 400);
+        }
+
         student.AdvisorId = advisor.Id;
         student.Advisor = advisor;
         student.AdvisorAssignedAt = DateTime.UtcNow;
@@ -353,14 +429,10 @@ public class StudentService : IStudentService
 
         await _studentRepository.UpdateAsync(student);
 
-        var project = await _projectRepository.GetByStudentIdAsync(studentId);
-        if (project is not null)
-        {
-            project.AdvisorId = advisor.Id;
-            project.UpdatedAt = DateTime.UtcNow;
-            project.UpdatedBy = _currentUser.UserId;
-            await _projectRepository.UpdateAsync(project);
-        }
+        project.AdvisorId = advisor.Id;
+        project.UpdatedAt = DateTime.UtcNow;
+        project.UpdatedBy = _currentUser.UserId;
+        await _projectRepository.UpdateAsync(project);
 
         return Result<StudentResponseDto>.Success(MapToResponseDto(student));
     }
@@ -426,6 +498,35 @@ public class StudentService : IStudentService
                     continue;
                 }
 
+                var project = await _projectRepository.GetByStudentIdAsync(sid);
+                if (project is null || !project.IsActive)
+                {
+                    continue; // Omitir: requiere anteproyecto
+                }
+
+                bool isAccreditation = project.ProjectType is "acreditacion_innovatec" or "acreditacion_hackatec";
+                bool hasDoc = false;
+
+                if (isAccreditation)
+                {
+                    hasDoc = await _context.Documents.AnyAsync(d =>
+                        d.ProjectId == project.Id &&
+                        d.IsActive &&
+                        d.DocumentType == DocumentType.ConstanciaAcreditacion);
+                }
+                else
+                {
+                    hasDoc = await _context.Documents.AnyAsync(d =>
+                        d.ProjectId == project.Id &&
+                        d.IsActive &&
+                        (d.DocumentType == DocumentType.CartaAceptacion || d.DocumentType == DocumentType.CartaAprobacion));
+                }
+
+                if (!hasDoc)
+                {
+                    continue; // Omitir: requiere carta de aceptación oficial
+                }
+
                 if (student.AdvisorId.HasValue && student.AdvisorId.Value != advisorId)
                 {
                     var assignedAt = student.AdvisorAssignedAt ?? student.UpdatedAt;
@@ -442,14 +543,10 @@ public class StudentService : IStudentService
                 student.UpdatedBy = _currentUser.UserId;
                 await _studentRepository.UpdateAsync(student);
 
-                var project = await _projectRepository.GetByStudentIdAsync(sid);
-                if (project is not null)
-                {
-                    project.AdvisorId = advisor.Id;
-                    project.UpdatedAt = DateTime.UtcNow;
-                    project.UpdatedBy = _currentUser.UserId;
-                    await _projectRepository.UpdateAsync(project);
-                }
+                project.AdvisorId = advisor.Id;
+                project.UpdatedAt = DateTime.UtcNow;
+                project.UpdatedBy = _currentUser.UserId;
+                await _projectRepository.UpdateAsync(project);
 
                 updatedCount++;
             }
