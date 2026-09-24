@@ -59,7 +59,10 @@ function isDictaminable(status) {
 function isAccreditation(project) {
   if (!project) return false
   const t = String(project.projectType || '').toLowerCase()
-  return t === 'acreditacion_hackatec' || t === 'acreditacion_innovatec'
+  if (t.includes('innovatec') || t.includes('hackatec') || t.startsWith('acreditacion')) return true
+  if (accreditationDocs.value && accreditationDocs.value.length > 0) return true
+  if (accreditationDoc.value) return true
+  return false
 }
 
 function getAccreditationBadgeLabel(project) {
@@ -92,6 +95,8 @@ const initialReviewAdvisor = ref(null)
 const currentAdvisorLoad = ref(null)
 const selectedAdvisorCandidate = ref(null)
 const accreditationDoc = ref(null)
+const accreditationDocs = ref([])
+const activeAccreditationDocId = ref(null)
 const cartaAceptacionDoc = ref(null)
 const isPreviewModalOpen = ref(false)
 const previewDoc = ref(null)
@@ -255,6 +260,8 @@ async function openReviewModal(project) {
     }
     cleanupInlineDocs()
     accreditationDoc.value = null
+    accreditationDocs.value = []
+    activeAccreditationDocId.value = null
     cartaAceptacionDoc.value = null
 
     try {
@@ -262,8 +269,13 @@ async function openReviewModal(project) {
         params: { pageSize: 50, _t: Date.now() },
       })
       const docs = dRes.data?.items || []
-      accreditationDoc.value =
-        docs.find((d) => ['constancia_acreditacion', 'acreditacion'].includes((d.documentType || '').toLowerCase()) && d.isActive) || null
+      accreditationDocs.value = docs.filter((d) =>
+        ['constancia_acreditacion', 'acreditacion', 'diploma'].includes((d.documentType || '').toLowerCase()) ||
+        (d.fileName || '').toLowerCase().includes('diploma') ||
+        (d.fileName || '').toLowerCase().includes('constancia') ||
+        (d.fileName || '').toLowerCase().includes('innovatec')
+      )
+      accreditationDoc.value = accreditationDocs.value[0] || null
       cartaAceptacionDoc.value =
         docs.find((d) => ['carta_aceptacion', 'carta_aprobacion'].includes((d.documentType || '').toLowerCase()) && d.isActive) || null
     } catch {}
@@ -286,6 +298,7 @@ function cleanupInlineDocs() {
   isAccreditationInlineVisible.value = false
   inlineAccreditationLoading.value = false
   inlineAccreditationError.value = null
+  activeAccreditationDocId.value = null
   if (inlineAccreditationUrl.value) {
     window.URL.revokeObjectURL(inlineAccreditationUrl.value)
     inlineAccreditationUrl.value = null
@@ -341,9 +354,13 @@ async function toggleInlineCarta() {
   }
 }
 
-async function toggleInlineAccreditation() {
-  if (isAccreditationInlineVisible.value) {
+async function toggleInlineAccreditation(doc = null) {
+  const targetDoc = doc || accreditationDoc.value
+  if (!targetDoc?.id) return
+
+  if (isAccreditationInlineVisible.value && activeAccreditationDocId.value === targetDoc.id) {
     isAccreditationInlineVisible.value = false
+    activeAccreditationDocId.value = null
     if (inlineAccreditationUrl.value) {
       window.URL.revokeObjectURL(inlineAccreditationUrl.value)
       inlineAccreditationUrl.value = null
@@ -351,8 +368,7 @@ async function toggleInlineAccreditation() {
     return
   }
 
-  if (!accreditationDoc.value?.id) return
-
+  activeAccreditationDocId.value = targetDoc.id
   isAccreditationInlineVisible.value = true
   inlineAccreditationLoading.value = true
   inlineAccreditationError.value = null
@@ -363,11 +379,11 @@ async function toggleInlineAccreditation() {
   }
 
   try {
-    const res = await apiClient.get(`/v1/documents/${accreditationDoc.value.id}/view`, {
+    const res = await apiClient.get(`/v1/documents/${targetDoc.id}/view`, {
       responseType: 'blob',
     })
 
-    const fileName = (accreditationDoc.value.fileName || '').toLowerCase()
+    const fileName = (targetDoc.fileName || '').toLowerCase()
     let mimeType = 'application/pdf'
     if (fileName.endsWith('.png')) {
       mimeType = 'image/png'
@@ -378,8 +394,8 @@ async function toggleInlineAccreditation() {
     const blob = new Blob([res.data], { type: mimeType })
     inlineAccreditationUrl.value = window.URL.createObjectURL(blob)
   } catch (err) {
-    console.error('Error al cargar constancia inline:', err)
-    inlineAccreditationError.value = 'No se pudo visualizar la constancia directamente en pantalla. Por favor utilice el botón Descargar.'
+    console.error('Error al cargar diploma/constancia inline:', err)
+    inlineAccreditationError.value = 'No se pudo visualizar el diploma directamente en pantalla. Por favor utilice el botón Descargar.'
   } finally {
     inlineAccreditationLoading.value = false
   }
@@ -1026,44 +1042,53 @@ onMounted(() => {
               El residente tramitó su acreditación mediante <strong>{{ getAccreditationBadgeLabel(selectedProject) }}</strong>. No requiere anteproyecto ordinario ni asignación de asesor. Al validar la constancia oficial, la residencia se liberará automáticamente al 100%.
             </div>
 
-            <!-- Card de Constancia Adjunta -->
+            <!-- Card de Constancia / Diplomas Adjuntos -->
             <div class="tecnm-card" style="margin-bottom: 1.25rem; border: 1px solid var(--tecnm-border-color, #e2e8f0);">
               <div class="tecnm-card-header" style="background: var(--tecnm-bg-light, #f8fafc); padding: 0.75rem 1rem;">
                 <h4 class="tecnm-card-title" style="font-size: 0.95rem; margin: 0;">
-                  Constancia Oficial de Acreditación
+                  Diploma(s) / Constancia Oficial de InnovaTecNM
                 </h4>
               </div>
               <div class="tecnm-card-body" style="padding: 1rem;">
-                <div v-if="accreditationDoc" class="tecnm-d-flex tecnm-justify-between tecnm-align-center" style="gap: 1rem; flex-wrap: wrap;">
-                  <div>
-                    <div style="font-weight: 600; color: var(--tecnm-blue-primary, #1b396a);">
-                      {{ accreditationDoc.fileName }}
+                <div v-if="accreditationDocs.length > 0" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                  <div
+                    v-for="(doc, idx) in accreditationDocs"
+                    :key="doc.id || idx"
+                    class="tecnm-d-flex tecnm-justify-between tecnm-align-center"
+                    style="gap: 1rem; flex-wrap: wrap; padding-bottom: 0.75rem;"
+                    :style="idx < accreditationDocs.length - 1 ? 'border-bottom: 1px solid var(--tecnm-border-color, #f1f5f9);' : ''"
+                  >
+                    <div>
+                      <div style="font-weight: 600; color: var(--tecnm-blue-primary, #1b396a);">
+                        {{ doc.fileName }}
+                      </div>
+                      <div class="tecnm-text-sub" style="font-size: 0.8rem;">
+                        Subido: {{ formatTecNMDate(doc.uploadedAt) }} &bull; Estado: <TecnmBadge :status="doc.status" />
+                      </div>
                     </div>
-                    <div class="tecnm-text-sub" style="font-size: 0.8rem;">
-                      Subido: {{ formatTecNMDate(accreditationDoc.uploadedAt) }} &bull; Estado: <TecnmBadge :status="accreditationDoc.status" />
+                    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                      <button
+                        type="button"
+                        class="tecnm-btn tecnm-btn-sm"
+                        :class="isAccreditationInlineVisible && activeAccreditationDocId === doc.id ? 'tecnm-btn-outline' : 'tecnm-btn-primary'"
+                        @click="toggleInlineAccreditation(doc)"
+                      >
+                        <span v-if="isAccreditationInlineVisible && activeAccreditationDocId === doc.id">✕ Ocultar Diploma</span>
+                        <span v-else>👁️ Ver Diploma</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                        @click="downloadDoc(doc, doc.fileName || 'Diploma_InnovaTec.pdf')"
+                        title="Descargar archivo físico"
+                      >
+                        📥 Descargar
+                      </button>
                     </div>
-                  </div>
-                  <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-                    <button
-                      type="button"
-                      class="tecnm-btn tecnm-btn-sm"
-                      :class="isAccreditationInlineVisible ? 'tecnm-btn-outline' : 'tecnm-btn-primary'"
-                      @click="toggleInlineAccreditation"
-                    >
-                      <span v-if="isAccreditationInlineVisible">✕ Ocultar Constancia</span>
-                      <span v-else>👁️ Ver Constancia</span>
-                    </button>
-                    <button
-                      type="button"
-                      class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
-                      @click="downloadAccreditationDoc"
-                    >
-                      📥 Descargar
-                    </button>
                   </div>
                 </div>
                 <div v-else class="tecnm-text-muted" style="font-size: 0.875rem;">
-                  No se encontró archivo de constancia cargado en el expediente.
+                  No se encontró archivo de diploma o constancia cargado en el expediente.
                 </div>
 
                 <!-- Visor Embebido Inline en la Misma Tarjeta -->
@@ -1073,7 +1098,7 @@ onMounted(() => {
                 >
                   <div v-if="inlineAccreditationLoading" class="tecnm-d-flex tecnm-align-center tecnm-justify-center" style="padding: 2.5rem; gap: 0.75rem; color: var(--tecnm-blue-primary);">
                     <div class="tecnm-spinner"></div>
-                    <span style="font-weight: 500; font-size: 0.9rem;">Cargando constancia en pantalla...</span>
+                    <span style="font-weight: 500; font-size: 0.9rem;">Cargando diploma en pantalla...</span>
                   </div>
 
                   <div v-else-if="inlineAccreditationError" class="tecnm-alert tecnm-alert-danger" style="margin-bottom: 0;">
@@ -1085,15 +1110,15 @@ onMounted(() => {
                     style="border: 1px solid var(--tecnm-border-color, #cbd5e1); border-radius: var(--tecnm-radius-md, 6px); overflow: hidden; background: #525659;"
                   >
                     <img
-                      v-if="accreditationDoc?.fileName?.toLowerCase().endsWith('.png') || accreditationDoc?.fileName?.toLowerCase().endsWith('.jpg') || accreditationDoc?.fileName?.toLowerCase().endsWith('.jpeg')"
+                      v-if="accreditationDocs.find(d => d.id === activeAccreditationDocId)?.fileName?.toLowerCase().endsWith('.png') || accreditationDocs.find(d => d.id === activeAccreditationDocId)?.fileName?.toLowerCase().endsWith('.jpg') || accreditationDocs.find(d => d.id === activeAccreditationDocId)?.fileName?.toLowerCase().endsWith('.jpeg')"
                       :src="inlineAccreditationUrl"
-                      alt="Constancia Oficial"
+                      alt="Diploma Oficial"
                       style="max-width: 100%; max-height: 600px; display: block; margin: 0 auto; object-fit: contain; background: #ffffff;"
                     />
                     <iframe
                       v-else
                       :src="inlineAccreditationUrl"
-                      title="Constancia Oficial de Acreditación"
+                      title="Diploma Oficial de Acreditación"
                       style="width: 100%; height: 580px; border: none; display: block;"
                     ></iframe>
                   </div>
@@ -1128,9 +1153,9 @@ onMounted(() => {
                   </span>
                 </div>
 
-                <!-- Asignar Asesor Interno directamente debajo del campo cuando esté disponible con Carta de Aceptación -->
+                <!-- Asignar Asesor Interno directamente debajo del campo cuando esté disponible con Carta de Aceptación o Diploma -->
                 <div
-                  v-if="canAssignAdvisor && cartaAceptacionDoc && !['completed', 'cancelled'].includes((selectedProject.status || '').toLowerCase())"
+                  v-if="canAssignAdvisor && (cartaAceptacionDoc || accreditationDocs.length > 0) && !['completed', 'cancelled'].includes((selectedProject.status || '').toLowerCase())"
                   style="margin-top: 0.5rem;"
                 >
                   <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
@@ -1166,24 +1191,95 @@ onMounted(() => {
                   </div>
                 </div>
                 <div
-                  v-else-if="canAssignAdvisor && !cartaAceptacionDoc && !['completed', 'cancelled'].includes((selectedProject.status || '').toLowerCase())"
+                  v-else-if="canAssignAdvisor && !cartaAceptacionDoc && accreditationDocs.length === 0 && !['completed', 'cancelled'].includes((selectedProject.status || '').toLowerCase())"
                   class="tecnm-text-muted"
                   style="margin-top: 0.35rem; font-size: 0.75rem;"
                 >
-                  <em>La asignación se habilitará al contar con la carta de aceptación.</em>
+                  <em>La asignación se habilitará al contar con la carta de aceptación o diploma.</em>
                 </div>
               </div>
             </div>
 
-            <!-- Card de Documento Requerido para Dictamen (Carta de Aceptación / Aprobación) -->
+            <!-- Card de Documento Requerido para Dictamen (Carta de Aceptación / Aprobación o Diploma de InnovaTecNM) -->
             <div class="tecnm-card" style="margin-bottom: 1.25rem; border: 1px solid var(--tecnm-border-color, #e2e8f0);">
               <div class="tecnm-card-header" style="background: var(--tecnm-bg-light, #f8fafc); padding: 0.75rem 1rem;">
                 <h4 class="tecnm-card-title" style="font-size: 0.95rem; margin: 0;">
-                  Carta de Aceptación / Aprobación de la Empresa Receptora
+                  {{ !cartaAceptacionDoc && accreditationDocs.length > 0 ? 'Diploma(s) / Constancia de InnovaTecNM' : 'Carta de Aceptación / Aprobación de la Empresa Receptora' }}
                 </h4>
               </div>
               <div class="tecnm-card-body" style="padding: 1rem;">
-                <div class="tecnm-d-flex tecnm-justify-between tecnm-align-center" style="gap: 1rem; flex-wrap: wrap;">
+                <!-- Si es InnovaTec o tiene Diplomas y no Carta -->
+                <div v-if="!cartaAceptacionDoc && accreditationDocs.length > 0" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                  <div
+                    v-for="(doc, idx) in accreditationDocs"
+                    :key="doc.id || idx"
+                    class="tecnm-d-flex tecnm-justify-between tecnm-align-center"
+                    style="gap: 1rem; flex-wrap: wrap; padding-bottom: 0.75rem;"
+                    :style="idx < accreditationDocs.length - 1 ? 'border-bottom: 1px solid var(--tecnm-border-color, #f1f5f9);' : ''"
+                  >
+                    <div>
+                      <div style="font-weight: 600; color: var(--tecnm-blue-primary, #1b396a);">
+                        {{ doc.fileName }}
+                      </div>
+                      <div class="tecnm-text-sub" style="font-size: 0.8rem;">
+                        Subido: {{ formatTecNMDate(doc.uploadedAt) }} &bull; Estado: <TecnmBadge :status="doc.status" />
+                      </div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                      <button
+                        type="button"
+                        class="tecnm-btn tecnm-btn-sm"
+                        :class="isAccreditationInlineVisible && activeAccreditationDocId === doc.id ? 'tecnm-btn-outline' : 'tecnm-btn-primary'"
+                        @click="toggleInlineAccreditation(doc)"
+                      >
+                        <span v-if="isAccreditationInlineVisible && activeAccreditationDocId === doc.id">✕ Ocultar Diploma</span>
+                        <span v-else>👁️ Ver Diploma</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                        @click="downloadDoc(doc, doc.fileName || 'Diploma_InnovaTec.pdf')"
+                        title="Descargar archivo físico"
+                      >
+                        📥 Descargar
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Visor Embebido Inline para Diploma en Sección Tradicional -->
+                  <div
+                    v-if="isAccreditationInlineVisible"
+                    style="margin-top: 1rem; border-top: 1px dashed var(--tecnm-border-color, #e2e8f0); padding-top: 1rem;"
+                  >
+                    <div v-if="inlineAccreditationLoading" class="tecnm-d-flex tecnm-align-center tecnm-justify-center" style="padding: 2.5rem; gap: 0.75rem; color: var(--tecnm-blue-primary);">
+                      <div class="tecnm-spinner"></div>
+                      <span style="font-weight: 500; font-size: 0.9rem;">Cargando diploma en pantalla...</span>
+                    </div>
+                    <div v-else-if="inlineAccreditationError" class="tecnm-alert tecnm-alert-danger" style="margin-bottom: 0;">
+                      {{ inlineAccreditationError }}
+                    </div>
+                    <div
+                      v-else-if="inlineAccreditationUrl"
+                      style="border: 1px solid var(--tecnm-border-color, #cbd5e1); border-radius: var(--tecnm-radius-md, 6px); overflow: hidden; background: #525659;"
+                    >
+                      <img
+                        v-if="accreditationDocs.find(d => d.id === activeAccreditationDocId)?.fileName?.toLowerCase().endsWith('.png') || accreditationDocs.find(d => d.id === activeAccreditationDocId)?.fileName?.toLowerCase().endsWith('.jpg') || accreditationDocs.find(d => d.id === activeAccreditationDocId)?.fileName?.toLowerCase().endsWith('.jpeg')"
+                        :src="inlineAccreditationUrl"
+                        alt="Diploma Oficial"
+                        style="max-width: 100%; max-height: 600px; display: block; margin: 0 auto; object-fit: contain; background: #ffffff;"
+                      />
+                      <iframe
+                        v-else
+                        :src="inlineAccreditationUrl"
+                        title="Diploma Oficial de Acreditación"
+                        style="width: 100%; height: 580px; border: none; display: block;"
+                      ></iframe>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Caso Estándar: Carta de Aceptación -->
+                <div v-else class="tecnm-d-flex tecnm-justify-between tecnm-align-center" style="gap: 1rem; flex-wrap: wrap;">
                   <div>
                     <div style="font-weight: 600; color: var(--tecnm-blue-primary, #1b396a);">
                       Carta de Aceptación Oficial de la Empresa
@@ -1219,9 +1315,9 @@ onMounted(() => {
                   </span>
                 </div>
 
-                <!-- Visor Embebido Inline en la Misma Tarjeta -->
+                <!-- Visor Embebido Inline para Carta de Aceptación -->
                 <div
-                  v-if="isCartaInlineVisible"
+                  v-if="isCartaInlineVisible && cartaAceptacionDoc"
                   style="margin-top: 1rem; border-top: 1px dashed var(--tecnm-border-color, #e2e8f0); padding-top: 1rem;"
                 >
                   <div v-if="inlineCartaLoading" class="tecnm-d-flex tecnm-align-center tecnm-justify-center" style="padding: 2.5rem; gap: 0.75rem; color: var(--tecnm-blue-primary);">

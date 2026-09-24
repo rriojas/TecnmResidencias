@@ -118,7 +118,7 @@ const activeProposal = computed(() => {
 function isAccreditationType(p) {
   if (!p) return false
   const t = String(p.projectType || '').toLowerCase()
-  return t === 'acreditacion_innovatec' || t === 'acreditacion_hackatec'
+  return t.includes('innovatec') || t.includes('hackatec') || t.startsWith('acreditacion')
 }
 
 // Trámite de InnovaTecNM Nacional para estudiante
@@ -301,7 +301,12 @@ async function openDetailModal(proposal) {
       })
       const docs = dRes.data?.items || []
       accreditationDoc.value =
-        docs.find((d) => ['constancia_acreditacion', 'acreditacion'].includes((d.documentType || '').toLowerCase()) && d.isActive) || null
+        docs.find((d) =>
+          ['constancia_acreditacion', 'acreditacion', 'diploma'].includes((d.documentType || '').toLowerCase()) ||
+          (d.fileName || '').toLowerCase().includes('diploma') ||
+          (d.fileName || '').toLowerCase().includes('constancia') ||
+          (d.fileName || '').toLowerCase().includes('innovatec')
+        ) || null
       cartaAceptacionDoc.value =
         docs.find((d) => ['carta_aceptacion', 'carta_aprobacion'].includes((d.documentType || '').toLowerCase()) && d.isActive) || null
     } catch {}
@@ -1318,15 +1323,32 @@ onMounted(() => {
               </li>
             </ul>
 
-            <!-- Documento Requerido de la Empresa (Carta de Aceptación / Aprobación) -->
+            <!-- Documento Requerido de la Empresa (Carta de Aceptación / Aprobación o Diploma InnovaTecNM) -->
             <div class="tecnm-card" style="margin-top: 1rem; margin-bottom: 0.5rem; border: 1px solid var(--tecnm-border-color, #e2e8f0);">
               <div class="tecnm-card-header" style="background: var(--tecnm-bg-light, #f8fafc); padding: 0.75rem 1rem;">
                 <h4 class="tecnm-card-title" style="font-size: 0.95rem; margin: 0;">
-                  Carta de Aceptación / Aprobación de la Empresa Receptora
+                  {{ !cartaAceptacionDoc && accreditationDoc ? 'Diploma / Constancia de InnovaTecNM' : 'Carta de Aceptación / Aprobación de la Empresa Receptora' }}
                 </h4>
               </div>
               <div class="tecnm-card-body" style="padding: 1rem;">
-                <div class="tecnm-d-flex tecnm-justify-between tecnm-align-center" style="gap: 1rem; flex-wrap: wrap;">
+                <div v-if="!cartaAceptacionDoc && accreditationDoc" class="tecnm-d-flex tecnm-justify-between tecnm-align-center" style="gap: 1rem; flex-wrap: wrap;">
+                  <div>
+                    <div style="font-weight: 600; color: var(--tecnm-blue-primary, #1b396a);">
+                      {{ accreditationDoc.fileName }}
+                    </div>
+                    <div class="tecnm-text-sub" style="font-size: 0.8rem;">
+                      Subido: {{ formatTecNMDate(accreditationDoc.uploadedAt) }} &bull; Estado: <TecnmBadge :status="accreditationDoc.status" />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                    @click="downloadDoc(accreditationDoc, 'Diploma_InnovaTec.pdf')"
+                  >
+                    Descargar / Ver Diploma &rarr;
+                  </button>
+                </div>
+                <div v-else class="tecnm-d-flex tecnm-justify-between tecnm-align-center" style="gap: 1rem; flex-wrap: wrap;">
                   <div>
                     <div style="font-weight: 600; color: var(--tecnm-blue-primary, #1b396a);">
                       Carta de Aceptación Oficial
