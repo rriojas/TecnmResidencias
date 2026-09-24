@@ -161,6 +161,47 @@ public class DocumentsController : ControllerBase
     }
 
     /// <summary>
+    /// Visualizar archivo físico del documento en línea (inline stream sin forzar descarga)
+    /// </summary>
+    [HttpGet("{id}/view")]
+    public async Task<IActionResult> ViewFile(long id)
+    {
+        try
+        {
+            var document = await _documentRepository.GetByIdAsync(id);
+            if (document is null || !document.IsActive)
+                return NotFound(new { message = $"Documento con ID {id} no encontrado." });
+
+            var denied = await EnsureProjectAccessAsync(document.ProjectId);
+            if (denied is not null) return denied;
+
+            var (fileBytes, contentType, fileName) = await _documentService.DownloadDocumentAsync(id, UploadsRootPath);
+
+            var ext = Path.GetExtension(fileName).ToLowerInvariant();
+            var resolvedContentType = ext switch
+            {
+                ".pdf" => "application/pdf",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                _ => string.IsNullOrWhiteSpace(contentType) || contentType == "application/octet-stream"
+                    ? "application/pdf"
+                    : contentType
+            };
+
+            Response.Headers["Content-Disposition"] = $"inline; filename=\"{fileName}\"";
+            return File(fileBytes, resolvedContentType);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (FileNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Actualizar estado de aprobación del documento
     /// </summary>
     [HttpPatch("{id}/status")]

@@ -98,6 +98,17 @@ const previewDoc = ref(null)
 const previewObjectUrl = ref(null)
 const isSubmitting = ref(false)
 
+// Visor Inline integrado en Tarjetas (Carta de Aceptación y Constancia)
+const isCartaInlineVisible = ref(false)
+const inlineCartaUrl = ref(null)
+const inlineCartaLoading = ref(false)
+const inlineCartaError = ref(null)
+
+const isAccreditationInlineVisible = ref(false)
+const inlineAccreditationUrl = ref(null)
+const inlineAccreditationLoading = ref(false)
+const inlineAccreditationError = ref(null)
+
 const canAssignAdvisor = computed(() => {
   if (authStore.isReadOnly) return false
   return (
@@ -242,6 +253,7 @@ async function openReviewModal(project) {
         initialReviewAdvisor.value = { id: res.data.advisorId, fullName: res.data.advisorName }
       }
     }
+    cleanupInlineDocs()
     accreditationDoc.value = null
     cartaAceptacionDoc.value = null
 
@@ -262,6 +274,117 @@ async function openReviewModal(project) {
   }
 }
 
+function cleanupInlineDocs() {
+  isCartaInlineVisible.value = false
+  inlineCartaLoading.value = false
+  inlineCartaError.value = null
+  if (inlineCartaUrl.value) {
+    window.URL.revokeObjectURL(inlineCartaUrl.value)
+    inlineCartaUrl.value = null
+  }
+
+  isAccreditationInlineVisible.value = false
+  inlineAccreditationLoading.value = false
+  inlineAccreditationError.value = null
+  if (inlineAccreditationUrl.value) {
+    window.URL.revokeObjectURL(inlineAccreditationUrl.value)
+    inlineAccreditationUrl.value = null
+  }
+}
+
+function closeDetailModal() {
+  isReviewModalOpen.value = false
+  cleanupInlineDocs()
+}
+
+async function toggleInlineCarta() {
+  if (isCartaInlineVisible.value) {
+    isCartaInlineVisible.value = false
+    if (inlineCartaUrl.value) {
+      window.URL.revokeObjectURL(inlineCartaUrl.value)
+      inlineCartaUrl.value = null
+    }
+    return
+  }
+
+  if (!cartaAceptacionDoc.value?.id) return
+
+  isCartaInlineVisible.value = true
+  inlineCartaLoading.value = true
+  inlineCartaError.value = null
+
+  if (inlineCartaUrl.value) {
+    window.URL.revokeObjectURL(inlineCartaUrl.value)
+    inlineCartaUrl.value = null
+  }
+
+  try {
+    const res = await apiClient.get(`/v1/documents/${cartaAceptacionDoc.value.id}/view`, {
+      responseType: 'blob',
+    })
+
+    const fileName = (cartaAceptacionDoc.value.fileName || '').toLowerCase()
+    let mimeType = 'application/pdf'
+    if (fileName.endsWith('.png')) {
+      mimeType = 'image/png'
+    } else if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
+      mimeType = 'image/jpeg'
+    }
+
+    const blob = new Blob([res.data], { type: mimeType })
+    inlineCartaUrl.value = window.URL.createObjectURL(blob)
+  } catch (err) {
+    console.error('Error al cargar carta de aceptación inline:', err)
+    inlineCartaError.value = 'No se pudo visualizar el documento directamente en pantalla. Por favor utilice el botón Descargar.'
+  } finally {
+    inlineCartaLoading.value = false
+  }
+}
+
+async function toggleInlineAccreditation() {
+  if (isAccreditationInlineVisible.value) {
+    isAccreditationInlineVisible.value = false
+    if (inlineAccreditationUrl.value) {
+      window.URL.revokeObjectURL(inlineAccreditationUrl.value)
+      inlineAccreditationUrl.value = null
+    }
+    return
+  }
+
+  if (!accreditationDoc.value?.id) return
+
+  isAccreditationInlineVisible.value = true
+  inlineAccreditationLoading.value = true
+  inlineAccreditationError.value = null
+
+  if (inlineAccreditationUrl.value) {
+    window.URL.revokeObjectURL(inlineAccreditationUrl.value)
+    inlineAccreditationUrl.value = null
+  }
+
+  try {
+    const res = await apiClient.get(`/v1/documents/${accreditationDoc.value.id}/view`, {
+      responseType: 'blob',
+    })
+
+    const fileName = (accreditationDoc.value.fileName || '').toLowerCase()
+    let mimeType = 'application/pdf'
+    if (fileName.endsWith('.png')) {
+      mimeType = 'image/png'
+    } else if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
+      mimeType = 'image/jpeg'
+    }
+
+    const blob = new Blob([res.data], { type: mimeType })
+    inlineAccreditationUrl.value = window.URL.createObjectURL(blob)
+  } catch (err) {
+    console.error('Error al cargar constancia inline:', err)
+    inlineAccreditationError.value = 'No se pudo visualizar la constancia directamente en pantalla. Por favor utilice el botón Descargar.'
+  } finally {
+    inlineAccreditationLoading.value = false
+  }
+}
+
 async function openDoc(doc) {
   if (!doc?.id) return
   previewDoc.value = doc
@@ -271,10 +394,17 @@ async function openDoc(doc) {
     previewObjectUrl.value = null
   }
   try {
-    const res = await apiClient.get(`/v1/documents/${doc.id}/download`, {
+    const res = await apiClient.get(`/v1/documents/${doc.id}/view`, {
       responseType: 'blob',
     })
-    const file = new Blob([res.data], { type: res.headers['content-type'] || 'application/pdf' })
+    const fileName = (doc.fileName || '').toLowerCase()
+    let mimeType = 'application/pdf'
+    if (fileName.endsWith('.png')) {
+      mimeType = 'image/png'
+    } else if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
+      mimeType = 'image/jpeg'
+    }
+    const file = new Blob([res.data], { type: mimeType })
     previewObjectUrl.value = window.URL.createObjectURL(file)
   } catch {
     showAlert('Error al cargar la vista previa del documento.', 'danger')
@@ -292,6 +422,7 @@ function closePreviewModal() {
 }
 
 onUnmounted(() => {
+  cleanupInlineDocs()
   closePreviewModal()
 })
 
@@ -810,7 +941,7 @@ onMounted(() => {
       class="modal-backdrop active"
       role="dialog"
       aria-modal="true"
-      @click.self="isReviewModalOpen = false"
+      @click.self="closeDetailModal"
     >
       <div class="modal-card modal-card-wide">
         <div class="tecnm-modal-header">
@@ -823,7 +954,7 @@ onMounted(() => {
             type="button"
             class="tecnm-modal-close"
             aria-label="Cerrar"
-            @click="isReviewModalOpen = false"
+            @click="closeDetailModal"
           >
             &times;
           </button>
@@ -877,22 +1008,57 @@ onMounted(() => {
                   <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                     <button
                       type="button"
-                      class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
-                      @click="openDoc(accreditationDoc)"
+                      class="tecnm-btn tecnm-btn-sm"
+                      :class="isAccreditationInlineVisible ? 'tecnm-btn-outline' : 'tecnm-btn-primary'"
+                      @click="toggleInlineAccreditation"
                     >
-                      Ver Constancia &rarr;
+                      <span v-if="isAccreditationInlineVisible">✕ Ocultar Constancia</span>
+                      <span v-else>👁️ Ver Constancia</span>
                     </button>
                     <button
                       type="button"
                       class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                       @click="downloadAccreditationDoc"
                     >
-                      Descargar
+                      📥 Descargar
                     </button>
                   </div>
                 </div>
                 <div v-else class="tecnm-text-muted" style="font-size: 0.875rem;">
                   No se encontró archivo de constancia cargado en el expediente.
+                </div>
+
+                <!-- Visor Embebido Inline en la Misma Tarjeta -->
+                <div
+                  v-if="isAccreditationInlineVisible"
+                  style="margin-top: 1rem; border-top: 1px dashed var(--tecnm-border-color, #e2e8f0); padding-top: 1rem;"
+                >
+                  <div v-if="inlineAccreditationLoading" class="tecnm-d-flex tecnm-align-center tecnm-justify-center" style="padding: 2.5rem; gap: 0.75rem; color: var(--tecnm-blue-primary);">
+                    <div class="tecnm-spinner"></div>
+                    <span style="font-weight: 500; font-size: 0.9rem;">Cargando constancia en pantalla...</span>
+                  </div>
+
+                  <div v-else-if="inlineAccreditationError" class="tecnm-alert tecnm-alert-danger" style="margin-bottom: 0;">
+                    {{ inlineAccreditationError }}
+                  </div>
+
+                  <div
+                    v-else-if="inlineAccreditationUrl"
+                    style="border: 1px solid var(--tecnm-border-color, #cbd5e1); border-radius: var(--tecnm-radius-md, 6px); overflow: hidden; background: #525659;"
+                  >
+                    <img
+                      v-if="accreditationDoc?.fileName?.toLowerCase().endsWith('.png') || accreditationDoc?.fileName?.toLowerCase().endsWith('.jpg') || accreditationDoc?.fileName?.toLowerCase().endsWith('.jpeg')"
+                      :src="inlineAccreditationUrl"
+                      alt="Constancia Oficial"
+                      style="max-width: 100%; max-height: 600px; display: block; margin: 0 auto; object-fit: contain; background: #ffffff;"
+                    />
+                    <iframe
+                      v-else
+                      :src="inlineAccreditationUrl"
+                      title="Constancia Oficial de Acreditación"
+                      style="width: 100%; height: 580px; border: none; display: block;"
+                    ></iframe>
+                  </div>
                 </div>
               </div>
             </div>
@@ -994,23 +1160,58 @@ onMounted(() => {
                   <div v-if="cartaAceptacionDoc" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                     <button
                       type="button"
-                      class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
-                      @click="openDoc(cartaAceptacionDoc)"
+                      class="tecnm-btn tecnm-btn-sm"
+                      :class="isCartaInlineVisible ? 'tecnm-btn-outline' : 'tecnm-btn-primary'"
+                      @click="toggleInlineCarta"
                     >
-                      Abrir Carta &rarr;
+                      <span v-if="isCartaInlineVisible">✕ Ocultar Carta</span>
+                      <span v-else>👁️ Ver Carta</span>
                     </button>
                     <button
                       type="button"
                       class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                       @click="downloadDoc(cartaAceptacionDoc, 'Carta_Aceptacion.pdf')"
-                      title="Descargar archivo"
+                      title="Descargar archivo físico"
                     >
-                      Descargar
+                      📥 Descargar
                     </button>
                   </div>
                   <span v-else class="tecnm-badge tecnm-badge-warning" style="font-size: 0.75rem;">
                     Pendiente de carga
                   </span>
+                </div>
+
+                <!-- Visor Embebido Inline en la Misma Tarjeta -->
+                <div
+                  v-if="isCartaInlineVisible"
+                  style="margin-top: 1rem; border-top: 1px dashed var(--tecnm-border-color, #e2e8f0); padding-top: 1rem;"
+                >
+                  <div v-if="inlineCartaLoading" class="tecnm-d-flex tecnm-align-center tecnm-justify-center" style="padding: 2.5rem; gap: 0.75rem; color: var(--tecnm-blue-primary);">
+                    <div class="tecnm-spinner"></div>
+                    <span style="font-weight: 500; font-size: 0.9rem;">Cargando carta de aceptación en pantalla...</span>
+                  </div>
+
+                  <div v-else-if="inlineCartaError" class="tecnm-alert tecnm-alert-danger" style="margin-bottom: 0;">
+                    {{ inlineCartaError }}
+                  </div>
+
+                  <div
+                    v-else-if="inlineCartaUrl"
+                    style="border: 1px solid var(--tecnm-border-color, #cbd5e1); border-radius: var(--tecnm-radius-md, 6px); overflow: hidden; background: #525659;"
+                  >
+                    <img
+                      v-if="cartaAceptacionDoc?.fileName?.toLowerCase().endsWith('.png') || cartaAceptacionDoc?.fileName?.toLowerCase().endsWith('.jpg') || cartaAceptacionDoc?.fileName?.toLowerCase().endsWith('.jpeg')"
+                      :src="inlineCartaUrl"
+                      alt="Carta de Aceptación Oficial"
+                      style="max-width: 100%; max-height: 600px; display: block; margin: 0 auto; object-fit: contain; background: #ffffff;"
+                    />
+                    <iframe
+                      v-else
+                      :src="inlineCartaUrl"
+                      title="Carta de Aceptación Oficial de la Empresa"
+                      style="width: 100%; height: 580px; border: none; display: block;"
+                    ></iframe>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1185,7 +1386,7 @@ onMounted(() => {
           <button
             type="button"
             class="tecnm-btn tecnm-btn-secondary"
-            @click="isReviewModalOpen = false"
+            @click="closeDetailModal"
           >
             Cerrar
           </button>
