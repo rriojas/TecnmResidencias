@@ -1869,7 +1869,7 @@ onMounted(() => {
         <template v-else-if="authStore.currentRole === 'student'">
           <!-- Banner de Bloqueo por Vencimiento de Fechas Límite -->
           <div
-            v-if="studentDeadlinesInfo?.isDocumentBlocked"
+            v-if="studentDeadlinesInfo?.isDocumentBlocked && !isAccreditationProject"
             class="tecnm-card tecnm-mb-3"
             style="border-left: 5px solid #dc2626; background: #fff5f5;"
           >
@@ -1892,7 +1892,7 @@ onMounted(() => {
           </div>
 
           <!-- Card de Fechas Límite y Estado de Formatos Obligatorios (29 y 30) - Solo alumnos con Anteproyecto y Carta de Aceptación Aprobados -->
-          <div v-if="studentDeadlinesInfo?.isEligibleForFormatDeadlines" class="tecnm-card tecnm-mb-3">
+          <div v-if="studentDeadlinesInfo?.isEligibleForFormatDeadlines && !isAccreditationProject" class="tecnm-card tecnm-mb-3">
             <div class="tecnm-card-header" style="display: flex; justify-content: space-between; align-items: center;">
               <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="tecnm-header-icon tecnm-header-icon--gold" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -1973,7 +1973,7 @@ onMounted(() => {
 
           <!-- Mensaje Informativo para Alumnos en etapa previa a la Aprobación del Anteproyecto y Carta de Aceptación -->
           <div
-            v-else-if="studentDeadlinesInfo && !studentDeadlinesInfo.isEligibleForFormatDeadlines"
+            v-else-if="studentDeadlinesInfo && !studentDeadlinesInfo.isEligibleForFormatDeadlines && !isAccreditationProject"
             class="tecnm-card tecnm-mb-3"
             style="border-left: 4px solid var(--tecnm-blue-primary); background: #f8fafc;"
           >

@@ -25,4 +25,10 @@ public class Project : BaseEntity
     public Company? Company { get; set; }
 
     public ICollection<ProjectObjective> Objectives { get; set; } = new List<ProjectObjective>();
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public int? AlphabeticalIndex { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public int? AdvisorAssignedStudentsCount { get; set; }
 }

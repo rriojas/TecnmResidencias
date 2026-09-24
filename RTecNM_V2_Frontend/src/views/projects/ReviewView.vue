@@ -805,6 +805,16 @@ onMounted(() => {
               <tr>
                 <th
                   class="tecnm-th-sortable"
+                  style="width: 55px; text-align: center;"
+                  @click="toggleSort('AlphabeticalIndex')"
+                >
+                  #
+                  <span class="tecnm-sort-icon" :class="{ active: ['alphabeticalindex', 'index'].includes(sortBy.toLowerCase()) }">
+                    {{ ['alphabeticalindex', 'index'].includes(sortBy.toLowerCase()) ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
+                </th>
+                <th
+                  class="tecnm-th-sortable"
                   @click="toggleSort('Title')"
                 >
                   Título del Proyecto
@@ -819,6 +829,15 @@ onMounted(() => {
                   Estudiante y Carrera
                   <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'studentname' }">
                     {{ sortBy.toLowerCase() === 'studentname' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
+                </th>
+                <th
+                  class="tecnm-th-sortable"
+                  @click="toggleSort('AdvisorName')"
+                >
+                  Asesor Asignado
+                  <span class="tecnm-sort-icon" :class="{ active: ['advisorname', 'advisor'].includes(sortBy.toLowerCase()) }">
+                    {{ ['advisorname', 'advisor'].includes(sortBy.toLowerCase()) ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
@@ -853,12 +872,12 @@ onMounted(() => {
             </thead>
             <tbody id="projectsTableBody">
               <tr v-if="isLoading">
-                <td colspan="6" class="tecnm-table-empty">
+                <td colspan="8" class="tecnm-table-empty">
                   Cargando anteproyectos...
                 </td>
               </tr>
               <tr v-else-if="sortedProjects.length === 0">
-                <td colspan="6" class="tecnm-table-empty">
+                <td colspan="8" class="tecnm-table-empty">
                   <span v-if="includeInactive">No hay anteproyectos inactivos (deshabilitados) registrados.</span>
                   <span v-else>No hay anteproyectos que coincidan con los filtros seleccionados.</span>
                 </td>
@@ -868,6 +887,9 @@ onMounted(() => {
                 v-else
                 :key="p.id"
               >
+                <td style="text-align: center; font-weight: 600; color: var(--tecnm-gray-700, #4b5563);">
+                  {{ p.alphabeticalIndex != null ? p.alphabeticalIndex : '—' }}
+                </td>
                 <td>
                   <strong>{{ p.title }}</strong>
                   <span
@@ -883,6 +905,22 @@ onMounted(() => {
                   <small v-if="p.careerId || p.career" style="color: var(--tecnm-blue-primary, #1b396a); font-size: 0.75rem;">
                     {{ CAREERS[p.careerId] || p.career }}
                   </small>
+                </td>
+                <td>
+                  <div v-if="p.advisorName && p.advisorName.trim()">
+                    <strong style="color: var(--tecnm-blue-primary, #1b396a);">{{ p.advisorName }}</strong>
+                    <div>
+                      <span
+                        class="tecnm-badge"
+                        style="font-size: 0.72rem; margin-top: 2px; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;"
+                      >
+                        {{ p.advisorAssignedStudentsCount ?? 0 }} alumno(s) asignado(s)
+                      </span>
+                    </div>
+                  </div>
+                  <span v-else class="tecnm-badge tecnm-badge-secondary" style="font-size: 0.75rem;">
+                    No asignado
+                  </span>
                 </td>
                 <td>{{ p.companyName || '—' }}</td>
                 <td>{{ formatTecNMDate(p.createdAt) }}</td>

@@ -148,36 +148,47 @@ public class StudentService : IStudentService
                     var f29v2 = pDocs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Formato29V2, StringComparison.OrdinalIgnoreCase));
                     var f30 = pDocs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Formato30, StringComparison.OrdinalIgnoreCase));
 
-                    dto.Formato29Status = f29?.Status ?? "not_uploaded";
-                    dto.Formato29V2Status = f29v2?.Status ?? "not_uploaded";
-                    dto.Formato30Status = f30?.Status ?? "not_uploaded";
-
-                    bool f29Approved = f29 != null && string.Equals(f29.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
-                    dto.CanUploadSecondPhase = f29Approved;
-
-                    bool isDocBlocked = false;
-                    if (s.Formato29Deadline.HasValue && DateTime.UtcNow > s.Formato29Deadline.Value && !f29Approved)
+                    if (isAccreditation)
                     {
-                        isDocBlocked = true;
+                        dto.Formato29Status = "exento";
+                        dto.Formato29V2Status = "exento";
+                        dto.Formato30Status = "exento";
+                        dto.CanUploadSecondPhase = false;
+                        dto.IsDocumentBlocked = false;
                     }
-                    else if (s.Formato30Deadline.HasValue && DateTime.UtcNow > s.Formato30Deadline.Value)
+                    else
                     {
-                        bool f29v2Approved = f29v2 != null && string.Equals(f29v2.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
-                        bool f30Approved = f30 != null && string.Equals(f30.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
-                        if (!f29v2Approved || !f30Approved)
+                        dto.Formato29Status = f29?.Status ?? "not_uploaded";
+                        dto.Formato29V2Status = f29v2?.Status ?? "not_uploaded";
+                        dto.Formato30Status = f30?.Status ?? "not_uploaded";
+
+                        bool f29Approved = f29 != null && string.Equals(f29.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
+                        dto.CanUploadSecondPhase = f29Approved;
+
+                        bool isDocBlocked = false;
+                        if (s.Formato29Deadline.HasValue && DateTime.UtcNow > s.Formato29Deadline.Value && !f29Approved)
                         {
                             isDocBlocked = true;
                         }
+                        else if (s.Formato30Deadline.HasValue && DateTime.UtcNow > s.Formato30Deadline.Value)
+                        {
+                            bool f29v2Approved = f29v2 != null && string.Equals(f29v2.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
+                            bool f30Approved = f30 != null && string.Equals(f30.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
+                            if (!f29v2Approved || !f30Approved)
+                            {
+                                isDocBlocked = true;
+                            }
+                        }
+                        dto.IsDocumentBlocked = isDocBlocked;
                     }
-                    dto.IsDocumentBlocked = isDocBlocked;
                 }
                 else
                 {
-                    dto.Formato29Status = "not_uploaded";
-                    dto.Formato29V2Status = "not_uploaded";
-                    dto.Formato30Status = "not_uploaded";
+                    dto.Formato29Status = isAccreditation ? "exento" : "not_uploaded";
+                    dto.Formato29V2Status = isAccreditation ? "exento" : "not_uploaded";
+                    dto.Formato30Status = isAccreditation ? "exento" : "not_uploaded";
                     dto.CanUploadSecondPhase = false;
-                    if (s.Formato29Deadline.HasValue && DateTime.UtcNow > s.Formato29Deadline.Value)
+                    if (!isAccreditation && s.Formato29Deadline.HasValue && DateTime.UtcNow > s.Formato29Deadline.Value)
                     {
                         dto.IsDocumentBlocked = true;
                     }
@@ -1405,6 +1416,11 @@ public class StudentService : IStudentService
         var f29v2 = docs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Formato29V2, StringComparison.OrdinalIgnoreCase));
         var f30 = docs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Formato30, StringComparison.OrdinalIgnoreCase));
 
+        bool isAccreditation = project != null &&
+            (project.ProjectType is "acreditacion_innovatec" or "acreditacion_hackatec"
+             || (!string.IsNullOrWhiteSpace(project.ProjectType) && 
+                (project.ProjectType.Contains("innovatec", StringComparison.OrdinalIgnoreCase) || project.ProjectType.Contains("hackatec", StringComparison.OrdinalIgnoreCase))));
+
         bool hasApprovedProject = project != null &&
             (project.Status == ProjectStatus.Approved || project.Status == ProjectStatus.InProgress || project.Status == ProjectStatus.Completed);
 
@@ -1417,9 +1433,10 @@ public class StudentService : IStudentService
         bool hasApprovedAcceptanceLetter = acceptanceDoc != null &&
             string.Equals(acceptanceDoc.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
 
-        bool isEligibleForDeadlines = hasApprovedProject && hasApprovedAcceptanceLetter;
+        // Estudiantes de acreditación (InnovaTecNM / HackaTec) NUNCA llevan formatos 29 ni 30 ni se bloquean
+        bool isEligibleForDeadlines = !isAccreditation && hasApprovedProject && hasApprovedAcceptanceLetter;
 
-        bool canUploadSecondPhase = f29 != null && string.Equals(f29.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
+        bool canUploadSecondPhase = !isAccreditation && f29 != null && string.Equals(f29.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
 
         bool isBlocked = false;
         string? blockedReason = null;
@@ -1433,7 +1450,7 @@ public class StudentService : IStudentService
             if (!f30Deadline.HasValue) f30Deadline = global.Formato30Deadline;
         }
 
-        if (isEligibleForDeadlines)
+        if (!isAccreditation && isEligibleForDeadlines)
         {
             if (f29Deadline.HasValue && DateTime.UtcNow > f29Deadline.Value)
             {
@@ -1464,17 +1481,18 @@ public class StudentService : IStudentService
             LastName = student.LastName,
             LastName2 = student.LastName2 ?? string.Empty,
             FullName = $"{student.FirstName} {student.LastName} {student.LastName2}".Trim().Replace("  ", " "),
-            Formato29Deadline = f29Deadline,
-            Formato30Deadline = f30Deadline,
-            Formato29Status = f29?.Status ?? "not_uploaded",
-            Formato29RejectionReason = f29?.RejectionReason,
-            Formato29V2Status = f29v2?.Status ?? "not_uploaded",
-            Formato29V2RejectionReason = f29v2?.RejectionReason,
-            Formato30Status = f30?.Status ?? "not_uploaded",
-            Formato30RejectionReason = f30?.RejectionReason,
+            Formato29Deadline = isAccreditation ? null : f29Deadline,
+            Formato30Deadline = isAccreditation ? null : f30Deadline,
+            Formato29Status = isAccreditation ? "exento" : (f29?.Status ?? "not_uploaded"),
+            Formato29RejectionReason = isAccreditation ? null : f29?.RejectionReason,
+            Formato29V2Status = isAccreditation ? "exento" : (f29v2?.Status ?? "not_uploaded"),
+            Formato29V2RejectionReason = isAccreditation ? null : f29v2?.RejectionReason,
+            Formato30Status = isAccreditation ? "exento" : (f30?.Status ?? "not_uploaded"),
+            Formato30RejectionReason = isAccreditation ? null : f30?.RejectionReason,
             CanUploadSecondPhase = canUploadSecondPhase,
             HasApprovedProject = hasApprovedProject,
             HasApprovedAcceptanceLetter = hasApprovedAcceptanceLetter,
+            IsAccreditation = isAccreditation,
             IsEligibleForFormatDeadlines = isEligibleForDeadlines,
             IsDocumentBlocked = isBlocked,
             BlockedReason = blockedReason

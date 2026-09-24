@@ -543,16 +543,29 @@ onMounted(async () => {
 
                 <!-- Columna Formato 29 -->
                 <td>
-                  <div>{{ formatTecNMDate(s.formato29Deadline || globalDeadlines.formato29Deadline) }}</div>
-                  <small
-                    v-if="s.formato29Deadline || globalDeadlines.formato29Deadline"
-                    :style="{ color: isDeadlinePassed(s.formato29Deadline || globalDeadlines.formato29Deadline) && s.formato29Status !== 'approved' ? 'var(--tecnm-red)' : 'var(--tecnm-gray-600)' }"
-                  >
-                    {{ s.formato29Status === 'approved' ? 'Entregado a tiempo' : getDeadlineRemaining(s.formato29Deadline || globalDeadlines.formato29Deadline) }}
-                  </small>
+                  <template v-if="s.isAccreditation">
+                    <span class="tecnm-badge tecnm-badge-secondary" title="Exento de formatos por InnovaTecNM">Exento</span>
+                  </template>
+                  <template v-else>
+                    <div>{{ formatTecNMDate(s.formato29Deadline || globalDeadlines.formato29Deadline) }}</div>
+                    <small
+                      v-if="s.formato29Deadline || globalDeadlines.formato29Deadline"
+                      :style="{ color: isDeadlinePassed(s.formato29Deadline || globalDeadlines.formato29Deadline) && s.formato29Status !== 'approved' ? 'var(--tecnm-red)' : 'var(--tecnm-gray-600)' }"
+                    >
+                      {{ s.formato29Status === 'approved' ? 'Entregado a tiempo' : getDeadlineRemaining(s.formato29Deadline || globalDeadlines.formato29Deadline) }}
+                    </small>
+                  </template>
                 </td>
                 <td>
                   <span
+                    v-if="s.isAccreditation"
+                    class="tecnm-badge tecnm-badge-outline"
+                    title="No requiere formatos ordinarios"
+                  >
+                    No aplica
+                  </span>
+                  <span
+                    v-else
                     class="tecnm-badge"
                     :class="s.formato29Status === 'approved' ? 'tecnm-badge-success' : (s.formato29Status === 'rejected' ? 'tecnm-badge-danger' : (s.formato29Status === 'uploaded' || s.formato29Status === 'under_review' ? 'tecnm-badge-info' : 'tecnm-badge-secondary'))"
                   >
@@ -562,16 +575,29 @@ onMounted(async () => {
 
                 <!-- Columna Formato 30 -->
                 <td>
-                  <div>{{ formatTecNMDate(s.formato30Deadline || globalDeadlines.formato30Deadline) }}</div>
-                  <small
-                    v-if="s.formato30Deadline || globalDeadlines.formato30Deadline"
-                    :style="{ color: isDeadlinePassed(s.formato30Deadline || globalDeadlines.formato30Deadline) && s.formato30Status !== 'approved' ? 'var(--tecnm-red)' : 'var(--tecnm-gray-600)' }"
-                  >
-                    {{ s.formato30Status === 'approved' ? 'Entregado a tiempo' : getDeadlineRemaining(s.formato30Deadline || globalDeadlines.formato30Deadline) }}
-                  </small>
+                  <template v-if="s.isAccreditation">
+                    <span class="tecnm-badge tecnm-badge-secondary" title="Exento de formatos por InnovaTecNM">Exento</span>
+                  </template>
+                  <template v-else>
+                    <div>{{ formatTecNMDate(s.formato30Deadline || globalDeadlines.formato30Deadline) }}</div>
+                    <small
+                      v-if="s.formato30Deadline || globalDeadlines.formato30Deadline"
+                      :style="{ color: isDeadlinePassed(s.formato30Deadline || globalDeadlines.formato30Deadline) && s.formato30Status !== 'approved' ? 'var(--tecnm-red)' : 'var(--tecnm-gray-600)' }"
+                    >
+                      {{ s.formato30Status === 'approved' ? 'Entregado a tiempo' : getDeadlineRemaining(s.formato30Deadline || globalDeadlines.formato30Deadline) }}
+                    </small>
+                  </template>
                 </td>
                 <td>
                   <span
+                    v-if="s.isAccreditation"
+                    class="tecnm-badge tecnm-badge-outline"
+                    title="No requiere formatos ordinarios"
+                  >
+                    No aplica
+                  </span>
+                  <span
+                    v-else
                     class="tecnm-badge"
                     :class="s.formato30Status === 'approved' && s.formato29V2Status === 'approved' ? 'tecnm-badge-success' : (!s.canUploadSecondPhase ? 'tecnm-badge-secondary' : 'tecnm-badge-warning')"
                   >

@@ -116,6 +116,16 @@ public class ProjectRepository : IProjectRepository
 
         q = ApplyStatusFilter(q, status);
 
+        // Query base para el cálculo del índice alfabético estable según los anteproyectos visibles al usuario
+        var baseQueryForUser = q;
+        var orderedIds = await baseQueryForUser
+            .OrderBy(p => p.Student != null ? p.Student.FirstName : "")
+            .ThenBy(p => p.Student != null ? p.Student.LastName : "")
+            .ThenBy(p => p.Title)
+            .Select(p => p.Id)
+            .ToListAsync();
+        var indexMap = orderedIds.Select((id, idx) => new { id, index = idx + 1 }).ToDictionary(x => x.id, x => x.index);
+
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var term = query.Search.Trim().ToLowerInvariant();
@@ -127,27 +137,61 @@ public class ProjectRepository : IProjectRepository
 
         var isDesc = (query.SortDir ?? "").Equals("desc", StringComparison.OrdinalIgnoreCase);
 
-        if (string.Equals(query.SortBy, "StudentName", StringComparison.OrdinalIgnoreCase))
+        PaginatedResult<Project> result;
+        if (string.Equals(query.SortBy, "StudentName", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(query.SortBy, "Index", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(query.SortBy, "AlphabeticalIndex", StringComparison.OrdinalIgnoreCase))
         {
             q = isDesc
                 ? q.OrderByDescending(p => p.Student != null ? p.Student.FirstName : "").ThenByDescending(p => p.Student != null ? p.Student.LastName : "")
                 : q.OrderBy(p => p.Student != null ? p.Student.FirstName : "").ThenBy(p => p.Student != null ? p.Student.LastName : "");
-            return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+            result = await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
         }
-
-        if (string.Equals(query.SortBy, "CompanyName", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(query.SortBy, "AdvisorName", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(query.SortBy, "Advisor", StringComparison.OrdinalIgnoreCase))
+        {
+            q = isDesc
+                ? q.OrderByDescending(p => p.Advisor != null ? p.Advisor.FullName : "")
+                : q.OrderBy(p => p.Advisor != null ? p.Advisor.FullName : "");
+            result = await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        }
+        else if (string.Equals(query.SortBy, "CompanyName", StringComparison.OrdinalIgnoreCase))
         {
             q = isDesc
                 ? q.OrderByDescending(p => p.Company != null ? p.Company.Name : "")
                 : q.OrderBy(p => p.Company != null ? p.Company.Name : "");
-            return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+            result = await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        }
+        else
+        {
+            q = q.ApplySort(query.SortBy, query.SortDir,
+                new[] { "Title", "Status", "CreatedAt" },
+                "CreatedAt", defaultDescending: true);
+            result = await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
         }
 
-        q = q.ApplySort(query.SortBy, query.SortDir,
-            new[] { "Title", "Status", "CreatedAt" },
-            "CreatedAt", defaultDescending: true);
+        if (result.Items.Any())
+        {
+            var advisorIds = result.Items.Where(p => p.AdvisorId.HasValue).Select(p => p.AdvisorId!.Value).Distinct().ToList();
+            var counts = advisorIds.Count > 0
+                ? await _context.Students
+                    .Where(s => s.AdvisorId.HasValue && advisorIds.Contains(s.AdvisorId.Value) && s.IsActive)
+                    .GroupBy(s => s.AdvisorId!.Value)
+                    .Select(g => new { AdvisorId = g.Key, Count = g.Count() })
+                    .ToDictionaryAsync(x => x.AdvisorId, x => x.Count)
+                : new Dictionary<long, int>();
 
-        return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+            foreach (var item in result.Items)
+            {
+                item.AlphabeticalIndex = indexMap.TryGetValue(item.Id, out var idx) ? idx : null;
+                if (item.AdvisorId.HasValue)
+                {
+                    item.AdvisorAssignedStudentsCount = counts.TryGetValue(item.AdvisorId.Value, out var c) ? c : 0;
+                }
+            }
+        }
+
+        return result;
     }
 
     public async Task<List<Project>> GetAllForExportAsync(string? status, string? search, string? sortBy, string? sortDir, bool includeInactive = false, long? careerId = null, bool includeCancelled = false)

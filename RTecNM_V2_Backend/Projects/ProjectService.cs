@@ -822,7 +822,9 @@ public class ProjectService : IProjectService
             canUploadDocuments,
             p.ReviewComments,
             careerId,
-            careerName
+            careerName,
+            p.AdvisorAssignedStudentsCount,
+            p.AlphabeticalIndex
         );
     }
 

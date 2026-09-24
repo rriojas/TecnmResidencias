@@ -57,7 +57,10 @@ public class DocumentsController : ControllerBase
         if (projectResult.IsSuccess && projectResult.Data != null)
         {
             var isStaff = User.IsInRole("admin") || User.IsInRole("departmenthead") || User.IsInRole("director") || User.IsInRole("academic") || User.IsInRole("jefecarrera") || User.IsInRole("careerhead") || User.IsInRole("coordinator") || User.IsInRole("coordinadora");
-            if (projectResult.Data.IsCompleted && !isStaff)
+            var isAccreditation = string.Equals(projectResult.Data.ProjectType, "acreditacion_innovatec", StringComparison.OrdinalIgnoreCase) ||
+                                  string.Equals(projectResult.Data.ProjectType, "acreditacion_hackatec", StringComparison.OrdinalIgnoreCase);
+
+            if (projectResult.Data.IsCompleted && !isStaff && !isAccreditation)
                 return StatusCode(400, new { message = "El proyecto de residencia se encuentra concluido. No se permiten nuevas cargas al expediente digital." });
 
             if (projectResult.Data.Status.Equals("cancelled", StringComparison.OrdinalIgnoreCase) && !isStaff)
@@ -66,7 +69,7 @@ public class DocumentsController : ControllerBase
             var isPreApprovalDoc = dto.DocumentType.Equals(DocumentType.CartaAceptacion, StringComparison.OrdinalIgnoreCase)
                 || dto.DocumentType.Equals(DocumentType.ConstanciaAcreditacion, StringComparison.OrdinalIgnoreCase);
 
-            if (!projectResult.Data.CanUploadDocuments && !isStaff && !isPreApprovalDoc)
+            if (!projectResult.Data.CanUploadDocuments && !isStaff && !isPreApprovalDoc && !isAccreditation)
                 return StatusCode(400, new { message = "El anteproyecto aún no ha sido aprobado. En esta etapa solo se requiere cargar la Carta de Aceptación / Aprobación de la empresa." });
 
             if (!isStaff && (dto.DocumentType.Equals(DocumentType.Formato29V2, StringComparison.OrdinalIgnoreCase) || dto.DocumentType.Equals(DocumentType.Formato30, StringComparison.OrdinalIgnoreCase)))

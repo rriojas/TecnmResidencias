@@ -21,6 +21,7 @@ public class StudentDeadlineInfoDto
     public bool CanUploadSecondPhase { get; set; } // Formato 29 approved
     public bool HasApprovedProject { get; set; }
     public bool HasApprovedAcceptanceLetter { get; set; }
+    public bool IsAccreditation { get; set; }
     public bool IsEligibleForFormatDeadlines { get; set; }
     public bool IsDocumentBlocked { get; set; }
     public string? BlockedReason { get; set; }

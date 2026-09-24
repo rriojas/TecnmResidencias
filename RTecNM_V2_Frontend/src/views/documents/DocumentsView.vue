@@ -265,8 +265,11 @@ const canUploadDocument = computed(() => {
   if (isStaff.value) return true
   if (isAdvisor.value) return false
   if (!currentProject.value?.id) return false
-  // Si realiza residencias por InnovaTecNM, no requiere subir carta de aceptación ni formatos ordinarios
-  if (isStudent.value && isAccreditationActive.value) return false
+  // Los estudiantes con InnovaTecNM pueden seguir subiendo diplomas/evidencias libremente
+  if (isAccreditationActive.value) {
+    const st = String(currentProject.value?.status || '').toLowerCase()
+    return st !== 'cancelled'
+  }
   return !isProjectReadOnly.value
 })
 
@@ -659,6 +662,26 @@ function changePage(page) {
 async function openUploadModal() {
   if (!currentProject.value?.id) {
     showAlert('Debe seleccionar o registrar un anteproyecto primero.', 'warning')
+    return
+  }
+
+  // Estudiantes InnovaTec pueden subir diplomas continuamente sin bloqueos ni alertas
+  if (isAccreditationActive.value) {
+    const st = String(currentProject.value?.status || '').toLowerCase()
+    if (st === 'cancelled') {
+      showAlert('El anteproyecto se encuentra cancelado. No se permiten cargas.', 'warning')
+      return
+    }
+    uploadForm.value = {
+      projectId: currentProject.value?.id || null,
+      documentType: 'constancia_acreditacion',
+      file: null,
+    }
+    uploadInitialProject.value = currentProject.value
+      ? { id: currentProject.value.id, title: currentProject.value.title || 'Anteproyecto' }
+      : null
+    clearLocalPreview()
+    isUploadModalOpen.value = true
     return
   }
 
@@ -1230,7 +1253,7 @@ onMounted(() => {
 
       <!-- Banner de Bloqueo por Fecha Límite en Expediente -->
       <div
-        v-if="isStudent && studentDeadlineInfo.isDocumentBlocked"
+        v-if="isStudent && studentDeadlineInfo.isDocumentBlocked && !isAccreditationProject"
         class="tecnm-card tecnm-mb-3"
         style="border-left: 5px solid #dc2626; background: #fff5f5;"
       >
@@ -1605,46 +1628,52 @@ onMounted(() => {
             >
               <option value="">-- Seleccionar Tipo --</option>
               <option
-                v-if="!isStudent || (!studentDeadlineInfo.isDocumentBlocked && !isProjectApproved)"
+                v-if="isAccreditationActive || isStaff"
+                value="constancia_acreditacion"
+              >
+                Diploma / Constancia de Acreditación (InnovaTecNM / HackaTec)
+              </option>
+              <option
+                v-if="!isAccreditationActive && (!isStudent || (!studentDeadlineInfo.isDocumentBlocked && !isProjectApproved))"
                 value="carta_aceptacion"
               >
                 Carta de Aceptación / Aprobación *
               </option>
               <option
-                v-if="!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status !== 'approved')"
+                v-if="!isAccreditationActive && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status !== 'approved'))"
                 value="formato_29"
               >
                 Formato 29 (Primer Seguimiento)
               </option>
               <option
-                v-if="(!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
+                v-if="!isAccreditationActive && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
                 value="formato_29v2"
               >
                 Formato 29 (Segundo Seguimiento)
               </option>
               <option
-                v-if="(!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
+                v-if="!isAccreditationActive && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
                 value="formato_30"
               >
                 Formato 30 (Evaluación Final)
               </option>
-              <option v-if="(isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="solicitud">Solicitud de Residencia Profesional</option>
-              <option v-if="(isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="dictamen">Dictamen de Aprobación</option>
-              <option v-if="(isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="manual_usuario">Manual de Usuario</option>
-              <option v-if="(isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="manual_tecnico">Manual Técnico</option>
-              <option v-if="(isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="libranza">Oficio de Liberación</option>
-              <option v-if="!isStudent || !studentDeadlineInfo.isDocumentBlocked" value="otro">Otro / Evidencia Adicional</option>
+              <option v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="solicitud">Solicitud de Residencia Profesional</option>
+              <option v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="dictamen">Dictamen de Aprobación</option>
+              <option v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="manual_usuario">Manual de Usuario</option>
+              <option v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="manual_tecnico">Manual Técnico</option>
+              <option v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="libranza">Oficio de Liberación</option>
+              <option v-if="!isStudent || !studentDeadlineInfo.isDocumentBlocked || isAccreditationActive" value="otro">Otro / Evidencia Adicional</option>
             </select>
 
             <div
-              v-if="isStudent && studentDeadlineInfo.isDocumentBlocked"
+              v-if="isStudent && !isAccreditationActive && studentDeadlineInfo.isDocumentBlocked"
               style="margin-top: 0.5rem; padding: 0.5rem 0.75rem; background: #fff5f5; border: 1px solid #fecaca; border-radius: 4px; color: #b91c1c; font-size: 0.85rem;"
             >
               <strong>Atención:</strong> Acceso restringido por fecha límite vencida. Únicamente puede cargar y entregar los formatos oficiales pendientes ({{ studentDeadlineInfo.formato29Status !== 'approved' ? 'Formato 29' : 'Formato 29v2 y Formato 30' }}).
             </div>
 
             <small
-              v-if="isStudent && !studentDeadlineInfo.canUploadSecondPhase && !studentDeadlineInfo.isDocumentBlocked"
+              v-if="isStudent && !isAccreditationActive && !studentDeadlineInfo.canUploadSecondPhase && !studentDeadlineInfo.isDocumentBlocked"
               class="tecnm-form-hint"
               style="color: var(--tecnm-gray-600); margin-top: 0.35rem; display: block;"
             >

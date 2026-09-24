@@ -42,5 +42,7 @@ public record ProjectResponseDto(
     bool CanUploadDocuments = false,
     string? ReviewComments = null,
     long? CareerId = null,
-    string? CareerName = null
+    string? CareerName = null,
+    int? AdvisorAssignedStudentsCount = null,
+    int? AlphabeticalIndex = null
 );
