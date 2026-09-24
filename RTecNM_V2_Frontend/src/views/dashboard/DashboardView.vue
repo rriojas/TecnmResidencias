@@ -113,10 +113,20 @@ const effectiveUnassignedCount = computed(() => {
   return adminMetrics.value?.studentsWithoutAdvisor ?? unassignedStudents.value.length ?? 0
 })
 
+const eligibleStudentsCount = computed(() => {
+  if (adminMetrics.value?.eligibleStudentsForAdvisor != null && adminMetrics.value.eligibleStudentsForAdvisor > 0) {
+    return adminMetrics.value.eligibleStudentsForAdvisor
+  }
+  const assigned = effectiveAssignedCount.value
+  const unassigned = effectiveUnassignedCount.value
+  if (assigned + unassigned > 0) return assigned + unassigned
+  return totalStudentsCount.value
+})
+
 const assignmentCoveragePercent = computed(() => {
-  const total = totalStudentsCount.value
+  const total = eligibleStudentsCount.value
   if (!total) return 100
-  return Math.round((effectiveAssignedCount.value / total) * 100)
+  return Math.min(100, Math.round((effectiveAssignedCount.value / total) * 100))
 })
 
 const selectedAdvisorForModal = ref(null)
@@ -1402,7 +1412,7 @@ onMounted(() => {
             <div class="tecnm-card-body">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
                 <span style="font-size: 0.9rem; font-weight: 600; color: var(--tecnm-text-primary, #0f172a);">
-                  Avance de Asignaciones: {{ effectiveAssignedCount }} de {{ totalStudentsCount }} Alumnos ({{ assignmentCoveragePercent }}%)
+                  Avance de Asignaciones: {{ effectiveAssignedCount }} de {{ eligibleStudentsCount }} Alumnos Listos ({{ assignmentCoveragePercent }}%)
                 </span>
                 <span :class="effectiveUnassignedCount === 0 ? 'tecnm-badge tecnm-badge-success' : 'tecnm-badge tecnm-badge-warning'">
                   {{ effectiveUnassignedCount === 0 ? '100% Asignados' : `${effectiveUnassignedCount} Pendiente(s)` }}

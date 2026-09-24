@@ -24,6 +24,7 @@ public class DashboardMetricsService : IDashboardMetricsService
         int studentsWithAdvisor = 0;
         int studentsWithoutAdvisor = 0;
         int inProgressProjects = 0;
+        int eligibleStudentsForAdvisor = 0;
         int activeCompanies = await _context.Companies.CountAsync(c => c.IsActive);
 
         if (careerId.HasValue && careerId.Value > 0)
@@ -31,7 +32,19 @@ public class DashboardMetricsService : IDashboardMetricsService
             var cid = careerId.Value;
             totalStudents = await _context.Students.CountAsync(s => s.IsActive && s.CareerId == cid);
             studentsWithAdvisor = await _context.Students.CountAsync(s => s.IsActive && s.CareerId == cid && s.AdvisorId != null);
-            studentsWithoutAdvisor = Math.Max(0, totalStudents - studentsWithAdvisor);
+            
+            // Alumnos elegibles pendientes de asignar: tienen anteproyecto activo (no borrador, no cancelado),
+            // con carta de aceptación o InnovaTecNM/HackaTecNM, pero aún sin asesor asignado.
+            studentsWithoutAdvisor = await _context.Students.CountAsync(s => s.IsActive && s.CareerId == cid && s.AdvisorId == null &&
+                _context.Projects.Any(p => p.StudentId == s.Id && p.IsActive && p.Status != ProjectStatus.Draft && p.Status != ProjectStatus.Cancelled &&
+                    (_context.Documents.Any(d => d.ProjectId == p.Id && d.IsActive &&
+                        (d.DocumentType == "CartaAceptacion" || d.DocumentType == "carta_aceptacion" ||
+                         d.DocumentType == "CartaAprobacion" || d.DocumentType == "carta_aprobacion" ||
+                         d.DocumentType == "ConstanciaAcreditacion" || d.DocumentType == "constancia_acreditacion")) ||
+                     (p.ProjectType != null && (p.ProjectType.ToLower().Contains("innovatec") || p.ProjectType.ToLower().Contains("hackatec") || p.ProjectType.ToLower().StartsWith("acreditacion"))) ||
+                     (p.Title != null && (p.Title.ToLower().Contains("innovatec") || p.Title.ToLower().Contains("hackatec"))))));
+
+            eligibleStudentsForAdvisor = studentsWithAdvisor + studentsWithoutAdvisor;
             activeAdvisors = await _context.Advisors.CountAsync(a => a.IsActive && a.DepartmentId == cid);
 
             // Para Jefe de Carrera: se excluyen los borradores y cancelados del conteo de anteproyectos
@@ -50,7 +63,16 @@ public class DashboardMetricsService : IDashboardMetricsService
         {
             totalStudents = await _context.Students.CountAsync(s => s.IsActive);
             studentsWithAdvisor = await _context.Students.CountAsync(s => s.IsActive && s.AdvisorId != null);
-            studentsWithoutAdvisor = Math.Max(0, totalStudents - studentsWithAdvisor);
+            studentsWithoutAdvisor = await _context.Students.CountAsync(s => s.IsActive && s.AdvisorId == null &&
+                _context.Projects.Any(p => p.StudentId == s.Id && p.IsActive && p.Status != ProjectStatus.Draft && p.Status != ProjectStatus.Cancelled &&
+                    (_context.Documents.Any(d => d.ProjectId == p.Id && d.IsActive &&
+                        (d.DocumentType == "CartaAceptacion" || d.DocumentType == "carta_aceptacion" ||
+                         d.DocumentType == "CartaAprobacion" || d.DocumentType == "carta_aprobacion" ||
+                         d.DocumentType == "ConstanciaAcreditacion" || d.DocumentType == "constancia_acreditacion")) ||
+                     (p.ProjectType != null && (p.ProjectType.ToLower().Contains("innovatec") || p.ProjectType.ToLower().Contains("hackatec") || p.ProjectType.ToLower().StartsWith("acreditacion"))) ||
+                     (p.Title != null && (p.Title.ToLower().Contains("innovatec") || p.Title.ToLower().Contains("hackatec"))))));
+
+            eligibleStudentsForAdvisor = studentsWithAdvisor + studentsWithoutAdvisor;
             activeAdvisors = await _context.Advisors.CountAsync(a => a.IsActive);
             totalProjects = await _context.Projects.CountAsync(p => p.IsActive && p.Status != ProjectStatus.Draft && p.Status != ProjectStatus.Cancelled);
             approvedProjects = await _context.Projects.CountAsync(p => p.IsActive && p.Status == ProjectStatus.Approved);
@@ -73,7 +95,8 @@ public class DashboardMetricsService : IDashboardMetricsService
             activeCompanies,
             studentsWithAdvisor,
             studentsWithoutAdvisor,
-            inProgressProjects
+            inProgressProjects,
+            eligibleStudentsForAdvisor
         );
 
         return Result<DashboardMetricsResponseDto>.Success(metrics);
