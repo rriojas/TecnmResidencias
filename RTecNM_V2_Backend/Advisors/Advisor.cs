@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using TecNM.Residency.Auth;
 using TecNM.Residency.Common;
 
@@ -13,4 +14,7 @@ public class Advisor : BaseEntity
     public string? Phone { get; set; }
 
     public User? User { get; set; }
+
+    [NotMapped]
+    public int AssignedStudentsCount { get; set; }
 }

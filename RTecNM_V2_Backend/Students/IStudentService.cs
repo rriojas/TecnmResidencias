@@ -4,8 +4,8 @@ namespace TecNM.Residency.Students;
 
 public interface IStudentService
 {
-    Task<Result<PaginatedResult<StudentResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, bool onlyApprovedProject = false, long? careerId = null);
-    Task<Result<byte[]>> ExportPdfAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false, bool onlyApprovedProject = false, long? careerId = null);
+    Task<Result<PaginatedResult<StudentResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, bool onlyApprovedProject = false, long? careerId = null, bool excludeEvaluated = false, string? assignmentStatus = null, string? acceptanceLetterStatus = null, string? residencyStage = null);
+    Task<Result<byte[]>> ExportPdfAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false, bool onlyApprovedProject = false, long? careerId = null, bool excludeEvaluated = false, string? assignmentStatus = null, string? acceptanceLetterStatus = null, string? residencyStage = null);
     Task<Result<List<StudentOptionDto>>> GetOptionsAsync();
     Task<Result<StudentResponseDto>> GetByIdAsync(long id);
     Task<Result<StudentResponseDto>> GetMeAsync(long userId);

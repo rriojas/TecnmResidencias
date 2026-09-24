@@ -51,27 +51,38 @@ public class StudentService : IStudentService
         _context = context;
     }
 
-    public async Task<Result<PaginatedResult<StudentResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, bool onlyApprovedProject = false, long? careerId = null)
+    public async Task<Result<PaginatedResult<StudentResponseDto>>> GetPagedAsync(
+        PaginationQuery query,
+        string? status,
+        bool includeInactive = false,
+        bool onlyApprovedProject = false,
+        long? careerId = null,
+        bool excludeEvaluated = false,
+        string? assignmentStatus = null,
+        string? acceptanceLetterStatus = null,
+        string? residencyStage = null)
     {
-        var paged = await _studentRepository.GetPagedAsync(query, status, includeInactive, onlyApprovedProject, careerId);
+        var paged = await _studentRepository.GetPagedAsync(query, status, includeInactive, onlyApprovedProject, careerId, excludeEvaluated, assignmentStatus, acceptanceLetterStatus, residencyStage);
         var studentIds = paged.Items.Select(s => s.Id).ToList();
 
         var projects = await _context.Projects
             .Where(p => studentIds.Contains(p.StudentId) && p.IsActive)
-            .Select(p => new { p.Id, p.StudentId, p.Title, p.ProjectType })
+            .Select(p => new { p.Id, p.StudentId, p.Title, p.ProjectType, p.Status, p.AdvisorId })
             .ToListAsync();
 
         var projectIds = projects.Select(p => p.Id).ToList();
-        var acceptedProjectIds = await _context.Documents
+        var acceptedDocuments = await _context.Documents
             .Where(d => projectIds.Contains(d.ProjectId) && d.IsActive &&
                 (d.DocumentType == DocumentType.CartaAceptacion ||
                  d.DocumentType == DocumentType.CartaAprobacion ||
                  d.DocumentType == DocumentType.ConstanciaAcreditacion))
-            .Select(d => d.ProjectId)
-            .Distinct()
+            .Select(d => new { d.ProjectId, d.Status })
             .ToListAsync();
 
-        var acceptedProjectSet = new HashSet<long>(acceptedProjectIds);
+        var docByProject = acceptedDocuments
+            .GroupBy(d => d.ProjectId)
+            .ToDictionary(g => g.Key, g => g.First());
+
         var projectByStudent = projects
             .GroupBy(p => p.StudentId)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.Id).First());
@@ -79,12 +90,87 @@ public class StudentService : IStudentService
         var dtos = paged.Items.Select(s =>
         {
             var dto = MapToResponseDto(s);
+            dto.FullName = $"{s.FirstName} {s.LastName} {s.LastName2}".Trim().Replace("  ", " ");
+
             if (projectByStudent.TryGetValue(s.Id, out var proj))
             {
                 dto.HasProject = true;
                 dto.ProjectTitle = proj.Title;
-                dto.HasAcceptanceLetter = acceptedProjectSet.Contains(proj.Id);
+                dto.ProjectType = proj.ProjectType;
+                dto.ProjectStatus = proj.Status.ToString().ToLowerInvariant();
+
+                bool isInnovatec = !string.IsNullOrWhiteSpace(proj.ProjectType) && proj.ProjectType.Contains("innovatec", StringComparison.OrdinalIgnoreCase);
+                bool isHackatec = !string.IsNullOrWhiteSpace(proj.ProjectType) && proj.ProjectType.Contains("hackatec", StringComparison.OrdinalIgnoreCase);
+                bool isAccreditation = isInnovatec || isHackatec || (proj.ProjectType != null && proj.ProjectType.StartsWith("acreditacion", StringComparison.OrdinalIgnoreCase));
+
+                dto.IsAccreditation = isAccreditation;
+                if (isInnovatec)
+                {
+                    dto.ExemptionReason = "Omisión InnovaTecNM";
+                }
+                else if (isHackatec)
+                {
+                    dto.ExemptionReason = "Omisión HackaTec";
+                }
+                else if (isAccreditation)
+                {
+                    dto.ExemptionReason = "Omisión por Acreditación";
+                }
+
+                if (docByProject.TryGetValue(proj.Id, out var doc))
+                {
+                    dto.HasAcceptanceLetter = true;
+                    dto.AcceptanceLetterStatus = doc.Status.ToString().ToLowerInvariant();
+                }
+
+                // Determinar Estado de las Residencias
+                if (proj.Status == ProjectStatus.Completed)
+                {
+                    dto.ResidencyStage = "Concluido / Evaluado";
+                }
+                else if (s.AdvisorId.HasValue && (proj.Status == ProjectStatus.Approved || proj.Status == ProjectStatus.InProgress))
+                {
+                    dto.ResidencyStage = "En Residencia";
+                }
+                else if (s.AdvisorId.HasValue)
+                {
+                    dto.ResidencyStage = "Asesor Asignado";
+                }
+                else if (proj.Status == ProjectStatus.Approved)
+                {
+                    dto.ResidencyStage = "Dictamen Aprobado";
+                }
+                else if (proj.Status == ProjectStatus.Rejected)
+                {
+                    dto.ResidencyStage = "Con Observaciones";
+                }
+                else if (isAccreditation)
+                {
+                    dto.ResidencyStage = isInnovatec ? "Acreditación InnovaTecNM" : (isHackatec ? "Acreditación HackaTec" : "Acreditación");
+                }
+                else if (dto.HasAcceptanceLetter)
+                {
+                    dto.ResidencyStage = "Carta Cargada";
+                }
+                else if (proj.Status == ProjectStatus.Pending || proj.Status == ProjectStatus.Proposed || proj.Status == ProjectStatus.UnderReview)
+                {
+                    dto.ResidencyStage = "Anteproyecto Registrado";
+                }
+                else if (proj.Status == ProjectStatus.Draft)
+                {
+                    dto.ResidencyStage = "Borrador";
+                }
+                else
+                {
+                    dto.ResidencyStage = "En Proceso";
+                }
             }
+            else
+            {
+                dto.HasProject = false;
+                dto.ResidencyStage = "Sin Anteproyecto";
+            }
+
             return dto;
         });
 
@@ -93,9 +179,19 @@ public class StudentService : IStudentService
         return Result<PaginatedResult<StudentResponseDto>>.Success(result);
     }
 
-    public async Task<Result<byte[]>> ExportPdfAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false, bool onlyApprovedProject = false, long? careerId = null)
+    public async Task<Result<byte[]>> ExportPdfAsync(
+        string? search,
+        string? sortBy,
+        string? sortDir,
+        bool includeInactive = false,
+        bool onlyApprovedProject = false,
+        long? careerId = null,
+        bool excludeEvaluated = false,
+        string? assignmentStatus = null,
+        string? acceptanceLetterStatus = null,
+        string? residencyStage = null)
     {
-        var students = await _studentRepository.GetAllForExportAsync(search, sortBy, sortDir, includeInactive, onlyApprovedProject, careerId);
+        var students = await _studentRepository.GetAllForExportAsync(search, sortBy, sortDir, includeInactive, onlyApprovedProject, careerId, excludeEvaluated, assignmentStatus, acceptanceLetterStatus, residencyStage);
         var definition = new PdfTableDefinition
         {
             Title = "Directorio de Estudiantes Residentes - TecNM Campus Monclova",
@@ -142,6 +238,15 @@ public class StudentService : IStudentService
         {
             dto.HasProject = true;
             dto.ProjectTitle = project.Title;
+            dto.ProjectType = project.ProjectType;
+            bool isInnovatec = !string.IsNullOrWhiteSpace(project.ProjectType) && project.ProjectType.Contains("innovatec", StringComparison.OrdinalIgnoreCase);
+            bool isHackatec = !string.IsNullOrWhiteSpace(project.ProjectType) && project.ProjectType.Contains("hackatec", StringComparison.OrdinalIgnoreCase);
+            bool isAccreditation = isInnovatec || isHackatec || (project.ProjectType != null && project.ProjectType.StartsWith("acreditacion", StringComparison.OrdinalIgnoreCase));
+            dto.IsAccreditation = isAccreditation;
+            if (isInnovatec) dto.ExemptionReason = "Omisión InnovaTecNM";
+            else if (isHackatec) dto.ExemptionReason = "Omisión HackaTec";
+            else if (isAccreditation) dto.ExemptionReason = "Omisión por Acreditación";
+
             dto.HasAcceptanceLetter = await _context.Documents.AnyAsync(d =>
                 d.ProjectId == project.Id && d.IsActive &&
                 (d.DocumentType == DocumentType.CartaAceptacion ||
@@ -398,15 +503,14 @@ public class StudentService : IStudentService
             return Result<StudentResponseDto>.Failure("No se puede asignar un asesor sin que el estudiante cuente con un anteproyecto registrado.", 400);
         }
 
-        bool isAccreditation = project.ProjectType is "acreditacion_innovatec" or "acreditacion_hackatec";
+        bool isAccreditation = project.ProjectType is "acreditacion_innovatec" or "acreditacion_hackatec"
+            || (!string.IsNullOrWhiteSpace(project.ProjectType) && (project.ProjectType.Contains("innovatec", StringComparison.OrdinalIgnoreCase) || project.ProjectType.Contains("hackatec", StringComparison.OrdinalIgnoreCase)));
         bool hasValidDoc = false;
 
         if (isAccreditation)
         {
-            hasValidDoc = await _context.Documents.AnyAsync(d =>
-                d.ProjectId == project.Id &&
-                d.IsActive &&
-                d.DocumentType == DocumentType.ConstanciaAcreditacion);
+            // Para eventos institucionales (InnovaTecNM / HackaTec), la carta de aceptación es omitida por acreditación
+            hasValidDoc = true;
         }
         else
         {
@@ -504,15 +608,13 @@ public class StudentService : IStudentService
                     continue; // Omitir: requiere anteproyecto
                 }
 
-                bool isAccreditation = project.ProjectType is "acreditacion_innovatec" or "acreditacion_hackatec";
+                bool isAccreditation = project.ProjectType is "acreditacion_innovatec" or "acreditacion_hackatec"
+                    || (!string.IsNullOrWhiteSpace(project.ProjectType) && (project.ProjectType.Contains("innovatec", StringComparison.OrdinalIgnoreCase) || project.ProjectType.Contains("hackatec", StringComparison.OrdinalIgnoreCase)));
                 bool hasDoc = false;
 
                 if (isAccreditation)
                 {
-                    hasDoc = await _context.Documents.AnyAsync(d =>
-                        d.ProjectId == project.Id &&
-                        d.IsActive &&
-                        d.DocumentType == DocumentType.ConstanciaAcreditacion);
+                    hasDoc = true;
                 }
                 else
                 {
@@ -1149,6 +1251,7 @@ public class StudentService : IStudentService
             FirstName = student.FirstName,
             LastName = student.LastName,
             LastName2 = student.LastName2,
+            FullName = $"{student.FirstName} {student.LastName} {student.LastName2}".Trim().Replace("  ", " "),
             Curp = student.Curp,
             Gender = student.Gender,
             CareerId = student.CareerId,

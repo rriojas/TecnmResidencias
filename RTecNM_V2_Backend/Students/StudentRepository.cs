@@ -16,7 +16,16 @@ public class StudentRepository : IStudentRepository
         _currentUser = currentUser;
     }
 
-    public async Task<PaginatedResult<Student>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, bool onlyApprovedProject = false, long? careerId = null)
+    public async Task<PaginatedResult<Student>> GetPagedAsync(
+        PaginationQuery query,
+        string? status,
+        bool includeInactive = false,
+        bool onlyApprovedProject = false,
+        long? careerId = null,
+        bool excludeEvaluated = false,
+        string? assignmentStatus = null,
+        string? acceptanceLetterStatus = null,
+        string? residencyStage = null)
     {
         IQueryable<Student> q = _context.Students.Include(s => s.User).Include(s => s.Advisor)
             .Where(s => s.User == null || s.User.Role == UserRole.Student);
@@ -53,12 +62,22 @@ public class StudentRepository : IStudentRepository
             q = q.Where(s => approvedStudentIds.Contains(s.Id));
         }
 
+        if (excludeEvaluated)
+        {
+            var completedStudentIds = _context.Projects
+                .Where(p => p.IsActive && p.Status == ProjectStatus.Completed)
+                .Select(p => p.StudentId);
+            q = q.Where(s => !completedStudentIds.Contains(s.Id));
+        }
+
         if (status == "active")
             q = q.Where(s => s.IsActive);
         else if (status == "inactive")
             q = q.Where(s => !s.IsActive);
         else if (!includeInactive && status != "all")
             q = q.Where(s => s.IsActive);
+
+        q = ApplyCustomFilters(q, assignmentStatus, acceptanceLetterStatus, residencyStage);
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
@@ -70,17 +89,90 @@ public class StudentRepository : IStudentRepository
         }
 
         var sortBy = query.SortBy;
+        var isDesc = (query.SortDir ?? "").Equals("desc", StringComparison.OrdinalIgnoreCase);
+
         if (string.Equals(sortBy, "FullName", StringComparison.OrdinalIgnoreCase))
-            sortBy = "FirstName";
+        {
+            q = isDesc
+                ? q.OrderByDescending(s => s.FirstName).ThenByDescending(s => s.LastName)
+                : q.OrderBy(s => s.FirstName).ThenBy(s => s.LastName);
+            return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        }
+        if (string.Equals(sortBy, "Email", StringComparison.OrdinalIgnoreCase))
+        {
+            q = isDesc
+                ? q.OrderByDescending(s => s.User != null ? s.User.Email : "")
+                : q.OrderBy(s => s.User != null ? s.User.Email : "");
+            return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        }
+        if (string.Equals(sortBy, "AdvisorName", StringComparison.OrdinalIgnoreCase))
+        {
+            q = isDesc
+                ? q.OrderByDescending(s => s.Advisor != null ? s.Advisor.FullName : "")
+                : q.OrderBy(s => s.Advisor != null ? s.Advisor.FullName : "");
+            return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        }
+        if (string.Equals(sortBy, "AssignmentStatus", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(sortBy, "AdvisorStatus", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(sortBy, "AdvisorId", StringComparison.OrdinalIgnoreCase))
+        {
+            q = isDesc
+                ? q.OrderByDescending(s => s.AdvisorId.HasValue).ThenByDescending(s => s.Advisor != null ? s.Advisor.FullName : "")
+                : q.OrderBy(s => s.AdvisorId.HasValue).ThenBy(s => s.Advisor != null ? s.Advisor.FullName : "");
+            return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        }
+        if (string.Equals(sortBy, "ProjectTitle", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(sortBy, "Project", StringComparison.OrdinalIgnoreCase))
+        {
+            q = isDesc
+                ? q.OrderByDescending(s => _context.Projects.Where(p => p.StudentId == s.Id && p.IsActive).Select(p => p.Title).FirstOrDefault() ?? "").ThenBy(s => s.FirstName)
+                : q.OrderBy(s => _context.Projects.Where(p => p.StudentId == s.Id && p.IsActive).Select(p => p.Title).FirstOrDefault() ?? "").ThenBy(s => s.FirstName);
+            return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        }
+        if (string.Equals(sortBy, "HasAcceptanceLetter", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(sortBy, "AcceptanceLetter", StringComparison.OrdinalIgnoreCase))
+        {
+            q = isDesc
+                ? q.OrderByDescending(s => _context.Projects.Where(p => p.StudentId == s.Id && p.IsActive)
+                    .Any(p => _context.Documents.Any(d => d.ProjectId == p.Id && d.IsActive && 
+                        (d.DocumentType == "CartaAceptacion" || d.DocumentType == "carta_aceptacion" || 
+                         d.DocumentType == "CartaAprobacion" || d.DocumentType == "carta_aprobacion" ||
+                         d.DocumentType == "ConstanciaAcreditacion" || d.DocumentType == "constancia_acreditacion")))).ThenBy(s => s.FirstName)
+                : q.OrderBy(s => _context.Projects.Where(p => p.StudentId == s.Id && p.IsActive)
+                    .Any(p => _context.Documents.Any(d => d.ProjectId == p.Id && d.IsActive && 
+                        (d.DocumentType == "CartaAceptacion" || d.DocumentType == "carta_aceptacion" || 
+                         d.DocumentType == "CartaAprobacion" || d.DocumentType == "carta_aprobacion" ||
+                         d.DocumentType == "ConstanciaAcreditacion" || d.DocumentType == "constancia_acreditacion")))).ThenBy(s => s.FirstName);
+            return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        }
+        if (string.Equals(sortBy, "ResidencyStage", StringComparison.OrdinalIgnoreCase))
+        {
+            q = isDesc
+                ? q.OrderByDescending(s => s.AdvisorId.HasValue)
+                   .ThenByDescending(s => _context.Projects.Where(p => p.StudentId == s.Id && p.IsActive).Select(p => (int)p.Status).FirstOrDefault())
+                : q.OrderBy(s => s.AdvisorId.HasValue)
+                   .ThenBy(s => _context.Projects.Where(p => p.StudentId == s.Id && p.IsActive).Select(p => (int)p.Status).FirstOrDefault());
+            return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        }
 
         q = q.ApplySort(sortBy, query.SortDir,
-            new[] { "ControlNumber", "FirstName", "LastName", "Gpa", "CreatedAt", "CareerId", "IsActive", "IsPresentationLetterSent" },
+            new[] { "ControlNumber", "FirstName", "LastName", "Gpa", "CreatedAt", "CareerId", "IsActive", "IsPresentationLetterSent", "AdvisorId" },
             "CreatedAt", defaultDescending: true);
 
         return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
     }
 
-    public async Task<List<Student>> GetAllForExportAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false, bool onlyApprovedProject = false, long? careerId = null)
+    public async Task<List<Student>> GetAllForExportAsync(
+        string? search,
+        string? sortBy,
+        string? sortDir,
+        bool includeInactive = false,
+        bool onlyApprovedProject = false,
+        long? careerId = null,
+        bool excludeEvaluated = false,
+        string? assignmentStatus = null,
+        string? acceptanceLetterStatus = null,
+        string? residencyStage = null)
     {
         IQueryable<Student> q = _context.Students.Include(s => s.User).AsNoTracking()
             .Where(s => s.User == null || s.User.Role == UserRole.Student);
@@ -117,8 +209,18 @@ public class StudentRepository : IStudentRepository
             q = q.Where(s => approvedStudentIds.Contains(s.Id));
         }
 
+        if (excludeEvaluated)
+        {
+            var completedStudentIds = _context.Projects
+                .Where(p => p.IsActive && p.Status == ProjectStatus.Completed)
+                .Select(p => p.StudentId);
+            q = q.Where(s => !completedStudentIds.Contains(s.Id));
+        }
+
         if (!includeInactive)
             q = q.Where(s => s.IsActive);
+
+        q = ApplyCustomFilters(q, assignmentStatus, acceptanceLetterStatus, residencyStage);
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -134,6 +236,95 @@ public class StudentRepository : IStudentRepository
             "CreatedAt", defaultDescending: true);
 
         return await q.Take(1000).ToListAsync();
+    }
+
+    private IQueryable<Student> ApplyCustomFilters(
+        IQueryable<Student> q,
+        string? assignmentStatus,
+        string? acceptanceLetterStatus,
+        string? residencyStage)
+    {
+        if (!string.IsNullOrWhiteSpace(assignmentStatus) && !assignmentStatus.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            if (assignmentStatus.Equals("unassigned", StringComparison.OrdinalIgnoreCase))
+            {
+                q = q.Where(s => !s.AdvisorId.HasValue);
+            }
+            else if (assignmentStatus.Equals("assigned", StringComparison.OrdinalIgnoreCase))
+            {
+                q = q.Where(s => s.AdvisorId.HasValue);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(acceptanceLetterStatus) && !acceptanceLetterStatus.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            if (acceptanceLetterStatus.Equals("uploaded", StringComparison.OrdinalIgnoreCase))
+            {
+                q = q.Where(s => _context.Projects.Where(p => p.StudentId == s.Id && p.IsActive)
+                    .Any(p => _context.Documents.Any(d => d.ProjectId == p.Id && d.IsActive &&
+                        (d.DocumentType == "CartaAceptacion" || d.DocumentType == "carta_aceptacion" ||
+                         d.DocumentType == "CartaAprobacion" || d.DocumentType == "carta_aprobacion" ||
+                         d.DocumentType == "ConstanciaAcreditacion" || d.DocumentType == "constancia_acreditacion"))));
+            }
+            else if (acceptanceLetterStatus.Equals("exempt", StringComparison.OrdinalIgnoreCase))
+            {
+                q = q.Where(s => _context.Projects.Where(p => p.StudentId == s.Id && p.IsActive)
+                    .Any(p => (p.ProjectType != null && (p.ProjectType.ToLower().Contains("innovatec") || p.ProjectType.ToLower().Contains("hackatec") || p.ProjectType.ToLower().StartsWith("acreditacion"))) ||
+                              (p.Title != null && (p.Title.ToLower().Contains("innovatec") || p.Title.ToLower().Contains("hackatec")))));
+            }
+            else if (acceptanceLetterStatus.Equals("pending", StringComparison.OrdinalIgnoreCase))
+            {
+                q = q.Where(s => !_context.Projects.Where(p => p.StudentId == s.Id && p.IsActive)
+                    .Any(p => _context.Documents.Any(d => d.ProjectId == p.Id && d.IsActive &&
+                        (d.DocumentType == "CartaAceptacion" || d.DocumentType == "carta_aceptacion" ||
+                         d.DocumentType == "CartaAprobacion" || d.DocumentType == "carta_aprobacion" ||
+                         d.DocumentType == "ConstanciaAcreditacion" || d.DocumentType == "constancia_acreditacion"))) &&
+                    !_context.Projects.Where(p => p.StudentId == s.Id && p.IsActive)
+                    .Any(p => (p.ProjectType != null && (p.ProjectType.ToLower().Contains("innovatec") || p.ProjectType.ToLower().Contains("hackatec") || p.ProjectType.ToLower().StartsWith("acreditacion"))) ||
+                              (p.Title != null && (p.Title.ToLower().Contains("innovatec") || p.Title.ToLower().Contains("hackatec")))));
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(residencyStage) && !residencyStage.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            var stage = residencyStage.Trim();
+            if (stage.Equals("Sin Anteproyecto", StringComparison.OrdinalIgnoreCase))
+            {
+                q = q.Where(s => !_context.Projects.Any(p => p.StudentId == s.Id && p.IsActive));
+            }
+            else if (stage.Equals("Borrador", StringComparison.OrdinalIgnoreCase))
+            {
+                q = q.Where(s => _context.Projects.Any(p => p.StudentId == s.Id && p.IsActive && p.Status == ProjectStatus.Draft));
+            }
+            else if (stage.Equals("Anteproyecto Registrado", StringComparison.OrdinalIgnoreCase))
+            {
+                q = q.Where(s => _context.Projects.Any(p => p.StudentId == s.Id && p.IsActive &&
+                    (p.Status == ProjectStatus.Pending || p.Status == ProjectStatus.Proposed || p.Status == ProjectStatus.UnderReview)));
+            }
+            else if (stage.Equals("Dictamen Aprobado", StringComparison.OrdinalIgnoreCase))
+            {
+                q = q.Where(s => !s.AdvisorId.HasValue && _context.Projects.Any(p => p.StudentId == s.Id && p.IsActive && p.Status == ProjectStatus.Approved));
+            }
+            else if (stage.Equals("Asesor Asignado", StringComparison.OrdinalIgnoreCase))
+            {
+                q = q.Where(s => s.AdvisorId.HasValue);
+            }
+            else if (stage.Equals("En Residencia", StringComparison.OrdinalIgnoreCase))
+            {
+                q = q.Where(s => s.AdvisorId.HasValue && _context.Projects.Any(p => p.StudentId == s.Id && p.IsActive &&
+                    (p.Status == ProjectStatus.Approved || p.Status == ProjectStatus.InProgress)));
+            }
+            else if (stage.Equals("Con Observaciones", StringComparison.OrdinalIgnoreCase))
+            {
+                q = q.Where(s => _context.Projects.Any(p => p.StudentId == s.Id && p.IsActive && p.Status == ProjectStatus.Rejected));
+            }
+            else if (stage.Equals("Concluido / Evaluado", StringComparison.OrdinalIgnoreCase))
+            {
+                q = q.Where(s => _context.Projects.Any(p => p.StudentId == s.Id && p.IsActive && p.Status == ProjectStatus.Completed));
+            }
+        }
+
+        return q;
     }
 
     public async Task<List<Student>> GetOptionsAsync()

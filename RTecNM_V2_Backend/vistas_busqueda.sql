@@ -1,6 +1,7 @@
 -- Vistas de Búsqueda Global / Universal para TecNM Residency System v2 (PostgreSQL 18)
 -- Nota: Se omiten filtros is_active estáticos para permitir filtrado dinámico (Activos / Inactivos) en runtime.
 
+DROP VIEW IF EXISTS vw_search_students CASCADE;
 CREATE OR REPLACE VIEW vw_search_students AS
 SELECT 
     s.id AS id,
@@ -13,6 +14,7 @@ SELECT
 FROM students s
 LEFT JOIN users u ON s.user_id = u.id;
 
+DROP VIEW IF EXISTS vw_search_advisors CASCADE;
 CREATE OR REPLACE VIEW vw_search_advisors AS
 SELECT 
     a.id AS id,
@@ -22,9 +24,11 @@ SELECT
     a.department_id AS department_id,
     COALESCE(u.email, '') AS email,
     COALESCE(a.phone, '') AS phone,
+    (SELECT COUNT(*)::int FROM students s WHERE s.advisor_id = a.id AND s.is_active = true) AS assigned_students_count,
     a.is_active AS is_active
 FROM advisors a
-LEFT JOIN users u ON a.user_id = u.id;
+LEFT JOIN users u ON a.user_id = u.id
+WHERE u.role IS NULL OR u.role IN ('advisor', 'academico', 'Advisor', 'Academic');
 
 DROP VIEW IF EXISTS vw_search_projects CASCADE;
 CREATE OR REPLACE VIEW vw_search_projects AS
@@ -44,6 +48,7 @@ LEFT JOIN advisors a ON p.advisor_id = a.id
 LEFT JOIN companies c ON p.company_id = c.id
 WHERE p.status::text <> 'draft';
 
+DROP VIEW IF EXISTS vw_search_companies CASCADE;
 CREATE OR REPLACE VIEW vw_search_companies AS
 SELECT 
     c.id AS id,

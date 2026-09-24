@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 
@@ -28,7 +29,9 @@ public static class QueryableExtensions
         bool defaultDescending = false)
     {
         PropertyInfo? property = null;
-        var descending = defaultDescending;
+        var isDescending = !string.IsNullOrWhiteSpace(sortDir)
+            ? sortDir.Equals("desc", StringComparison.OrdinalIgnoreCase)
+            : defaultDescending;
 
         if (!string.IsNullOrWhiteSpace(sortBy))
         {
@@ -39,7 +42,6 @@ public static class QueryableExtensions
             if (candidate is not null && allowedFields.Contains(candidate.Name, StringComparer.OrdinalIgnoreCase))
             {
                 property = candidate;
-                descending = (sortDir ?? "").Equals("desc", StringComparison.OrdinalIgnoreCase);
             }
         }
 
@@ -50,8 +52,23 @@ public static class QueryableExtensions
         if (property is null)
             return query;
 
-        return descending
-            ? query.OrderByDescending(e => EF.Property<object>(e!, property.Name))
-            : query.OrderBy(e => EF.Property<object>(e!, property.Name));
+        try
+        {
+            var param = Expression.Parameter(typeof(T), "e");
+            var propAccess = Expression.Property(param, property);
+            var keySelector = Expression.Lambda(propAccess, param);
+            var methodName = isDescending ? "OrderByDescending" : "OrderBy";
+            var method = typeof(Queryable).GetMethods()
+                .First(m => m.Name == methodName && m.GetParameters().Length == 2)
+                .MakeGenericMethod(typeof(T), property.PropertyType);
+
+            return (IQueryable<T>)method.Invoke(null, new object[] { query, keySelector })!;
+        }
+        catch
+        {
+            return isDescending
+                ? query.OrderByDescending(e => EF.Property<object>(e!, property.Name))
+                : query.OrderBy(e => EF.Property<object>(e!, property.Name));
+        }
     }
 }

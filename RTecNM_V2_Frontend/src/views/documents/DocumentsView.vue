@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useGlobalSearch } from '@/composables/useGlobalSearch'
@@ -28,6 +28,14 @@ const isStaff = computed(() =>
 const canEvaluateDoc = computed(() =>
   !authStore.isReadOnly && (isStaff.value || isAdvisor.value)
 )
+const canAssignAdvisor = computed(() => {
+  if (authStore.isReadOnly) return false
+  return (
+    authStore.isAdmin ||
+    authStore.isCareerHead ||
+    authStore.hasRole('admin', 'departmenthead', 'jefecarrera', 'careerhead', 'academic')
+  )
+})
 
 // Modo de visualización: 'matrix' (tabla general para staff) o 'detail' (expediente de un proyecto)
 const viewMode = ref('matrix')
@@ -55,6 +63,72 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const alertMessage = ref('')
 const alertType = ref('info')
+
+// Gestión y Carga de Asesor Académico en Expediente
+const cartaAceptacionDoc = computed(() => {
+  return documents.value.find(
+    (d) => ['carta_aceptacion', 'carta_aprobacion'].includes((d.documentType || '').toLowerCase()) && d.isActive
+  ) || null
+})
+
+const currentAdvisorLoad = ref(null)
+const selectedAdvisorId = ref(null)
+const initialAdvisorItem = ref(null)
+const selectedAdvisorCandidate = ref(null)
+const isAssigningAdvisor = ref(false)
+
+async function loadCurrentAdvisorInfo() {
+  if (!currentProject.value?.advisorId) {
+    currentAdvisorLoad.value = null
+    initialAdvisorItem.value = null
+    selectedAdvisorId.value = null
+    return
+  }
+  selectedAdvisorId.value = currentProject.value.advisorId
+  try {
+    const advRes = await apiClient.get(`/v1/advisors/${currentProject.value.advisorId}`)
+    currentAdvisorLoad.value = advRes.data?.assignedStudentsCount ?? null
+    initialAdvisorItem.value = {
+      id: currentProject.value.advisorId,
+      fullName: currentProject.value.advisorName,
+      assignedStudentsCount: advRes.data?.assignedStudentsCount,
+    }
+  } catch {
+    currentAdvisorLoad.value = null
+    initialAdvisorItem.value = {
+      id: currentProject.value.advisorId,
+      fullName: currentProject.value.advisorName,
+    }
+  }
+}
+
+async function handleAssignAdvisorInExpediente() {
+  if (!currentProject.value || !selectedAdvisorId.value) return
+  isAssigningAdvisor.value = true
+  try {
+    await apiClient.post('/v1/advisors/assign', {
+      advisorId: Number(selectedAdvisorId.value),
+      projectId: currentProject.value.id,
+      advisorType: 'internal',
+    })
+    const res = await apiClient.get(`/v1/projects/${currentProject.value.id}`)
+    currentProject.value = res.data
+    selectedAdvisorCandidate.value = null
+    await loadCurrentAdvisorInfo()
+    showAlert('Asesor académico asignado al expediente exitosamente.', 'success')
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al asignar el asesor académico.', 'danger')
+  } finally {
+    isAssigningAdvisor.value = false
+  }
+}
+
+watch(
+  () => currentProject.value?.advisorId,
+  () => {
+    loadCurrentAdvisorInfo()
+  }
+)
 
 const isProjectCompleted = computed(() => {
   const st = String(currentProject.value?.status || '').toLowerCase()
@@ -341,6 +415,7 @@ async function openProjectDetail(item) {
     viewMode.value = 'detail'
     pageNumber.value = 1
     await loadDocuments()
+    await loadCurrentAdvisorInfo()
   } catch (err) {
     showAlert('No se pudo cargar el expediente del proyecto.', 'danger')
   } finally {
@@ -455,6 +530,7 @@ async function selectProject(project) {
       }
     } catch {}
   }
+  await loadCurrentAdvisorInfo()
 }
 
 async function loadDocuments() {
@@ -512,7 +588,7 @@ function openProjectPicker() {
 }
 
 function toggleSort(field) {
-  if (sortBy.value === field) {
+  if (sortBy.value.toLowerCase() === field.toLowerCase()) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
   } else {
     sortBy.value = field
@@ -521,6 +597,7 @@ function toggleSort(field) {
   pageNumber.value = 1
   loadDocuments()
 }
+const handleSort = toggleSort
 
 function changePage(page) {
   pageNumber.value = page
@@ -710,6 +787,29 @@ async function handleSaveStatus() {
       rejectionReason: statusForm.value.rejectionReason.trim(),
     }
     await apiClient.patch(`/v1/documents/${statusForm.value.id}/status`, payload)
+
+    // Si se dictaminó como aprobado y se seleccionó un asesor nuevo
+    if (
+      statusForm.value.status === 'approved' &&
+      canAssignAdvisor.value &&
+      currentProject.value &&
+      selectedAdvisorId.value &&
+      Number(selectedAdvisorId.value) !== Number(currentProject.value.advisorId)
+    ) {
+      try {
+        await apiClient.post('/v1/advisors/assign', {
+          advisorId: Number(selectedAdvisorId.value),
+          projectId: currentProject.value.id,
+          advisorType: 'internal',
+        })
+        const res = await apiClient.get(`/v1/projects/${currentProject.value.id}`)
+        currentProject.value = res.data
+        await loadCurrentAdvisorInfo()
+      } catch (assignErr) {
+        console.warn('Error al auto-asignar asesor desde modal de evaluación:', assignErr)
+      }
+    }
+
     showAlert('Estado del documento actualizado correctamente.', 'success')
     closeStatusModal()
     await loadDocuments()
@@ -1027,6 +1127,78 @@ onMounted(() => {
         </button>
       </div>
 
+      <!-- Widget Institucional: Asignación y Carga de Asesor Académico -->
+      <div v-if="currentProject" class="tecnm-card" style="margin-bottom: 1.25rem; border: 1px solid var(--tecnm-border-color, #e2e8f0);">
+        <div class="tecnm-card-header" style="background: var(--tecnm-bg-light, #f8fafc); padding: 0.75rem 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+          <h3 class="tecnm-card-title" style="font-size: 0.95rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+            <span>Asesor Académico Asignado</span>
+          </h3>
+          <span v-if="currentProject.advisorName && currentAdvisorLoad !== null" class="tecnm-badge tecnm-badge-info" style="font-size: 0.8rem;">
+            Carga docente: {{ currentAdvisorLoad }} alumno{{ currentAdvisorLoad === 1 ? '' : 's' }}
+          </span>
+        </div>
+        <div class="tecnm-card-body" style="padding: 1rem 1.25rem;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; align-items: center;">
+            <div>
+              <div class="tecnm-text-muted" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; margin-bottom: 0.25rem;">
+                Docente Asesor
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <span v-if="currentProject.advisorName" class="tecnm-badge tecnm-badge-success" style="font-size: 0.88rem;">
+                  {{ currentProject.advisorName }}
+                </span>
+                <span v-else class="tecnm-badge tecnm-badge-warning" style="font-size: 0.88rem;">
+                  Pendiente de Asignación
+                </span>
+                <span v-if="cartaAceptacionDoc" class="tecnm-badge tecnm-badge-outline" style="font-size: 0.75rem;">
+                  Carta Aceptación: {{ cartaAceptacionDoc.status === 'approved' ? 'Aprobada' : 'Cargada' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Acciones de asignación para Staff con Carta de Aceptación -->
+            <div v-if="canAssignAdvisor">
+              <template v-if="cartaAceptacionDoc">
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                  <div style="flex: 1; min-width: 220px;">
+                    <TecnmAutocomplete
+                      v-model="selectedAdvisorId"
+                      endpoint="/v1/advisors"
+                      global-search-source="ADVISORS"
+                      placeholder="Buscar docente asesor..."
+                      :initial-item="initialAdvisorItem"
+                      @select="item => selectedAdvisorCandidate = item"
+                      @clear="selectedAdvisorCandidate = null"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                    :disabled="isAssigningAdvisor || !selectedAdvisorId || Number(selectedAdvisorId) === Number(currentProject.advisorId)"
+                    @click="handleAssignAdvisorInExpediente"
+                  >
+                    {{ currentProject.advisorName ? 'Cambiar Asesor' : 'Asignar Asesor' }}
+                  </button>
+                </div>
+                <div
+                  v-if="selectedAdvisorCandidate && (selectedAdvisorCandidate.assignedStudentsCount !== undefined || selectedAdvisorCandidate.assigned_students_count !== undefined)"
+                  class="tecnm-text-muted"
+                  style="margin-top: 0.35rem; font-size: 0.8rem;"
+                >
+                  <span>Carga docente del seleccionado: </span>
+                  <strong style="color: var(--tecnm-blue-primary, #1b396a);">
+                    {{ selectedAdvisorCandidate.assignedStudentsCount ?? selectedAdvisorCandidate.assigned_students_count }} alumnos asignados
+                  </strong>
+                </div>
+              </template>
+              <div v-else class="tecnm-text-muted" style="font-size: 0.82rem;">
+                <em>La asignación de asesor se habilitará al contar con la Carta de Aceptación en el expediente.</em>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Tarjeta Principal con Lista de Documentos -->
       <div class="tecnm-card">
         <div class="tecnm-card-header">
@@ -1077,8 +1249,8 @@ onMounted(() => {
                   data-sort="DocumentType"
                   class="tecnm-sort-th"
                   :class="{
-                    'tecnm-sort-asc': sortBy === 'DocumentType' && sortDir === 'asc',
-                    'tecnm-sort-desc': sortBy === 'DocumentType' && sortDir === 'desc',
+                    'tecnm-sort-asc': sortBy.toLowerCase() === 'documenttype' && sortDir === 'asc',
+                    'tecnm-sort-desc': sortBy.toLowerCase() === 'documenttype' && sortDir === 'desc',
                   }"
                   style="cursor: pointer;"
                   @click="toggleSort('DocumentType')"
@@ -1089,28 +1261,50 @@ onMounted(() => {
                   data-sort="FileName"
                   class="tecnm-sort-th"
                   :class="{
-                    'tecnm-sort-asc': sortBy === 'FileName' && sortDir === 'asc',
-                    'tecnm-sort-desc': sortBy === 'FileName' && sortDir === 'desc',
+                    'tecnm-sort-asc': sortBy.toLowerCase() === 'filename' && sortDir === 'asc',
+                    'tecnm-sort-desc': sortBy.toLowerCase() === 'filename' && sortDir === 'desc',
                   }"
                   style="cursor: pointer;"
                   @click="toggleSort('FileName')"
                 >
                   Nombre de Archivo
                 </th>
-                <th>Tamaño</th>
+                <th
+                  data-sort="FileSize"
+                  class="tecnm-sort-th"
+                  :class="{
+                    'tecnm-sort-asc': sortBy.toLowerCase() === 'filesize' && sortDir === 'asc',
+                    'tecnm-sort-desc': sortBy.toLowerCase() === 'filesize' && sortDir === 'desc',
+                  }"
+                  style="cursor: pointer;"
+                  @click="toggleSort('FileSize')"
+                >
+                  Tamaño
+                </th>
                 <th
                   data-sort="UploadedAt"
                   class="tecnm-sort-th"
                   :class="{
-                    'tecnm-sort-asc': sortBy === 'UploadedAt' && sortDir === 'asc',
-                    'tecnm-sort-desc': sortBy === 'UploadedAt' && sortDir === 'desc',
+                    'tecnm-sort-asc': sortBy.toLowerCase() === 'uploadedat' && sortDir === 'asc',
+                    'tecnm-sort-desc': sortBy.toLowerCase() === 'uploadedat' && sortDir === 'desc',
                   }"
                   style="cursor: pointer;"
                   @click="toggleSort('UploadedAt')"
                 >
                   Fecha de Carga
                 </th>
-                <th>Estado</th>
+                <th
+                  data-sort="Status"
+                  class="tecnm-sort-th"
+                  :class="{
+                    'tecnm-sort-asc': sortBy.toLowerCase() === 'status' && sortDir === 'asc',
+                    'tecnm-sort-desc': sortBy.toLowerCase() === 'status' && sortDir === 'desc',
+                  }"
+                  style="cursor: pointer;"
+                  @click="toggleSort('Status')"
+                >
+                  Estado
+                </th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -1469,6 +1663,56 @@ onMounted(() => {
               rows="3"
               placeholder="Detalle los motivos por los que el documento fue rechazado..."
             ></textarea>
+          </div>
+
+          <!-- Asignación de Asesor Académico en Evaluación de Carta de Aceptación -->
+          <div
+            v-if="canAssignAdvisor && currentProject && (statusForm.typeLabel?.includes('Carta de Aceptación') || statusForm.typeLabel?.includes('Aprobación'))"
+            class="tecnm-card"
+            style="margin-top: 1rem; padding: 0.75rem 1rem; background: var(--tecnm-bg-light, #f8fafc); border: 1px solid var(--tecnm-border-color, #e2e8f0); border-radius: var(--tecnm-radius-md);"
+          >
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.25rem;">
+              <span style="font-weight: 600; font-size: 0.88rem; color: var(--tecnm-blue-primary, #1b396a);">
+                Asignación de Asesor Académico
+              </span>
+              <span v-if="currentProject.advisorName && currentAdvisorLoad !== null" class="tecnm-badge tecnm-badge-info" style="font-size: 0.75rem;">
+                Carga actual: {{ currentAdvisorLoad }} alumno{{ currentAdvisorLoad === 1 ? '' : 's' }}
+              </span>
+            </div>
+            <p style="font-size: 0.78rem; margin-bottom: 0.5rem;" class="tecnm-text-muted">
+              Al validar este documento oficial de empresa, puede asignar o ratificar al asesor de este residente:
+            </p>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+              <div style="flex: 1; min-width: 220px;">
+                <TecnmAutocomplete
+                  v-model="selectedAdvisorId"
+                  endpoint="/v1/advisors"
+                  global-search-source="ADVISORS"
+                  placeholder="Buscar docente asesor..."
+                  :initial-item="initialAdvisorItem"
+                  @select="item => selectedAdvisorCandidate = item"
+                  @clear="selectedAdvisorCandidate = null"
+                />
+              </div>
+              <button
+                type="button"
+                class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                :disabled="isAssigningAdvisor || !selectedAdvisorId || Number(selectedAdvisorId) === Number(currentProject.advisorId)"
+                @click="handleAssignAdvisorInExpediente"
+              >
+                {{ currentProject.advisorName ? 'Cambiar Asesor' : 'Asignar Asesor' }}
+              </button>
+            </div>
+            <div
+              v-if="selectedAdvisorCandidate && (selectedAdvisorCandidate.assignedStudentsCount !== undefined || selectedAdvisorCandidate.assigned_students_count !== undefined)"
+              class="tecnm-text-muted"
+              style="margin-top: 0.35rem; font-size: 0.78rem;"
+            >
+              <span>Carga docente del seleccionado: </span>
+              <strong style="color: var(--tecnm-blue-primary, #1b396a);">
+                {{ selectedAdvisorCandidate.assignedStudentsCount ?? selectedAdvisorCandidate.assigned_students_count }} alumnos asignados
+              </strong>
+            </div>
           </div>
         </div>
 

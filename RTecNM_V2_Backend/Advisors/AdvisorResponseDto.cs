@@ -16,5 +16,6 @@ public record AdvisorResponseDto(
     long? CreatedBy,
     long? UpdatedBy,
     long? DeletedBy,
-    DateTime? DeletedAt
+    DateTime? DeletedAt,
+    int AssignedStudentsCount = 0
 );

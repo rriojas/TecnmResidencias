@@ -32,7 +32,7 @@ public class CareerRepository : ICareerRepository
         }
 
         q = q.ApplySort(query.SortBy, query.SortDir,
-            new[] { "Code", "Name", "Acronym", "CreatedAt" },
+            new[] { "Id", "Code", "Name", "Acronym", "CreatedAt", "IsActive", "DepartmentId" },
             "Name", defaultDescending: false);
 
         return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);

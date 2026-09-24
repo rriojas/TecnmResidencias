@@ -108,6 +108,17 @@ function handlePageChange(newPage) {
   loadCareers()
 }
 
+function handleSort(col) {
+  if (sortBy.value.toLowerCase() === col.toLowerCase()) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortBy.value = col
+    sortDir.value = 'asc'
+  }
+  pageNumber.value = 1
+  loadCareers()
+}
+
 function openCreateModal() {
   isEditing.value = false
   editingId.value = null
@@ -291,12 +302,37 @@ onMounted(() => {
           <table class="tecnm-table">
             <thead>
               <tr>
-                <th style="width: 70px;">ID</th>
-                <th style="width: 100px;">Código</th>
-                <th>Nombre de la Carrera</th>
-                <th style="width: 120px;">Acrónimo</th>
+                <th class="tecnm-th-sortable" style="width: 80px;" @click="handleSort('Id')">
+                  ID
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'id' }">
+                    {{ sortBy.toLowerCase() === 'id' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
+                </th>
+                <th class="tecnm-th-sortable" style="width: 110px;" @click="handleSort('Code')">
+                  Código
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'code' }">
+                    {{ sortBy.toLowerCase() === 'code' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleSort('Name')">
+                  Nombre de la Carrera
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'name' }">
+                    {{ sortBy.toLowerCase() === 'name' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
+                </th>
+                <th class="tecnm-th-sortable" style="width: 130px;" @click="handleSort('Acronym')">
+                  Acrónimo
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'acronym' }">
+                    {{ sortBy.toLowerCase() === 'acronym' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
+                </th>
                 <th>Departamento Asignado</th>
-                <th style="width: 120px; text-align: center;">Estado</th>
+                <th class="tecnm-th-sortable" style="width: 120px; text-align: center;" @click="handleSort('IsActive')">
+                  Estado
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'isactive' }">
+                    {{ sortBy.toLowerCase() === 'isactive' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
+                </th>
                 <th style="width: 160px; text-align: right;">Acciones</th>
               </tr>
             </thead>

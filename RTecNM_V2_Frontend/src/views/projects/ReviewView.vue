@@ -89,6 +89,8 @@ const selectedProject = ref(null)
 const reviewComments = ref('')
 const selectedAdvisorId = ref('')
 const initialReviewAdvisor = ref(null)
+const currentAdvisorLoad = ref(null)
+const selectedAdvisorCandidate = ref(null)
 const accreditationDoc = ref(null)
 const cartaAceptacionDoc = ref(null)
 const isSubmitting = ref(false)
@@ -145,59 +147,17 @@ const filteredCareers = computed(() => {
 })
 
 const sortedProjects = computed(() => {
-  let list = [...projects.value]
-
-  if (authStore.isCareerHead) {
-    list = list.filter((p) => String(p.status || '').toLowerCase() !== 'draft')
-  }
-
-  if (searchTerm.value.trim()) {
-    const term = searchTerm.value.trim().toLowerCase()
-    list = list.filter((p) => {
-      const title = (p.title || '').toLowerCase()
-      const student = (p.studentName || '').toLowerCase()
-      const control = (p.studentControlNumber || '').toLowerCase()
-      const company = (p.companyName || '').toLowerCase()
-      const career = (CAREERS[p.careerId] || p.career || '').toLowerCase()
-      return title.includes(term) || student.includes(term) || control.includes(term) || company.includes(term) || career.includes(term)
-    })
-  }
-
-  const field = sortBy.value
-  const dir = sortDir.value === 'asc' ? 1 : -1
-
-  return list.sort((a, b) => {
-    let valA = ''
-    let valB = ''
-
-    if (field === 'Title') {
-      valA = a.title || ''
-      valB = b.title || ''
-    } else if (field === 'StudentName') {
-      valA = a.studentName || ''
-      valB = b.studentName || ''
-    } else if (field === 'CompanyName') {
-      valA = a.companyName || ''
-      valB = b.companyName || ''
-    } else if (field === 'CreatedAt') {
-      valA = a.createdAt || ''
-      valB = b.createdAt || ''
-    } else if (field === 'Status') {
-      valA = a.status || ''
-      valB = b.status || ''
-    } else {
-      valA = a[field] ?? ''
-      valB = b[field] ?? ''
-    }
-
-    if (typeof valA === 'string') valA = valA.toLowerCase()
-    if (typeof valB === 'string') valB = valB.toLowerCase()
-
-    if (valA < valB) return -1 * dir
-    if (valA > valB) return 1 * dir
-    return 0
-  })
+  return projects.value
 })
+
+let searchTimer = null
+function onSearchInput() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    pageNumber.value = 1
+    loadProjects()
+  }, 300)
+}
 
 async function loadProjects({ silent = false } = {}) {
   if (!silent) isLoading.value = true
@@ -207,6 +167,7 @@ async function loadProjects({ silent = false } = {}) {
       pageSize: pageSize.value,
       sortBy: sortBy.value,
       sortDir: sortDir.value,
+      search: searchTerm.value.trim() || undefined,
       includeInactive: includeInactive.value,
       careerId: selectedCareerFilter.value !== 'all' ? Number(selectedCareerFilter.value) : undefined,
     }
@@ -244,14 +205,16 @@ function handleOpenSearch() {
 }
 
 function handleSort(col) {
-  if (sortBy.value === col) {
+  if (sortBy.value.toLowerCase() === col.toLowerCase()) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
   } else {
     sortBy.value = col
     sortDir.value = 'asc'
   }
+  pageNumber.value = 1
   loadProjects({ silent: true })
 }
+const toggleSort = handleSort
 
 async function openReviewModal(project) {
   try {
@@ -260,6 +223,22 @@ async function openReviewModal(project) {
     reviewComments.value = res.data.reviewComments || ''
     selectedAdvisorId.value = res.data.advisorId || ''
     initialReviewAdvisor.value = res.data.advisorId ? { id: res.data.advisorId, fullName: res.data.advisorName } : null
+    currentAdvisorLoad.value = null
+    selectedAdvisorCandidate.value = null
+
+    if (res.data.advisorId) {
+      try {
+        const advRes = await apiClient.get(`/v1/advisors/${res.data.advisorId}`)
+        currentAdvisorLoad.value = advRes.data?.assignedStudentsCount ?? null
+        initialReviewAdvisor.value = {
+          id: res.data.advisorId,
+          fullName: res.data.advisorName,
+          assignedStudentsCount: advRes.data?.assignedStudentsCount,
+        }
+      } catch {
+        initialReviewAdvisor.value = { id: res.data.advisorId, fullName: res.data.advisorName }
+      }
+    }
     accreditationDoc.value = null
     cartaAceptacionDoc.value = null
 
@@ -392,9 +371,24 @@ async function handleAssignAdvisor() {
     })
     const updatedRes = await apiClient.get(`/v1/projects/${selectedProject.value.id}`)
     selectedProject.value = updatedRes.data
-    initialReviewAdvisor.value = updatedRes.data.advisorId
-      ? { id: updatedRes.data.advisorId, fullName: updatedRes.data.advisorName }
-      : null
+    selectedAdvisorCandidate.value = null
+    if (updatedRes.data.advisorId) {
+      try {
+        const advRes = await apiClient.get(`/v1/advisors/${updatedRes.data.advisorId}`)
+        currentAdvisorLoad.value = advRes.data?.assignedStudentsCount ?? null
+        initialReviewAdvisor.value = {
+          id: updatedRes.data.advisorId,
+          fullName: updatedRes.data.advisorName,
+          assignedStudentsCount: advRes.data?.assignedStudentsCount,
+        }
+      } catch {
+        currentAdvisorLoad.value = null
+        initialReviewAdvisor.value = { id: updatedRes.data.advisorId, fullName: updatedRes.data.advisorName }
+      }
+    } else {
+      currentAdvisorLoad.value = null
+      initialReviewAdvisor.value = null
+    }
     showAlert('Asesor asignado al anteproyecto exitosamente.', 'success')
     loadProjects({ silent: true })
   } catch (err) {
@@ -607,6 +601,7 @@ onMounted(() => {
             type="search"
             class="tecnm-form-control"
             placeholder="Buscar por título, alumno, matrícula..."
+            @input="onSearchInput"
           />
         </div>
 
@@ -660,8 +655,8 @@ onMounted(() => {
                   @click="toggleSort('Title')"
                 >
                   Título del Proyecto
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'Title' }">
-                    {{ sortBy === 'Title' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'title' }">
+                    {{ sortBy.toLowerCase() === 'title' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
@@ -669,8 +664,8 @@ onMounted(() => {
                   @click="toggleSort('StudentName')"
                 >
                   Estudiante y Carrera
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'StudentName' }">
-                    {{ sortBy === 'StudentName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'studentname' }">
+                    {{ sortBy.toLowerCase() === 'studentname' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
@@ -678,8 +673,8 @@ onMounted(() => {
                   @click="toggleSort('CompanyName')"
                 >
                   Empresa / Institución
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'CompanyName' }">
-                    {{ sortBy === 'CompanyName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'companyname' }">
+                    {{ sortBy.toLowerCase() === 'companyname' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
@@ -687,8 +682,8 @@ onMounted(() => {
                   @click="toggleSort('CreatedAt')"
                 >
                   Fecha Registro
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'CreatedAt' }">
-                    {{ sortBy === 'CreatedAt' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'createdat' }">
+                    {{ sortBy.toLowerCase() === 'createdat' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
@@ -696,8 +691,8 @@ onMounted(() => {
                   @click="toggleSort('Status')"
                 >
                   Estado
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'Status' }">
-                    {{ sortBy === 'Status' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'status' }">
+                    {{ sortBy.toLowerCase() === 'status' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th class="tecnm-th-actions">Acciones</th>
@@ -881,14 +876,22 @@ onMounted(() => {
               </div>
               <div>
                 <h4 class="tecnm-field-label">Asesor Interno Asignado</h4>
-                <p class="tecnm-field-value" style="margin-bottom: 0.35rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.35rem;">
                   <span v-if="selectedProject.advisorName" class="tecnm-badge tecnm-badge-success" style="font-size: 0.85rem;">
                     {{ selectedProject.advisorName }}
                   </span>
                   <span v-else class="tecnm-badge tecnm-badge-warning" style="font-size: 0.85rem;">
                     Pendiente de asignación
                   </span>
-                </p>
+                  <span
+                    v-if="selectedProject.advisorName && currentAdvisorLoad !== null"
+                    class="tecnm-badge tecnm-badge-info"
+                    style="font-size: 0.78rem;"
+                    title="Alumnos actualmente asignados a este asesor"
+                  >
+                    {{ currentAdvisorLoad }} alumno{{ currentAdvisorLoad === 1 ? '' : 's' }} asignado{{ currentAdvisorLoad === 1 ? '' : 's' }}
+                  </span>
+                </div>
 
                 <!-- Asignar Asesor Interno directamente debajo del campo cuando esté disponible con Carta de Aceptación -->
                 <div
@@ -903,6 +906,8 @@ onMounted(() => {
                         global-search-source="ADVISORS"
                         placeholder="Buscar asesor académico por nombre..."
                         :initial-item="initialReviewAdvisor"
+                        @select="item => selectedAdvisorCandidate = item"
+                        @clear="selectedAdvisorCandidate = null"
                       />
                     </div>
                     <button
@@ -913,6 +918,16 @@ onMounted(() => {
                     >
                       {{ selectedProject.advisorName ? 'Cambiar Asesor' : 'Asignar Asesor' }}
                     </button>
+                  </div>
+                  <div
+                    v-if="selectedAdvisorCandidate && (selectedAdvisorCandidate.assignedStudentsCount !== undefined || selectedAdvisorCandidate.assigned_students_count !== undefined)"
+                    class="tecnm-text-muted"
+                    style="margin-top: 0.35rem; font-size: 0.8rem;"
+                  >
+                    <span>Carga docente del seleccionado: </span>
+                    <strong style="color: var(--tecnm-blue-primary, #1b396a);">
+                      {{ selectedAdvisorCandidate.assignedStudentsCount ?? selectedAdvisorCandidate.assigned_students_count }} alumnos asignados
+                    </strong>
                   </div>
                 </div>
                 <div

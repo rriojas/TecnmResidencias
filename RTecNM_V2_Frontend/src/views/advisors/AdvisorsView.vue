@@ -256,7 +256,7 @@ function onInactiveToggleChange() {
 }
 
 function handleSort(col) {
-  if (sortBy.value === col) {
+  if (sortBy.value.toLowerCase() === col.toLowerCase()) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
   } else {
     sortBy.value = col
@@ -575,8 +575,8 @@ onMounted(() => {
                   @click="handleSort('FullName')"
                 >
                   Nombre Completo
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'FullName' }">
-                    {{ sortBy === 'FullName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'fullname' }">
+                    {{ sortBy.toLowerCase() === 'fullname' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
@@ -584,8 +584,8 @@ onMounted(() => {
                   @click="handleSort('AdvisorType')"
                 >
                   Tipo de Asesor
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'AdvisorType' }">
-                    {{ sortBy === 'AdvisorType' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'advisortype' }">
+                    {{ sortBy.toLowerCase() === 'advisortype' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
@@ -593,8 +593,8 @@ onMounted(() => {
                   @click="handleSort('Title')"
                 >
                   Título / Grado
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'Title' }">
-                    {{ sortBy === 'Title' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'title' }">
+                    {{ sortBy.toLowerCase() === 'title' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
@@ -602,8 +602,8 @@ onMounted(() => {
                   @click="handleSort('DepartmentId')"
                 >
                   Departamento
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'DepartmentId' }">
-                    {{ sortBy === 'DepartmentId' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'departmentid' }">
+                    {{ sortBy.toLowerCase() === 'departmentid' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
@@ -611,8 +611,8 @@ onMounted(() => {
                   @click="handleSort('Phone')"
                 >
                   Teléfono
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'Phone' }">
-                    {{ sortBy === 'Phone' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'phone' }">
+                    {{ sortBy.toLowerCase() === 'phone' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
@@ -620,8 +620,8 @@ onMounted(() => {
                   @click="handleSort('IsActive')"
                 >
                   Estado
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'IsActive' }">
-                    {{ sortBy === 'IsActive' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'isactive' }">
+                    {{ sortBy.toLowerCase() === 'isactive' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th class="tecnm-th-actions">Acciones</th>

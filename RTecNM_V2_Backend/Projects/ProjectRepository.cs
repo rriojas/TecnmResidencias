@@ -121,7 +121,26 @@ public class ProjectRepository : IProjectRepository
             var term = query.Search.Trim().ToLowerInvariant();
             q = q.Where(p => p.Title.ToLower().Contains(term)
                              || (p.Student != null && (p.Student.FirstName + " " + p.Student.LastName).ToLower().Contains(term))
-                             || (p.Student != null && p.Student.ControlNumber.ToLower().Contains(term)));
+                             || (p.Student != null && p.Student.ControlNumber.ToLower().Contains(term))
+                             || (p.Company != null && p.Company.Name.ToLower().Contains(term)));
+        }
+
+        var isDesc = (query.SortDir ?? "").Equals("desc", StringComparison.OrdinalIgnoreCase);
+
+        if (string.Equals(query.SortBy, "StudentName", StringComparison.OrdinalIgnoreCase))
+        {
+            q = isDesc
+                ? q.OrderByDescending(p => p.Student != null ? p.Student.FirstName : "").ThenByDescending(p => p.Student != null ? p.Student.LastName : "")
+                : q.OrderBy(p => p.Student != null ? p.Student.FirstName : "").ThenBy(p => p.Student != null ? p.Student.LastName : "");
+            return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        }
+
+        if (string.Equals(query.SortBy, "CompanyName", StringComparison.OrdinalIgnoreCase))
+        {
+            q = isDesc
+                ? q.OrderByDescending(p => p.Company != null ? p.Company.Name : "")
+                : q.OrderBy(p => p.Company != null ? p.Company.Name : "");
+            return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
         }
 
         q = q.ApplySort(query.SortBy, query.SortDir,
@@ -174,7 +193,8 @@ public class ProjectRepository : IProjectRepository
             var term = search.Trim().ToLowerInvariant();
             q = q.Where(p => p.Title.ToLower().Contains(term)
                              || (p.Student != null && (p.Student.FirstName + " " + p.Student.LastName).ToLower().Contains(term))
-                             || (p.Student != null && p.Student.ControlNumber.ToLower().Contains(term)));
+                             || (p.Student != null && p.Student.ControlNumber.ToLower().Contains(term))
+                             || (p.Company != null && p.Company.Name.ToLower().Contains(term)));
         }
 
         q = q.ApplySort(sortBy, sortDir,

@@ -28,9 +28,18 @@ public class StudentsController : ControllerBase
 
     [HttpGet]
     [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
-    public async Task<IActionResult> GetAll([FromQuery] PaginationQuery query, [FromQuery] string? status, [FromQuery] bool includeInactive = false, [FromQuery] bool onlyApprovedProject = false, [FromQuery] long? careerId = null)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] PaginationQuery query,
+        [FromQuery] string? status = null,
+        [FromQuery] bool includeInactive = false,
+        [FromQuery] bool onlyApprovedProject = false,
+        [FromQuery] long? careerId = null,
+        [FromQuery] bool excludeEvaluated = false,
+        [FromQuery] string? assignmentStatus = null,
+        [FromQuery] string? acceptanceLetterStatus = null,
+        [FromQuery] string? residencyStage = null)
     {
-        var result = await _studentService.GetPagedAsync(query, status, includeInactive, onlyApprovedProject, careerId);
+        var result = await _studentService.GetPagedAsync(query, status, includeInactive, onlyApprovedProject, careerId, excludeEvaluated, assignmentStatus, acceptanceLetterStatus, residencyStage);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 
@@ -39,9 +48,19 @@ public class StudentsController : ControllerBase
 
     [HttpGet("export")]
     [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
-    public async Task<IActionResult> ExportPdf([FromQuery] string? search, [FromQuery] string? sortBy, [FromQuery] string? sortDir, [FromQuery] bool includeInactive = false, [FromQuery] bool onlyApprovedProject = false, [FromQuery] long? careerId = null)
+    public async Task<IActionResult> ExportPdf(
+        [FromQuery] string? search = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string? sortDir = null,
+        [FromQuery] bool includeInactive = false,
+        [FromQuery] bool onlyApprovedProject = false,
+        [FromQuery] long? careerId = null,
+        [FromQuery] bool excludeEvaluated = false,
+        [FromQuery] string? assignmentStatus = null,
+        [FromQuery] string? acceptanceLetterStatus = null,
+        [FromQuery] string? residencyStage = null)
     {
-        var result = await _studentService.ExportPdfAsync(search, sortBy, sortDir, includeInactive, onlyApprovedProject, careerId);
+        var result = await _studentService.ExportPdfAsync(search, sortBy, sortDir, includeInactive, onlyApprovedProject, careerId, excludeEvaluated, assignmentStatus, acceptanceLetterStatus, residencyStage);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 

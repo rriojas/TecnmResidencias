@@ -525,6 +525,11 @@ onUnmounted(() => {
                         {{ getRowValue(row, col.name) ? 'Activo' : 'Inactivo' }}
                       </span>
                     </template>
+                    <template v-else-if="col.name.toLowerCase() === 'assigned_students_count' || col.name.toLowerCase() === 'assignedstudentscount'">
+                      <span class="tecnm-badge tecnm-badge-info" style="font-size: 0.8rem; font-weight: 600;">
+                        {{ getRowValue(row, col.name) ?? 0 }} alumno{{ Number(getRowValue(row, col.name)) === 1 ? '' : 's' }}
+                      </span>
+                    </template>
                     <template v-else>
                       {{ formatCellValue(getRowValue(row, col.name), col.dataType) }}
                     </template>

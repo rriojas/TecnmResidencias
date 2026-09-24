@@ -584,6 +584,7 @@ SELECT
     a.department_id AS department_id,
     COALESCE(u.email, '') AS email,
     COALESCE(a.phone, '') AS phone,
+    (SELECT COUNT(*)::int FROM students s WHERE s.advisor_id = a.id AND s.is_active = true) AS assigned_students_count,
     a.is_active AS is_active
 FROM advisors a
 LEFT JOIN users u ON a.user_id = u.id

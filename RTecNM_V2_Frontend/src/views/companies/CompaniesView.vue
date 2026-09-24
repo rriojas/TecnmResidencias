@@ -479,6 +479,20 @@ function formatDateDDMMYYYY(dateVal) {
   }
 }
 
+const agreementSortBy = ref('ArchiveId')
+const agreementSortDir = ref('asc')
+
+function handleAgreementSort(col) {
+  if (agreementSortBy.value.toLowerCase() === col.toLowerCase()) {
+    agreementSortDir.value = agreementSortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    agreementSortBy.value = col
+    agreementSortDir.value = 'asc'
+  }
+  agreementPageNumber.value = 1
+  loadAgreements()
+}
+
 async function loadAgreements({ silent = false } = {}) {
   if (!canViewAgreements.value) return
   if (!silent) isAgreementsLoading.value = true
@@ -488,6 +502,8 @@ async function loadAgreements({ silent = false } = {}) {
       pageSize: agreementPageSize.value,
       search: agreementSearchTerm.value.trim() || undefined,
       status: agreementStatusFilter.value !== 'all' ? agreementStatusFilter.value : undefined,
+      sortBy: agreementSortBy.value,
+      sortDir: agreementSortDir.value,
     }
     const res = await apiClient.get('/v1/companies/agreements', { params })
     const data = res.data
@@ -1205,12 +1221,37 @@ onMounted(() => {
           <table class="tecnm-table tecnm-table-striped">
             <thead>
               <tr>
-                <th>ID ARCHIVO</th>
+                <th class="tecnm-th-sortable" @click="handleAgreementSort('ArchiveId')">
+                  ID ARCHIVO
+                  <span class="tecnm-sort-icon" :class="{ active: agreementSortBy.toLowerCase() === 'archiveid' }">
+                    {{ agreementSortBy.toLowerCase() === 'archiveid' ? (agreementSortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
+                </th>
                 <th>ESTATUS</th>
-                <th>VIGENCIA</th>
-                <th>PROCESO</th>
-                <th>PIT</th>
-                <th>CIA</th>
+                <th class="tecnm-th-sortable" @click="handleAgreementSort('ExpirationDate')">
+                  VIGENCIA
+                  <span class="tecnm-sort-icon" :class="{ active: agreementSortBy.toLowerCase() === 'expirationdate' }">
+                    {{ agreementSortBy.toLowerCase() === 'expirationdate' ? (agreementSortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleAgreementSort('ProcessStatus')">
+                  PROCESO
+                  <span class="tecnm-sort-icon" :class="{ active: agreementSortBy.toLowerCase() === 'processstatus' }">
+                    {{ agreementSortBy.toLowerCase() === 'processstatus' ? (agreementSortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleAgreementSort('PitCode')">
+                  PIT
+                  <span class="tecnm-sort-icon" :class="{ active: agreementSortBy.toLowerCase() === 'pitcode' }">
+                    {{ agreementSortBy.toLowerCase() === 'pitcode' ? (agreementSortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleAgreementSort('CiaType')">
+                  CIA
+                  <span class="tecnm-sort-icon" :class="{ active: agreementSortBy.toLowerCase() === 'ciatype' }">
+                    {{ agreementSortBy.toLowerCase() === 'ciatype' ? (agreementSortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
+                </th>
                 <th>EMPRESAS VINCULADAS (SECTOR / ALCANCE TIPO 1)</th>
                 <th class="tecnm-th-actions">Acciones</th>
               </tr>

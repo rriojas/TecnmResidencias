@@ -164,7 +164,7 @@ async function loadModulesData() {
 }
 
 function toggleRoleSort(field) {
-  if (rolesSortBy.value === field) {
+  if (rolesSortBy.value.toLowerCase() === field.toLowerCase()) {
     rolesSortDir.value = rolesSortDir.value === 'asc' ? 'desc' : 'asc'
   } else {
     rolesSortBy.value = field
@@ -323,7 +323,7 @@ async function loadUsersData() {
 }
 
 function toggleUserSort(field) {
-  if (usersSortBy.value === field) {
+  if (usersSortBy.value.toLowerCase() === field.toLowerCase()) {
     usersSortDir.value = usersSortDir.value === 'asc' ? 'desc' : 'asc'
   } else {
     usersSortBy.value = field

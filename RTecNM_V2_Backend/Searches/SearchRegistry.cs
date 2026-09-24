@@ -75,7 +75,8 @@ public class SearchRegistry
                 new() { Name = "title", DisplayName = "Título", Type = "Text", IsSearchable = true },
                 new() { Name = "advisor_type", DisplayName = "Tipo Asesor", Type = "Text", IsSearchable = true },
                 new() { Name = "email", DisplayName = "Correo", Type = "Text", IsSearchable = true },
-                new() { Name = "phone", DisplayName = "Teléfono", Type = "Text", IsSearchable = true }
+                new() { Name = "phone", DisplayName = "Teléfono", Type = "Text", IsSearchable = true },
+                new() { Name = "assigned_students_count", DisplayName = "Alumnos Asignados", Type = "Integer", IsSearchable = true }
             }
         });
 

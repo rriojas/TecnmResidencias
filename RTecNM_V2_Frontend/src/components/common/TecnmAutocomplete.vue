@@ -61,6 +61,15 @@ const props = defineProps({
         const sector = item.sector
         return `RFC: ${rfc}${sector ? ' • ' + sector : ''}`
       }
+      const count = item.assignedStudentsCount ?? item.assigned_students_count
+      if (count !== undefined && count !== null) {
+        const countStr = `${count} alumno${count === 1 ? '' : 's'} asignado${count === 1 ? '' : 's'}`
+        const depto = item.departmentName || item.department_name || item.department
+        if (depto) return `${countStr} • Depto: ${depto}`
+        const type = item.advisorType || item.advisor_type
+        if (type) return `${countStr} • ${type === 'internal' || type === 'Internal' ? 'Interno' : 'Externo'}`
+        return countStr
+      }
       const depto = item.departmentName || item.department_name || item.department
       if (depto) return `Depto: ${depto}`
       const email = item.userEmail || item.user_email || item.email

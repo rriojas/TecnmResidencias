@@ -19,6 +19,7 @@ const { open: openSearch } = useGlobalSearch()
 // Estado
 const students = ref([])
 const includeInactive = ref(false)
+const excludeEvaluated = ref(true)
 const sortBy = ref('ControlNumber')
 const sortDir = ref('asc')
 const searchTerm = ref('')
@@ -181,49 +182,15 @@ const selectedCareerFilter = ref(
     : 'all'
 )
 
+const stageFilter = ref('all')
+
+function onStageFilterChange() {
+  pageNumber.value = 1
+  loadStudents()
+}
+
 const sortedStudents = computed(() => {
-  let list = [...students.value]
-
-  const field = sortBy.value
-  const dir = sortDir.value === 'asc' ? 1 : -1
-
-  return list.sort((a, b) => {
-    let valA = ''
-    let valB = ''
-
-    if (field === 'ControlNumber') {
-      valA = a.controlNumber || ''
-      valB = b.controlNumber || ''
-    } else if (field === 'FullName') {
-      valA = a.fullName || `${a.firstName} ${a.lastName}`
-      valB = b.fullName || `${b.firstName} ${b.lastName}`
-    } else if (field === 'CareerId') {
-      valA = CAREERS.value[a.careerId] || a.career || ''
-      valB = CAREERS.value[b.careerId] || b.career || ''
-    } else if (field === 'Email') {
-      valA = a.email || (a.user ? a.user.email : '')
-      valB = b.email || (b.user ? b.user.email : '')
-    } else if (field === 'IsPresentationLetterSent') {
-      valA = a.isPresentationLetterSent ? 1 : 0
-      valB = b.isPresentationLetterSent ? 1 : 0
-    } else if (field === 'IsActive') {
-      valA = a.isActive ? 1 : 0
-      valB = b.isActive ? 1 : 0
-    } else if (field === 'Gender') {
-      valA = a.gender || ''
-      valB = b.gender || ''
-    } else {
-      valA = a[field] ?? ''
-      valB = b[field] ?? ''
-    }
-
-    if (typeof valA === 'string') valA = valA.toLowerCase()
-    if (typeof valB === 'string') valB = valB.toLowerCase()
-
-    if (valA < valB) return -1 * dir
-    if (valA > valB) return 1 * dir
-    return 0
-  })
+  return students.value
 })
 
 async function loadStudents({ silent = false } = {}) {
@@ -236,7 +203,9 @@ async function loadStudents({ silent = false } = {}) {
       sortDir: sortDir.value,
       search: searchTerm.value.trim() || undefined,
       includeInactive: includeInactive.value,
+      excludeEvaluated: excludeEvaluated.value,
       careerId: selectedCareerFilter.value !== 'all' ? Number(selectedCareerFilter.value) : undefined,
+      residencyStage: stageFilter.value !== 'all' ? stageFilter.value : undefined,
     }
     const res = await apiClient.get('/v1/students', { params })
     const data = res.data
@@ -250,6 +219,32 @@ async function loadStudents({ silent = false } = {}) {
     }
   } finally {
     if (!silent) isLoading.value = false
+  }
+}
+
+function onExcludeEvaluatedChange() {
+  pageNumber.value = 1
+  loadStudents()
+}
+
+function getResidencyStageBadgeClass(stage) {
+  switch (stage) {
+    case 'En Residencia':
+    case 'Concluido / Evaluado':
+      return 'tecnm-badge-success'
+    case 'Dictamen Aprobado':
+    case 'Asesor Asignado':
+      return 'tecnm-badge-primary'
+    case 'Anteproyecto Registrado':
+    case 'Carta Cargada':
+      return 'tecnm-badge-info'
+    case 'Borrador':
+    case 'Carta Pendiente':
+      return 'tecnm-badge-warning'
+    case 'Con Observaciones':
+      return 'tecnm-badge-danger'
+    default:
+      return 'tecnm-badge-secondary'
   }
 }
 
@@ -293,12 +288,13 @@ function onCareerFilterChange() {
 }
 
 function handleSort(col) {
-  if (sortBy.value === col) {
+  if (sortBy.value.toLowerCase() === col.toLowerCase()) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
   } else {
     sortBy.value = col
     sortDir.value = 'asc'
   }
+  pageNumber.value = 1
   loadStudents({ silent: true })
 }
 
@@ -511,7 +507,9 @@ async function handleExportPdf() {
       sortBy: sortBy.value,
       sortDir: sortDir.value,
       includeInactive: includeInactive.value,
+      excludeEvaluated: excludeEvaluated.value,
       careerId: selectedCareerFilter.value !== 'all' ? Number(selectedCareerFilter.value) : undefined,
+      residencyStage: stageFilter.value !== 'all' ? stageFilter.value : undefined,
     }
     const res = await apiClient.get('/v1/students/export', {
       params,
@@ -756,7 +754,38 @@ onMounted(() => {
           </select>
         </div>
 
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <select
+            id="stageFilterSelect"
+            v-model="stageFilter"
+            class="tecnm-form-control"
+            style="min-width: 200px; font-size: 0.85rem;"
+            @change="onStageFilterChange"
+          >
+            <option value="all">Estado Residencia: Todos</option>
+            <option value="Sin Anteproyecto">Sin Anteproyecto</option>
+            <option value="Borrador">Borrador</option>
+            <option value="Anteproyecto Registrado">Anteproyecto Registrado</option>
+            <option value="Dictamen Aprobado">Dictamen Aprobado</option>
+            <option value="Asesor Asignado">Asesor Asignado</option>
+            <option value="En Residencia">En Residencia</option>
+            <option value="Con Observaciones">Con Observaciones</option>
+          </select>
+        </div>
+
         <div class="tecnm-toolbar-actions">
+          <label class="tecnm-switch-label" title="Ocultar estudiantes que ya completaron su ciclo y fueron evaluados">
+            <span class="tecnm-switch">
+              <input
+                id="studentsExcludeEvaluatedToggle"
+                v-model="excludeEvaluated"
+                type="checkbox"
+                @change="onExcludeEvaluatedChange"
+              />
+              <span class="tecnm-switch-slider"></span>
+            </span>
+            Ocultar evaluados
+          </label>
           <label v-if="!authStore.isCareerHead" class="tecnm-switch-label">
             <span class="tecnm-switch">
               <input
@@ -790,8 +819,8 @@ onMounted(() => {
                   @click="handleSort('ControlNumber')"
                 >
                   N° Control
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'ControlNumber' }">
-                    {{ sortBy === 'ControlNumber' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'controlnumber' }">
+                    {{ sortBy.toLowerCase() === 'controlnumber' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
@@ -799,17 +828,8 @@ onMounted(() => {
                   @click="handleSort('FullName')"
                 >
                   Nombre Completo
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'FullName' }">
-                    {{ sortBy === 'FullName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
-                  </span>
-                </th>
-                <th
-                  class="tecnm-th-sortable"
-                  @click="handleSort('Gender')"
-                >
-                  Género
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'Gender' }">
-                    {{ sortBy === 'Gender' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'fullname' }">
+                    {{ sortBy.toLowerCase() === 'fullname' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
@@ -817,8 +837,8 @@ onMounted(() => {
                   @click="handleSort('CareerId')"
                 >
                   Programa Educativo
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'CareerId' }">
-                    {{ sortBy === 'CareerId' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'careerid' }">
+                    {{ sortBy.toLowerCase() === 'careerid' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
@@ -826,26 +846,17 @@ onMounted(() => {
                   @click="handleSort('Email')"
                 >
                   Correo Institucional
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'Email' }">
-                    {{ sortBy === 'Email' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'email' }">
+                    {{ sortBy.toLowerCase() === 'email' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
                   class="tecnm-th-sortable"
-                  @click="handleSort('IsPresentationLetterSent')"
+                  @click="handleSort('ResidencyStage')"
                 >
-                  Carta Presentación
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'IsPresentationLetterSent' }">
-                    {{ sortBy === 'IsPresentationLetterSent' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
-                  </span>
-                </th>
-                <th
-                  class="tecnm-th-sortable"
-                  @click="handleSort('IsActive')"
-                >
-                  Estatus
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'IsActive' }">
-                    {{ sortBy === 'IsActive' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  Estado de las Residencias
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'residencystage' }">
+                    {{ sortBy.toLowerCase() === 'residencystage' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th class="tecnm-th-actions">Acciones</th>
@@ -853,14 +864,14 @@ onMounted(() => {
             </thead>
             <tbody id="studentsTableBody">
               <tr v-if="isLoading">
-                <td colspan="8" class="tecnm-table-empty">
+                <td colspan="6" class="tecnm-table-empty">
                   Cargando catálogo de estudiantes...
                 </td>
               </tr>
               <tr v-else-if="sortedStudents.length === 0">
-                <td colspan="8" class="tecnm-table-empty">
+                <td colspan="6" class="tecnm-table-empty">
                   <span v-if="includeInactive">No hay estudiantes inactivos (deshabilitados) registrados.</span>
-                  <span v-else>No se encontraron estudiantes activos registrados con los filtros seleccionados.</span>
+                  <span v-else>No se encontraron estudiantes registrados con los filtros seleccionados.</span>
                 </td>
               </tr>
               <tr
@@ -869,25 +880,17 @@ onMounted(() => {
                 :key="s.id"
               >
                 <td><strong>{{ s.controlNumber }}</strong></td>
-                <td>{{ s.fullName || `${s.firstName} ${s.lastName}` }}</td>
-                <td>
-                  <span
-                    v-if="s.gender"
-                    class="tecnm-badge"
-                    :style="s.gender === 'Femenino' ? 'background: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8;' : 'background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;'"
-                    style="font-size: 0.75rem; font-weight: 600;"
-                  >
-                    {{ s.gender }}
-                  </span>
-                  <span v-else class="tecnm-text-muted">—</span>
-                </td>
+                <td>{{ s.fullName || `${s.firstName} ${s.lastName} ${s.lastName2 || ''}`.trim() }}</td>
                 <td>{{ CAREERS[s.careerId] || s.career || 'No especificada' }}</td>
                 <td>{{ s.email }}</td>
                 <td>
-                  <TecnmBadge :status="s.isPresentationLetterSent ? 'Aprobado' : 'Pendiente'" />
-                </td>
-                <td>
-                  <TecnmBadge :status="s.isActive ? 'Activo' : 'Inactivo'" />
+                  <span
+                    class="tecnm-badge"
+                    :class="getResidencyStageBadgeClass(s.residencyStage)"
+                    style="font-size: 0.78rem; font-weight: 600;"
+                  >
+                    {{ s.residencyStage || 'Sin Anteproyecto' }}
+                  </span>
                 </td>
                 <td class="tecnm-row-actions">
                   <button

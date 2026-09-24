@@ -70,7 +70,8 @@ public class AdvisorService : IAdvisorService
         var dtos = advisors.Select(a => new AdvisorOptionDto
         {
             Id = a.Id,
-            FullName = a.FullName
+            FullName = a.FullName,
+            AssignedStudentsCount = a.AssignedStudentsCount
         }).ToList();
 
         return Result<List<AdvisorOptionDto>>.Success(dtos);
@@ -455,7 +456,8 @@ public class AdvisorService : IAdvisorService
             advisor.CreatedBy,
             advisor.UpdatedBy,
             advisor.DeletedBy,
-            advisor.DeletedAt
+            advisor.DeletedAt,
+            advisor.AssignedStudentsCount
         );
     }
 

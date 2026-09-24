@@ -301,7 +301,7 @@ function openProjectPicker() {
 }
 
 function toggleSort(field) {
-  if (sortBy.value === field) {
+  if (sortBy.value.toLowerCase() === field.toLowerCase()) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
   } else {
     sortBy.value = field
@@ -310,6 +310,7 @@ function toggleSort(field) {
   pageNumber.value = 1
   loadSessions()
 }
+const handleSort = toggleSort
 
 function changePage(page) {
   pageNumber.value = page
@@ -611,8 +612,8 @@ onMounted(() => {
                   @click="handleSort('sessionDate')"
                 >
                   Fecha
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'sessionDate' }">
-                    {{ sortBy === 'sessionDate' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'sessiondate' }">
+                    {{ sortBy.toLowerCase() === 'sessiondate' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
@@ -620,8 +621,8 @@ onMounted(() => {
                   @click="handleSort('studentName')"
                 >
                   Estudiante
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'studentName' }">
-                    {{ sortBy === 'studentName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'studentname' }">
+                    {{ sortBy.toLowerCase() === 'studentname' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
@@ -629,8 +630,8 @@ onMounted(() => {
                   @click="handleSort('advisorName')"
                 >
                   Asesor
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'advisorName' }">
-                    {{ sortBy === 'advisorName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'advisorname' }">
+                    {{ sortBy.toLowerCase() === 'advisorname' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
@@ -638,8 +639,8 @@ onMounted(() => {
                   @click="handleSort('topicsCovered')"
                 >
                   Temas Abordados
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'topicsCovered' }">
-                    {{ sortBy === 'topicsCovered' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'topicscovered' }">
+                    {{ sortBy.toLowerCase() === 'topicscovered' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th
@@ -647,8 +648,8 @@ onMounted(() => {
                   @click="handleSort('studentAgreements')"
                 >
                   Acuerdos y Compromisos
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'studentAgreements' }">
-                    {{ sortBy === 'studentAgreements' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'studentagreements' }">
+                    {{ sortBy.toLowerCase() === 'studentagreements' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th class="tecnm-th-actions">Acciones</th>

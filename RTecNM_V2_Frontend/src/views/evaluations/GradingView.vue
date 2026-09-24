@@ -269,6 +269,8 @@ async function loadEvaluations() {
     const params = {
       pageNumber: pageNumber.value,
       pageSize: pageSize.value,
+      sortBy: sortBy.value,
+      sortDir: sortDir.value,
     }
 
     const res = await apiClient.get(
@@ -305,12 +307,14 @@ const sortBy = ref('evaluationPeriod')
 const sortDir = ref('asc')
 
 function handleSort(field) {
-  if (sortBy.value === field) {
+  if (sortBy.value.toLowerCase() === field.toLowerCase()) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
   } else {
     sortBy.value = field
     sortDir.value = 'asc'
   }
+  pageNumber.value = 1
+  loadEvaluations()
 }
 
 const sortedEvaluations = computed(() => {
@@ -320,6 +324,11 @@ const sortedEvaluations = computed(() => {
   return list.sort((a, b) => {
     let valA = a[field] ?? ''
     let valB = b[field] ?? ''
+    if (field.toLowerCase() === 'score') {
+      const numA = Number(valA) || 0
+      const numB = Number(valB) || 0
+      return (numA - numB) * dir
+    }
     if (typeof valA === 'string') valA = valA.toLowerCase()
     if (typeof valB === 'string') valB = valB.toLowerCase()
     if (valA < valB) return -1 * dir
@@ -569,32 +578,32 @@ onMounted(() => {
               <tr>
                 <th class="tecnm-th-sortable" @click="handleSort('evaluationPeriod')">
                   Período Evaluado
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'evaluationPeriod' }">
-                    {{ sortBy === 'evaluationPeriod' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'evaluationperiod' }">
+                    {{ sortBy.toLowerCase() === 'evaluationperiod' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('score')">
                   Calificación
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'score' }">
-                    {{ sortBy === 'score' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'score' }">
+                    {{ sortBy.toLowerCase() === 'score' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('studentName')">
                   Estudiante
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'studentName' }">
-                    {{ sortBy === 'studentName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'studentname' }">
+                    {{ sortBy.toLowerCase() === 'studentname' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('feedback')">
                   Observaciones
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'feedback' }">
-                    {{ sortBy === 'feedback' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'feedback' }">
+                    {{ sortBy.toLowerCase() === 'feedback' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('createdAt')">
                   Fecha de Registro
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'createdAt' }">
-                    {{ sortBy === 'createdAt' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'createdat' }">
+                    {{ sortBy.toLowerCase() === 'createdat' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th class="tecnm-th-actions">Acciones</th>
@@ -651,7 +660,7 @@ onMounted(() => {
                 </td>
               </tr>
               <tr
-                v-for="e in evaluations"
+                v-for="e in sortedEvaluations"
                 v-else
                 :key="e.id"
               >

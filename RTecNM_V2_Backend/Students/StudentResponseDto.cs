@@ -8,6 +8,7 @@ public class StudentResponseDto
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string? LastName2 { get; set; }
+    public string FullName { get; set; } = string.Empty;
     public string? Curp { get; set; }
     public string? Gender { get; set; }
     public long CareerId { get; set; }
@@ -22,7 +23,13 @@ public class StudentResponseDto
 
     public bool HasProject { get; set; }
     public bool HasAcceptanceLetter { get; set; }
+    public string? AcceptanceLetterStatus { get; set; }
     public string? ProjectTitle { get; set; }
+    public string? ProjectType { get; set; }
+    public bool IsAccreditation { get; set; }
+    public string? ExemptionReason { get; set; }
+    public string? ProjectStatus { get; set; }
+    public string ResidencyStage { get; set; } = "Sin Anteproyecto";
 
     public bool HasComplementaryActivities { get; set; }
     public bool HasSocialService { get; set; }

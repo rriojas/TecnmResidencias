@@ -85,6 +85,68 @@ const advisorSubtitleExtractor = (item) => {
   return dept || email || ''
 }
 
+function getAcceptanceLetterInfo(student) {
+  if (!student) return { text: 'Pendiente', class: 'tecnm-badge-warning', title: '' }
+  const type = (student.projectType || '').toLowerCase()
+  const title = (student.projectTitle || '').toLowerCase()
+  const exemption = student.exemptionReason || ''
+
+  if (exemption) {
+    return {
+      text: exemption,
+      class: 'tecnm-badge-info',
+      title: `Exento por participación institucional: ${exemption}`,
+    }
+  }
+
+  if (type.includes('hackatec') || title.includes('hackatec')) {
+    return {
+      text: 'Omisión HackaTec',
+      class: 'tecnm-badge-info',
+      title: 'Exento de carta de aceptación por acreditación en HackaTec Nacional',
+    }
+  }
+
+  if (type.includes('innovatec') || title.includes('innovatec')) {
+    return {
+      text: 'Omisión InnovaTecNM',
+      class: 'tecnm-badge-info',
+      title: 'Exento de carta de aceptación por acreditación en InnovaTecNM Nacional',
+    }
+  }
+
+  if (student.isAccreditation) {
+    return {
+      text: 'Omisión Acreditación',
+      class: 'tecnm-badge-info',
+      title: 'Exento de carta de aceptación por acreditación directa',
+    }
+  }
+
+  if (student.hasAcceptanceLetter) {
+    return {
+      text: 'Cargada',
+      class: 'tecnm-badge-success',
+      title: 'Carta de aceptación oficial registrada',
+    }
+  }
+
+  return {
+    text: 'Pendiente',
+    class: 'tecnm-badge-warning',
+    title: 'Pendiente de cargar carta de aceptación oficial',
+  }
+}
+
+function isStudentEligibleForAdvisor(student) {
+  if (!student || !student.hasProject) return false
+  if (student.hasAcceptanceLetter) return true
+  if (student.isAccreditation || student.exemptionReason) return true
+  const type = (student.projectType || '').toLowerCase()
+  const title = (student.projectTitle || '').toLowerCase()
+  return type.includes('innovatec') || type.includes('hackatec') || title.includes('innovatec') || title.includes('hackatec')
+}
+
 async function handleClearIndividual(student) {
   if (!student.advisorId) return
   const confirmed = await confirm({
@@ -130,6 +192,9 @@ async function loadStudents({ silent = false } = {}) {
       sortDir: sortDir.value,
       includeInactive: includeInactive.value,
       onlyApprovedProject: false,
+      excludeEvaluated: true,
+      assignmentStatus: assignmentFilter.value !== 'all' ? assignmentFilter.value : undefined,
+      acceptanceLetterStatus: acceptanceFilter.value !== 'all' ? acceptanceFilter.value : undefined,
     }
     const res = await apiClient.get('/v1/students', { params })
     const data = res.data
@@ -155,9 +220,25 @@ function onSearchInput() {
   }, 300)
 }
 
+const assignmentFilter = ref('all') // 'all' | 'unassigned' | 'assigned'
+const acceptanceFilter = ref('all') // 'all' | 'uploaded' | 'pending' | 'exempt'
+
 function onInactiveToggleChange() {
   pageNumber.value = 1
   loadStudents()
+}
+
+function onFilterChange() {
+  pageNumber.value = 1
+  loadStudents()
+}
+
+function isStudentExempt(student) {
+  if (!student) return false
+  if (student.isAccreditation || student.exemptionReason) return true
+  const type = (student.projectType || '').toLowerCase()
+  const title = (student.projectTitle || '').toLowerCase()
+  return type.includes('hackatec') || title.includes('hackatec') || type.includes('innovatec') || title.includes('innovatec')
 }
 
 const sortedStudents = computed(() => {
@@ -165,7 +246,7 @@ const sortedStudents = computed(() => {
 })
 
 function handleSort(col) {
-  if (sortBy.value === col) {
+  if (sortBy.value.toLowerCase() === col.toLowerCase()) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
   } else {
     sortBy.value = col
@@ -216,7 +297,7 @@ async function openBatchModal() {
   isBatchModalOpen.value = true
   isBatchLoading.value = true
   try {
-    const res = await apiClient.get('/v1/students', { params: { pageNumber: 1, pageSize: 500, includeInactive: false, onlyApprovedProject: false } })
+    const res = await apiClient.get('/v1/students', { params: { pageNumber: 1, pageSize: 500, includeInactive: false, onlyApprovedProject: false, excludeEvaluated: true } })
     const data = res.data
     allStudentsForBatch.value = Array.isArray(data) ? data : (data.items || [])
   } catch {
@@ -228,12 +309,12 @@ async function openBatchModal() {
 
 const filteredBatchStudents = computed(() => {
   const unassigned = (allStudentsForBatch.value.length > 0 ? allStudentsForBatch.value : students.value)
-    .filter(s => !s.advisorId && s.hasProject && s.hasAcceptanceLetter)
+    .filter(s => !s.advisorId && isStudentEligibleForAdvisor(s))
   if (!batchSearch.value.trim()) return unassigned
   const term = batchSearch.value.trim().toLowerCase()
   return unassigned.filter(s =>
     (s.controlNumber || '').toLowerCase().includes(term) ||
-    (s.fullName || `${s.firstName} ${s.lastName}`).toLowerCase().includes(term) ||
+    (s.fullName || `${s.firstName} ${s.lastName} ${s.lastName2 || ''}`).toLowerCase().includes(term) ||
     (s.career || '').toLowerCase().includes(term)
   )
 })
@@ -348,7 +429,7 @@ onMounted(() => {
         <h3 class="tecnm-card-title">Estudiantes y Asesores Asignados</h3>
       </div>
       <div class="tecnm-card-toolbar">
-        <div class="tecnm-form-group tecnm-mb-0 tecnm-search-box" style="margin-bottom: 0; flex: 1; max-width: 480px;">
+        <div class="tecnm-form-group tecnm-mb-0 tecnm-search-box" style="margin-bottom: 0; flex: 1; max-width: 380px;">
           <input
             id="assignmentSearchInput"
             v-model="searchTerm"
@@ -357,6 +438,31 @@ onMounted(() => {
             placeholder="Buscar por alumno, matrícula o correo..."
             @input="onSearchInput"
           />
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <select
+            v-model="assignmentFilter"
+            class="tecnm-form-control"
+            style="min-width: 170px; font-size: 0.85rem;"
+            @change="onFilterChange"
+          >
+            <option value="all">Asignación: Todos</option>
+            <option value="unassigned">Sin Asesor Asignado</option>
+            <option value="assigned">Con Asesor Asignado</option>
+          </select>
+
+          <select
+            v-model="acceptanceFilter"
+            class="tecnm-form-control"
+            style="min-width: 170px; font-size: 0.85rem;"
+            @change="onFilterChange"
+          >
+            <option value="all">Carta: Todas</option>
+            <option value="uploaded">Carta Cargada</option>
+            <option value="pending">Carta Pendiente</option>
+            <option value="exempt">Omisión / Exentos</option>
+          </select>
         </div>
 
         <div class="tecnm-toolbar-actions">
@@ -382,45 +488,70 @@ onMounted(() => {
               <tr>
                 <th class="tecnm-th-sortable" @click="handleSort('ControlNumber')">
                   N° Control
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'ControlNumber' }">
-                    {{ sortBy === 'ControlNumber' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'controlnumber' }">
+                    {{ sortBy.toLowerCase() === 'controlnumber' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('FullName')">
                   Nombre del Estudiante
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'FullName' }">
-                    {{ sortBy === 'FullName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'fullname' }">
+                    {{ sortBy.toLowerCase() === 'fullname' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
-                <th class="tecnm-th-sortable" @click="handleSort('Career')">
-                  Programa Educativo
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'Career' }">
-                    {{ sortBy === 'Career' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                <th class="tecnm-th-sortable" @click="handleSort('ProjectTitle')">
+                  Anteproyecto
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'projecttitle' }">
+                    {{ sortBy.toLowerCase() === 'projecttitle' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
+                </th>
+                <th class="tecnm-th-sortable" @click="handleSort('HasAcceptanceLetter')">
+                  Carta de Aceptación
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'hasacceptanceletter' }">
+                    {{ sortBy.toLowerCase() === 'hasacceptanceletter' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
                 <th class="tecnm-th-sortable" @click="handleSort('AdvisorName')">
                   Asesor Académico Asignado
-                  <span class="tecnm-sort-icon" :class="{ active: sortBy === 'AdvisorName' }">
-                    {{ sortBy === 'AdvisorName' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'advisorname' }">
+                    {{ sortBy.toLowerCase() === 'advisorname' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
-                <th>Estado Asignación</th>
+                <th class="tecnm-th-sortable" @click="handleSort('AdvisorId')">
+                  Estado Asignación
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'advisorid' }">
+                    {{ sortBy.toLowerCase() === 'advisorid' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
+                </th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="isLoading">
-                <td colspan="5" class="tecnm-table-empty">Cargando directorio de asignaciones...</td>
+                <td colspan="6" class="tecnm-table-empty">Cargando directorio de asignaciones...</td>
               </tr>
               <tr v-else-if="sortedStudents.length === 0">
-                <td colspan="5" class="tecnm-table-empty">
+                <td colspan="6" class="tecnm-table-empty">
                   <span v-if="includeInactive">No hay estudiantes inactivos registrados.</span>
                   <span v-else>No se encontraron estudiantes con anteproyecto aceptado/aprobado disponibles para asignación de asesor.</span>
                 </td>
               </tr>
               <tr v-for="s in sortedStudents" v-else :key="s.id">
                 <td><strong>{{ s.controlNumber }}</strong></td>
-                <td>{{ s.fullName || `${s.firstName} ${s.lastName}` }}</td>
-                <td>{{ s.career || 'N/A' }}</td>
+                <td>{{ s.fullName || `${s.firstName} ${s.lastName} ${s.lastName2 || ''}`.trim() }}</td>
+                <td>
+                  <span class="tecnm-text-sub" style="font-weight: 500;" :title="s.projectTitle">
+                    {{ s.projectTitle || 'Sin Anteproyecto' }}
+                  </span>
+                </td>
+                <td>
+                  <span
+                    class="tecnm-badge"
+                    :class="getAcceptanceLetterInfo(s).class"
+                    style="font-size: 0.75rem;"
+                    :title="getAcceptanceLetterInfo(s).title"
+                  >
+                    {{ getAcceptanceLetterInfo(s).text }}
+                  </span>
+                </td>
                 <td class="tecnm-assignment-col">
                   <span v-if="authStore.isReadOnly" class="tecnm-text-sub" style="font-weight: 500;">
                     {{ s.advisorName || 'Sin Asesor Asignado' }}
@@ -428,7 +559,7 @@ onMounted(() => {
                   <span v-else-if="!s.hasProject" class="tecnm-badge tecnm-badge-danger" style="font-size: 0.75rem;" title="El residente aún no registra un anteproyecto">
                     Sin Anteproyecto
                   </span>
-                  <span v-else-if="!s.hasAcceptanceLetter" class="tecnm-badge tecnm-badge-warning" style="font-size: 0.75rem;" title="El residente aún no cuenta con carta de aceptación oficial cargada">
+                  <span v-else-if="!isStudentEligibleForAdvisor(s)" class="tecnm-badge tecnm-badge-warning" style="font-size: 0.75rem;" title="El residente aún no cuenta con carta de aceptación oficial cargada">
                     Sin Carta de Aceptación
                   </span>
                   <TecnmAutocomplete
@@ -514,7 +645,7 @@ onMounted(() => {
           </div>
 
           <div class="tecnm-alert tecnm-alert-info" style="font-size: 0.8125rem; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">
-            ℹ️ Solo se listan estudiantes sin asesor que cuentan con anteproyecto y carta de aceptación oficial registrada.
+            ℹ️ Solo se listan estudiantes sin asesor que cuentan con anteproyecto y carta de aceptación (o exención por InnovaTecNM / HackaTec).
           </div>
 
           <div class="tecnm-table-responsive" style="max-height: 320px; overflow-y: auto; border: 1px solid var(--tecnm-border-color); border-radius: 6px;">
@@ -541,7 +672,7 @@ onMounted(() => {
                     <input type="checkbox" :value="st.id" v-model="selectedStudentIds" />
                   </td>
                   <td><strong>{{ st.controlNumber }}</strong></td>
-                  <td>{{ st.fullName || `${st.firstName} ${st.lastName}` }}</td>
+                  <td>{{ st.fullName || `${st.firstName} ${st.lastName} ${st.lastName2 || ''}`.trim() }}</td>
                   <td>
                     <span v-if="st.advisorName" class="tecnm-text-muted">{{ st.advisorName }}</span>
                     <span v-else class="tecnm-badge tecnm-badge-warning" style="font-size: 0.7rem;">Sin Asesor</span>

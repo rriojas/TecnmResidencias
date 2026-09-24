@@ -48,7 +48,23 @@ public class AdvisorRepository : IAdvisorRepository
             new[] { "FullName", "Title", "AdvisorType", "CreatedAt", "Phone", "IsActive", "DepartmentId" },
             "CreatedAt", defaultDescending: true);
 
-        return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        var result = await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        if (result.Items.Any())
+        {
+            var advisorIds = result.Items.Select(a => a.Id).ToList();
+            var counts = await _context.Students
+                .Where(s => s.AdvisorId.HasValue && advisorIds.Contains(s.AdvisorId.Value) && s.IsActive)
+                .GroupBy(s => s.AdvisorId!.Value)
+                .Select(g => new { AdvisorId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.AdvisorId, x => x.Count);
+
+            foreach (var advisor in result.Items)
+            {
+                advisor.AssignedStudentsCount = counts.TryGetValue(advisor.Id, out var count) ? count : 0;
+            }
+        }
+
+        return result;
     }
 
     public async Task<List<Advisor>> GetAllForExportAsync(string? search, string? sortBy, string? sortDir, bool includeInactive = false, long? departmentId = null)
@@ -94,8 +110,23 @@ public class AdvisorRepository : IAdvisorRepository
             q = q.Where(a => a.AdvisorType == AdvisorType.Internal);
         }
 
-        return await q.OrderBy(a => a.FullName)
-            .ToListAsync();
+        var advisors = await q.OrderBy(a => a.FullName).ToListAsync();
+        if (advisors.Count > 0)
+        {
+            var advisorIds = advisors.Select(a => a.Id).ToList();
+            var counts = await _context.Students
+                .Where(s => s.AdvisorId.HasValue && advisorIds.Contains(s.AdvisorId.Value) && s.IsActive)
+                .GroupBy(s => s.AdvisorId!.Value)
+                .Select(g => new { AdvisorId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.AdvisorId, x => x.Count);
+
+            foreach (var advisor in advisors)
+            {
+                advisor.AssignedStudentsCount = counts.TryGetValue(advisor.Id, out var count) ? count : 0;
+            }
+        }
+
+        return advisors;
     }
 
     public async Task<Advisor?> GetByIdAsync(long id)
@@ -107,6 +138,12 @@ public class AdvisorRepository : IAdvisorRepository
         if (advisor != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
             if (advisor.AdvisorType != AdvisorType.Internal) return null;
+        }
+
+        if (advisor != null)
+        {
+            advisor.AssignedStudentsCount = await _context.Students
+                .CountAsync(s => s.AdvisorId == advisor.Id && s.IsActive);
         }
 
         return advisor;
@@ -121,6 +158,12 @@ public class AdvisorRepository : IAdvisorRepository
         if (advisor != null && _currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
             if (advisor.AdvisorType != AdvisorType.Internal) return null;
+        }
+
+        if (advisor != null)
+        {
+            advisor.AssignedStudentsCount = await _context.Students
+                .CountAsync(s => s.AdvisorId == advisor.Id && s.IsActive);
         }
 
         return advisor;

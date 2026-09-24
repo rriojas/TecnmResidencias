@@ -33,7 +33,7 @@ public class DocumentRepository : IDocumentRepository
         }
 
         q = q.ApplySort(query.SortBy, query.SortDir,
-            new[] { "FileName", "DocumentType", "UploadedAt" },
+            new[] { "FileName", "DocumentType", "UploadedAt", "FileSize", "Status", "CreatedAt" },
             "UploadedAt", defaultDescending: true);
 
         return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);

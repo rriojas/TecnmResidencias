@@ -70,8 +70,11 @@ public class EvaluationRepository : IEvaluationRepository
             .Include(e => e.Project)
                 .ThenInclude(p => p!.Student)
                 .ThenInclude(s => s!.User)
-            .Where(e => e.ProjectId == projectId && e.IsActive)
-            .OrderBy(e => e.CreatedAt);
+            .Where(e => e.ProjectId == projectId && e.IsActive);
+
+        q = q.ApplySort(query.SortBy, query.SortDir,
+            new[] { "EvaluationPeriod", "Score", "CreatedAt" },
+            "EvaluationPeriod", defaultDescending: false);
 
         return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
     }
@@ -152,8 +155,26 @@ public class EvaluationRepository : IEvaluationRepository
                              || (s.StudentAgreements != null && s.StudentAgreements.ToLower().Contains(term)));
         }
 
+        var isDesc = (query.SortDir ?? "").Equals("desc", StringComparison.OrdinalIgnoreCase);
+
+        if (string.Equals(query.SortBy, "StudentName", StringComparison.OrdinalIgnoreCase))
+        {
+            q = isDesc
+                ? q.OrderByDescending(s => s.Project != null && s.Project.Student != null ? s.Project.Student.FirstName : "").ThenByDescending(s => s.Project != null && s.Project.Student != null ? s.Project.Student.LastName : "")
+                : q.OrderBy(s => s.Project != null && s.Project.Student != null ? s.Project.Student.FirstName : "").ThenBy(s => s.Project != null && s.Project.Student != null ? s.Project.Student.LastName : "");
+            return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        }
+
+        if (string.Equals(query.SortBy, "AdvisorName", StringComparison.OrdinalIgnoreCase))
+        {
+            q = isDesc
+                ? q.OrderByDescending(s => s.Advisor != null ? s.Advisor.FullName : "")
+                : q.OrderBy(s => s.Advisor != null ? s.Advisor.FullName : "");
+            return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        }
+
         q = q.ApplySort(query.SortBy, query.SortDir,
-            new[] { "SessionDate", "CreatedAt" },
+            new[] { "SessionDate", "CreatedAt", "TopicsCovered", "StudentAgreements" },
             "SessionDate", defaultDescending: true);
 
         return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
@@ -189,8 +210,26 @@ public class EvaluationRepository : IEvaluationRepository
                              || (s.StudentAgreements != null && s.StudentAgreements.ToLower().Contains(term)));
         }
 
+        var isDesc = (query.SortDir ?? "").Equals("desc", StringComparison.OrdinalIgnoreCase);
+
+        if (string.Equals(query.SortBy, "StudentName", StringComparison.OrdinalIgnoreCase))
+        {
+            q = isDesc
+                ? q.OrderByDescending(s => s.Project != null && s.Project.Student != null ? s.Project.Student.FirstName : "").ThenByDescending(s => s.Project != null && s.Project.Student != null ? s.Project.Student.LastName : "")
+                : q.OrderBy(s => s.Project != null && s.Project.Student != null ? s.Project.Student.FirstName : "").ThenBy(s => s.Project != null && s.Project.Student != null ? s.Project.Student.LastName : "");
+            return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        }
+
+        if (string.Equals(query.SortBy, "AdvisorName", StringComparison.OrdinalIgnoreCase))
+        {
+            q = isDesc
+                ? q.OrderByDescending(s => s.Advisor != null ? s.Advisor.FullName : "")
+                : q.OrderBy(s => s.Advisor != null ? s.Advisor.FullName : "");
+            return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        }
+
         q = q.ApplySort(query.SortBy, query.SortDir,
-            new[] { "SessionDate", "CreatedAt" },
+            new[] { "SessionDate", "CreatedAt", "TopicsCovered", "StudentAgreements" },
             "SessionDate", defaultDescending: true);
 
         return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
