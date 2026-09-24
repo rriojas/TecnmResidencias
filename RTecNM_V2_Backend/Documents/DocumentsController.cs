@@ -68,6 +68,16 @@ public class DocumentsController : ControllerBase
 
             if (!projectResult.Data.CanUploadDocuments && !isStaff && !isPreApprovalDoc)
                 return StatusCode(400, new { message = "El anteproyecto aún no ha sido aprobado. En esta etapa solo se requiere cargar la Carta de Aceptación / Aprobación de la empresa." });
+
+            if (!isStaff && (dto.DocumentType.Equals(DocumentType.Formato29V2, StringComparison.OrdinalIgnoreCase) || dto.DocumentType.Equals(DocumentType.Formato30, StringComparison.OrdinalIgnoreCase)))
+            {
+                var docsResult = await _documentService.GetByProjectPagedAsync(dto.ProjectId, new PaginationQuery { PageNumber = 1, PageSize = 100 });
+                var f29 = docsResult.Data?.Items.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Formato29, StringComparison.OrdinalIgnoreCase));
+                if (f29 == null || !string.Equals(f29.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase))
+                {
+                    return StatusCode(400, new { message = "No se permite la subida del Formato 29 (segunda entrega) ni Formato 30. El primer Formato 29 debe estar previamente entregado y aprobado por la Coordinación." });
+                }
+            }
         }
 
         try

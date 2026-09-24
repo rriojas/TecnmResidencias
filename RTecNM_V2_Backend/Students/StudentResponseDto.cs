@@ -12,6 +12,7 @@ public class StudentResponseDto
     public string? Curp { get; set; }
     public string? Gender { get; set; }
     public long CareerId { get; set; }
+    public string? CareerName { get; set; }
     public long? AdvisorId { get; set; }
     public DateTime? AdvisorAssignedAt { get; set; }
     public string? AdvisorName { get; set; }
@@ -22,6 +23,7 @@ public class StudentResponseDto
     public DateTime? PresentationLetterSentAt { get; set; }
 
     public bool HasProject { get; set; }
+    public long? ProjectId { get; set; }
     public bool HasAcceptanceLetter { get; set; }
     public string? AcceptanceLetterStatus { get; set; }
     public string? ProjectTitle { get; set; }
@@ -37,6 +39,14 @@ public class StudentResponseDto
 
     public bool IsBlocked { get; set; }
     public string? BlockReason { get; set; }
+
+    public DateTime? Formato29Deadline { get; set; }
+    public DateTime? Formato30Deadline { get; set; }
+    public string? Formato29Status { get; set; }
+    public string? Formato29V2Status { get; set; }
+    public string? Formato30Status { get; set; }
+    public bool CanUploadSecondPhase { get; set; }
+    public bool IsDocumentBlocked { get; set; }
 
     public bool IsActive { get; set; }
     public bool IsVisible { get; set; }

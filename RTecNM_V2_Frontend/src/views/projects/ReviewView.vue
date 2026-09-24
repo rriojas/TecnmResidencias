@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useConfirm } from '@/composables/useConfirm'
 import { useAudit } from '@/composables/useAudit'
@@ -93,6 +93,9 @@ const currentAdvisorLoad = ref(null)
 const selectedAdvisorCandidate = ref(null)
 const accreditationDoc = ref(null)
 const cartaAceptacionDoc = ref(null)
+const isPreviewModalOpen = ref(false)
+const previewDoc = ref(null)
+const previewObjectUrl = ref(null)
 const isSubmitting = ref(false)
 
 const canAssignAdvisor = computed(() => {
@@ -261,17 +264,36 @@ async function openReviewModal(project) {
 
 async function openDoc(doc) {
   if (!doc?.id) return
+  previewDoc.value = doc
+  isPreviewModalOpen.value = true
+  if (previewObjectUrl.value) {
+    window.URL.revokeObjectURL(previewObjectUrl.value)
+    previewObjectUrl.value = null
+  }
   try {
     const res = await apiClient.get(`/v1/documents/${doc.id}/download`, {
       responseType: 'blob',
     })
     const file = new Blob([res.data], { type: res.headers['content-type'] || 'application/pdf' })
-    const fileUrl = window.URL.createObjectURL(file)
-    window.open(fileUrl, '_blank')
+    previewObjectUrl.value = window.URL.createObjectURL(file)
   } catch {
-    showAlert('Error al abrir el documento.', 'danger')
+    showAlert('Error al cargar la vista previa del documento.', 'danger')
+    closePreviewModal()
   }
 }
+
+function closePreviewModal() {
+  isPreviewModalOpen.value = false
+  if (previewObjectUrl.value) {
+    window.URL.revokeObjectURL(previewObjectUrl.value)
+    previewObjectUrl.value = null
+  }
+  previewDoc.value = null
+}
+
+onUnmounted(() => {
+  closePreviewModal()
+})
 
 async function downloadDoc(doc, defaultFileName) {
   if (!doc?.id) return
@@ -852,13 +874,22 @@ onMounted(() => {
                       Subido: {{ formatTecNMDate(accreditationDoc.uploadedAt) }} &bull; Estado: <TecnmBadge :status="accreditationDoc.status" />
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
-                    @click="downloadAccreditationDoc"
-                  >
-                    Descargar / Ver Constancia &rarr;
-                  </button>
+                  <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <button
+                      type="button"
+                      class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                      @click="openDoc(accreditationDoc)"
+                    >
+                      Ver Constancia &rarr;
+                    </button>
+                    <button
+                      type="button"
+                      class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                      @click="downloadAccreditationDoc"
+                    >
+                      Descargar
+                    </button>
+                  </div>
                 </div>
                 <div v-else class="tecnm-text-muted" style="font-size: 0.875rem;">
                   No se encontró archivo de constancia cargado en el expediente.
@@ -1157,6 +1188,70 @@ onMounted(() => {
             @click="isReviewModalOpen = false"
           >
             Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Vista Previa de Documento (Carta de Aceptación / Constancia) -->
+    <div
+      v-if="isPreviewModalOpen"
+      id="previewDocModal"
+      class="tecnm-modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      style="z-index: 1060;"
+      @click.self="closePreviewModal"
+    >
+      <div class="tecnm-modal" style="max-width: 950px; width: 92vw; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="tecnm-modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 class="tecnm-modal-title">
+            Vista Previa: <span id="previewDocName">{{ previewDoc?.fileName }}</span>
+          </h3>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <button
+              v-if="previewDoc"
+              type="button"
+              class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+              @click="downloadDoc(previewDoc, previewDoc.fileName)"
+            >
+              Descargar
+            </button>
+            <button
+              type="button"
+              class="tecnm-modal-close"
+              aria-label="Cerrar vista previa"
+              @click="closePreviewModal"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+        <div
+          class="tecnm-modal-body"
+          style="flex: 1; min-height: 520px; height: 75vh; padding: 0; background-color: var(--tecnm-gray-100); display: flex; align-items: center; justify-content: center; overflow: hidden;"
+        >
+          <div v-if="!previewObjectUrl" class="tecnm-spinner"></div>
+          <img
+            v-else-if="previewDoc?.fileName?.toLowerCase().endsWith('.png') || previewDoc?.fileName?.toLowerCase().endsWith('.jpg') || previewDoc?.fileName?.toLowerCase().endsWith('.jpeg')"
+            :src="previewObjectUrl"
+            alt="Vista previa del documento"
+            style="max-width: 100%; max-height: 100%; object-fit: contain;"
+          />
+          <embed
+            v-else
+            :src="previewObjectUrl"
+            type="application/pdf"
+            style="width: 100%; height: 100%; border: none;"
+          />
+        </div>
+        <div class="tecnm-modal-footer">
+          <button
+            type="button"
+            class="tecnm-btn tecnm-btn-secondary"
+            @click="closePreviewModal"
+          >
+            Cerrar Vista Previa
           </button>
         </div>
       </div>

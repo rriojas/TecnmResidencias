@@ -141,6 +141,12 @@ echo -e "\n${CYAN}[4/6] Aplicando actualización a los contenedores en producci�
 # Asegurar que Postgres esté arriba si no lo estaba (sin re-crear volumen)
 docker compose up -d postgres
 
+# Aplicar migraciones SQL aditivas e idempotentes si existen
+if [ -f "${SCRIPT_DIR}/docs/database/add_document_deadlines_to_students.sql" ]; then
+    echo -e "   ${CYAN}🗄️  Asegurando columnas de fechas límite en PostgreSQL...${NC}"
+    docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" < "${SCRIPT_DIR}/docs/database/add_document_deadlines_to_students.sql" > /dev/null 2>&1 || true
+fi
+
 # Recrear backend con la nueva imagen preservando volúmenes de uploads
 echo -e "   ${CYAN}🔄 Actualizando contenedor de Backend API...${NC}"
 docker compose up -d --no-deps backend

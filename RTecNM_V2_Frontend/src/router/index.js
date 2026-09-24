@@ -211,6 +211,28 @@ const routes = [
     },
   },
   {
+    path: '/admin/document-deadlines',
+    name: 'CoordinatorDocumentDeadlines',
+    component: () => import('@/views/admin/CoordinatorDocumentDeadlines.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Fechas Límite de Formatos - Sistema de Residencias',
+      roles: ['admin', 'departmenthead', 'jefecarrera', 'careerhead', 'coordinadora', 'coordinator'],
+      navActive: 'admin',
+    },
+  },
+  {
+    path: '/admin/document-deadlines/:id',
+    name: 'StudentFormatReview',
+    component: () => import('@/views/admin/StudentFormatReviewView.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Revisión de Formatos - Sistema de Residencias',
+      roles: ['admin', 'departmenthead', 'jefecarrera', 'careerhead', 'coordinadora', 'coordinator'],
+      navActive: 'admin',
+    },
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/dashboard',
   },

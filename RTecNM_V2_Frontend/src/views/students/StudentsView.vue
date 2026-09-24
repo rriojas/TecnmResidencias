@@ -193,6 +193,22 @@ const sortedStudents = computed(() => {
   return students.value
 })
 
+// Formato de fecha para display
+const MONTH_NAMES_ES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+]
+
+function formatTecNMDate(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return '—'
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = MONTH_NAMES_ES[d.getMonth()]
+  const year = d.getFullYear()
+  return `${day}/${month}/${year}`
+}
+
 async function loadStudents({ silent = false } = {}) {
   if (!silent) isLoading.value = true
   try {
@@ -840,17 +856,23 @@ onMounted(() => {
                     {{ sortBy.toLowerCase() === 'residencystage' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
                   </span>
                 </th>
+                <th class="tecnm-th-sortable">
+                  Fecha Formato 29
+                </th>
+                <th class="tecnm-th-sortable">
+                  Fecha Formato 30
+                </th>
                 <th class="tecnm-th-actions">Acciones</th>
               </tr>
             </thead>
             <tbody id="studentsTableBody">
               <tr v-if="isLoading">
-                <td colspan="6" class="tecnm-table-empty">
+                <td colspan="8" class="tecnm-table-empty">
                   Cargando catálogo de estudiantes...
                 </td>
               </tr>
               <tr v-else-if="sortedStudents.length === 0">
-                <td colspan="6" class="tecnm-table-empty">
+                <td colspan="8" class="tecnm-table-empty">
                   <span v-if="includeInactive">No hay estudiantes inactivos (deshabilitados) registrados.</span>
                   <span v-else>No se encontraron estudiantes registrados con los filtros seleccionados.</span>
                 </td>
@@ -873,6 +895,8 @@ onMounted(() => {
                     {{ s.residencyStage || 'Sin Anteproyecto' }}
                   </span>
                 </td>
+                <td>{{ formatTecNMDate(s.formato29Deadline) }}</td>
+                <td>{{ formatTecNMDate(s.formato30Deadline) }}</td>
                 <td class="tecnm-row-actions">
                   <button
                     v-if="authStore.isAdmin || authStore.hasRole('vinculacion')"

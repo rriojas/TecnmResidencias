@@ -568,6 +568,12 @@ public static class DbSeeder
                     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='has_special_requirements') THEN
                         ALTER TABLE students ADD COLUMN has_special_requirements boolean NOT NULL DEFAULT false;
                     END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='formato_29_deadline') THEN
+                        ALTER TABLE students ADD COLUMN formato_29_deadline timestamp with time zone NULL;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='formato_30_deadline') THEN
+                        ALTER TABLE students ADD COLUMN formato_30_deadline timestamp with time zone NULL;
+                    END IF;
                 END IF;
 
                 -- Create student_blocks table if not exists

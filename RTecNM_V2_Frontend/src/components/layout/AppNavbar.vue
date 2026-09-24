@@ -168,9 +168,12 @@ const showRoles = computed(() => authStore.isAdmin)
 
 const showSettings = computed(() => authStore.isAdmin)
 const showCareers = computed(() => authStore.isAdmin)
+const showDeadlines = computed(
+  () => authStore.isAdmin || authStore.isCoordinator || authStore.isCareerHead || authStore.hasRole('departmenthead', 'academic')
+)
 
 const showAdminGroup = computed(() =>
-  showReports.value || showRoles.value || showCareers.value || showSettings.value
+  showReports.value || showRoles.value || showCareers.value || showSettings.value || showDeadlines.value
 )
 </script>
 
@@ -592,6 +595,22 @@ const showAdminGroup = computed(() =>
                     </svg>
                   </span>
                   Configuración del Sistema
+                </router-link>
+              </li>
+              <li v-if="showDeadlines">
+                <router-link
+                  to="/admin/document-deadlines"
+                  class="tecnm-nav-item"
+                  :class="{ active: route.path === '/admin/document-deadlines' }"
+                  data-nav-icon="calendar"
+                  @click="closeAll"
+                >
+                  <span class="tecnm-nav-item-icon" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.253 3.75m3 0a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5m16.5 0v11.25a2.25 2.25 0 0 1-2.25 2.25H5.25a2.25 2.25 0 0 1-2.25-2.25V6.75m16.5 0v3.75m-16.5-3.75h16.5" />
+                    </svg>
+                  </span>
+                  Fechas Límite (Formatos)
                 </router-link>
               </li>
             </ul>

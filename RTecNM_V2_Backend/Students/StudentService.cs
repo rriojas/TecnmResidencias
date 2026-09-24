@@ -71,26 +71,40 @@ public class StudentService : IStudentService
             .ToListAsync();
 
         var projectIds = projects.Select(p => p.Id).ToList();
-        var acceptedDocuments = await _context.Documents
+        var projectDocuments = await _context.Documents
             .Where(d => projectIds.Contains(d.ProjectId) && d.IsActive &&
                 (d.DocumentType == DocumentType.CartaAceptacion ||
                  d.DocumentType == DocumentType.CartaAprobacion ||
-                 d.DocumentType == DocumentType.ConstanciaAcreditacion))
-            .Select(d => new { d.ProjectId, d.Status })
+                 d.DocumentType == DocumentType.ConstanciaAcreditacion ||
+                 d.DocumentType == DocumentType.Formato29 ||
+                 d.DocumentType == DocumentType.Formato29V2 ||
+                 d.DocumentType == DocumentType.Formato30))
+            .OrderByDescending(d => d.Id)
             .ToListAsync();
 
-        var docByProject = acceptedDocuments
+        var docsByProject = projectDocuments
             .GroupBy(d => d.ProjectId)
-            .ToDictionary(g => g.Key, g => g.First());
+            .ToDictionary(g => g.Key, g => g.ToList());
 
         var projectByStudent = projects
             .GroupBy(p => p.StudentId)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.Id).First());
 
+        var careerIds = paged.Items.Select(s => s.CareerId).Distinct().ToList();
+        var careers = await _context.Careers
+            .Where(c => careerIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id, c => c.Name);
+
         var dtos = paged.Items.Select(s =>
         {
             var dto = MapToResponseDto(s);
             dto.FullName = $"{s.FirstName} {s.LastName} {s.LastName2}".Trim().Replace("  ", " ");
+            dto.Formato29Deadline = s.Formato29Deadline;
+            dto.Formato30Deadline = s.Formato30Deadline;
+            if (careers.TryGetValue(s.CareerId, out var cName))
+            {
+                dto.CareerName = cName;
+            }
 
             if (projectByStudent.TryGetValue(s.Id, out var proj))
             {
@@ -117,10 +131,56 @@ public class StudentService : IStudentService
                     dto.ExemptionReason = "Omisión por Acreditación";
                 }
 
-                if (docByProject.TryGetValue(proj.Id, out var doc))
+                if (docsByProject.TryGetValue(proj.Id, out var pDocs))
                 {
-                    dto.HasAcceptanceLetter = true;
-                    dto.AcceptanceLetterStatus = doc.Status.ToString().ToLowerInvariant();
+                    var acceptanceDoc = pDocs.FirstOrDefault(d => 
+                        d.DocumentType == DocumentType.CartaAceptacion ||
+                        d.DocumentType == DocumentType.CartaAprobacion ||
+                        d.DocumentType == DocumentType.ConstanciaAcreditacion);
+
+                    if (acceptanceDoc != null)
+                    {
+                        dto.HasAcceptanceLetter = true;
+                        dto.AcceptanceLetterStatus = acceptanceDoc.Status.ToString().ToLowerInvariant();
+                    }
+
+                    var f29 = pDocs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Formato29, StringComparison.OrdinalIgnoreCase));
+                    var f29v2 = pDocs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Formato29V2, StringComparison.OrdinalIgnoreCase));
+                    var f30 = pDocs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Formato30, StringComparison.OrdinalIgnoreCase));
+
+                    dto.Formato29Status = f29?.Status ?? "not_uploaded";
+                    dto.Formato29V2Status = f29v2?.Status ?? "not_uploaded";
+                    dto.Formato30Status = f30?.Status ?? "not_uploaded";
+
+                    bool f29Approved = f29 != null && string.Equals(f29.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
+                    dto.CanUploadSecondPhase = f29Approved;
+
+                    bool isDocBlocked = false;
+                    if (s.Formato29Deadline.HasValue && DateTime.UtcNow > s.Formato29Deadline.Value && !f29Approved)
+                    {
+                        isDocBlocked = true;
+                    }
+                    else if (s.Formato30Deadline.HasValue && DateTime.UtcNow > s.Formato30Deadline.Value)
+                    {
+                        bool f29v2Approved = f29v2 != null && string.Equals(f29v2.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
+                        bool f30Approved = f30 != null && string.Equals(f30.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
+                        if (!f29v2Approved || !f30Approved)
+                        {
+                            isDocBlocked = true;
+                        }
+                    }
+                    dto.IsDocumentBlocked = isDocBlocked;
+                }
+                else
+                {
+                    dto.Formato29Status = "not_uploaded";
+                    dto.Formato29V2Status = "not_uploaded";
+                    dto.Formato30Status = "not_uploaded";
+                    dto.CanUploadSecondPhase = false;
+                    if (s.Formato29Deadline.HasValue && DateTime.UtcNow > s.Formato29Deadline.Value)
+                    {
+                        dto.IsDocumentBlocked = true;
+                    }
                 }
 
                 // Determinar Estado de las Residencias
@@ -233,6 +293,8 @@ public class StudentService : IStudentService
             return Result<StudentResponseDto>.Failure("Estudiante no encontrado", 404);
 
         var dto = MapToResponseDto(student);
+        var career = await _context.Careers.FirstOrDefaultAsync(c => c.Id == student.CareerId);
+        dto.CareerName = career?.Name;
         var project = await _projectRepository.GetByStudentIdAsync(id);
         await EnrichWithProjectDetailsAsync(dto, student, project);
 
@@ -260,6 +322,7 @@ public class StudentService : IStudentService
         if (project != null && project.IsActive)
         {
             dto.HasProject = true;
+            dto.ProjectId = project.Id;
             dto.ProjectTitle = project.Title;
             dto.ProjectType = project.ProjectType;
             dto.ProjectStatus = project.Status.ToString().ToLowerInvariant();
@@ -1303,6 +1366,207 @@ public class StudentService : IStudentService
         return Result<List<StudentBlock>>.Success(history);
     }
 
+    public async Task<Result<StudentDeadlineInfoDto>> GetStudentDocumentDeadlinesAsync(long id)
+    {
+        var student = await _studentRepository.GetByIdAsync(id);
+        if (student is null)
+            return Result<StudentDeadlineInfoDto>.Failure("Estudiante no encontrado", 404);
+
+        return await BuildStudentDeadlineInfoAsync(student);
+    }
+
+    public async Task<Result<StudentDeadlineInfoDto>> GetMyDocumentDeadlinesAsync(long userId)
+    {
+        var student = await _context.Students
+            .Include(s => s.User)
+            .FirstOrDefaultAsync(s => s.UserId == userId && s.IsActive);
+
+        if (student is null)
+            return Result<StudentDeadlineInfoDto>.Failure("Perfil de estudiante no encontrado", 404);
+
+        return await BuildStudentDeadlineInfoAsync(student);
+    }
+
+    private async Task<Result<StudentDeadlineInfoDto>> BuildStudentDeadlineInfoAsync(Student student)
+    {
+        var project = await _context.Projects
+            .Where(p => p.StudentId == student.Id && p.IsActive)
+            .OrderByDescending(p => p.Id)
+            .FirstOrDefaultAsync();
+
+        var docs = project != null
+            ? await _context.Documents
+                .Where(d => d.ProjectId == project.Id && d.IsActive)
+                .OrderByDescending(d => d.Id)
+                .ToListAsync()
+            : new List<Document>();
+
+        var f29 = docs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Formato29, StringComparison.OrdinalIgnoreCase));
+        var f29v2 = docs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Formato29V2, StringComparison.OrdinalIgnoreCase));
+        var f30 = docs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Formato30, StringComparison.OrdinalIgnoreCase));
+
+        bool hasApprovedProject = project != null &&
+            (project.Status == ProjectStatus.Approved || project.Status == ProjectStatus.InProgress || project.Status == ProjectStatus.Completed);
+
+        var acceptanceDoc = docs.FirstOrDefault(d =>
+            (d.DocumentType.Equals(DocumentType.CartaAceptacion, StringComparison.OrdinalIgnoreCase) ||
+             d.DocumentType.Equals(DocumentType.CartaAprobacion, StringComparison.OrdinalIgnoreCase) ||
+             d.DocumentType.Equals(DocumentType.ConstanciaAcreditacion, StringComparison.OrdinalIgnoreCase)) &&
+            d.IsActive);
+
+        bool hasApprovedAcceptanceLetter = acceptanceDoc != null &&
+            string.Equals(acceptanceDoc.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
+
+        bool isEligibleForDeadlines = hasApprovedProject && hasApprovedAcceptanceLetter;
+
+        bool canUploadSecondPhase = f29 != null && string.Equals(f29.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
+
+        bool isBlocked = false;
+        string? blockedReason = null;
+
+        var f29Deadline = student.Formato29Deadline;
+        var f30Deadline = student.Formato30Deadline;
+        if (!f29Deadline.HasValue || !f30Deadline.HasValue)
+        {
+            var global = await _settingService.GetGlobalDocumentDeadlinesAsync();
+            if (!f29Deadline.HasValue) f29Deadline = global.Formato29Deadline;
+            if (!f30Deadline.HasValue) f30Deadline = global.Formato30Deadline;
+        }
+
+        if (isEligibleForDeadlines)
+        {
+            if (f29Deadline.HasValue && DateTime.UtcNow > f29Deadline.Value)
+            {
+                if (f29 == null || !string.Equals(f29.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase))
+                {
+                    isBlocked = true;
+                    blockedReason = "La fecha límite del Formato 29 ha vencido y requiere validación de la coordinación.";
+                }
+            }
+
+            if (f30Deadline.HasValue && DateTime.UtcNow > f30Deadline.Value)
+            {
+                bool f29v2Ok = f29v2 != null && string.Equals(f29v2.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
+                bool f30Ok = f30 != null && string.Equals(f30.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
+                if (!f29v2Ok || !f30Ok)
+                {
+                    isBlocked = true;
+                    blockedReason = "La fecha límite de entrega de los Formatos 29 (segunda entrega) y 30 ha vencido.";
+                }
+            }
+        }
+
+        return Result<StudentDeadlineInfoDto>.Success(new StudentDeadlineInfoDto
+        {
+            StudentId = student.Id,
+            ControlNumber = student.ControlNumber,
+            FirstName = student.FirstName,
+            LastName = student.LastName,
+            LastName2 = student.LastName2 ?? string.Empty,
+            FullName = $"{student.FirstName} {student.LastName} {student.LastName2}".Trim().Replace("  ", " "),
+            Formato29Deadline = f29Deadline,
+            Formato30Deadline = f30Deadline,
+            Formato29Status = f29?.Status ?? "not_uploaded",
+            Formato29RejectionReason = f29?.RejectionReason,
+            Formato29V2Status = f29v2?.Status ?? "not_uploaded",
+            Formato29V2RejectionReason = f29v2?.RejectionReason,
+            Formato30Status = f30?.Status ?? "not_uploaded",
+            Formato30RejectionReason = f30?.RejectionReason,
+            CanUploadSecondPhase = canUploadSecondPhase,
+            HasApprovedProject = hasApprovedProject,
+            HasApprovedAcceptanceLetter = hasApprovedAcceptanceLetter,
+            IsEligibleForFormatDeadlines = isEligibleForDeadlines,
+            IsDocumentBlocked = isBlocked,
+            BlockedReason = blockedReason
+        });
+    }
+
+    public async Task<Result<bool>> UpdateStudentDocumentDeadlinesAsync(long id, UpdateStudentDocumentDeadlinesDto dto)
+    {
+        var student = await _studentRepository.GetByIdAsync(id);
+        if (student is null)
+            return Result<bool>.Failure("Estudiante no encontrado", 404);
+
+        if (dto.Formato29Deadline.HasValue)
+        {
+            student.Formato29Deadline = dto.Formato29Deadline.Value;
+        }
+
+        if (dto.Formato30Deadline.HasValue)
+        {
+            student.Formato30Deadline = dto.Formato30Deadline.Value;
+        }
+
+        await _studentRepository.UpdateAsync(student);
+        return Result<bool>.Success(true);
+    }
+
+    public async Task<Result<StudentFormatDocumentsDto>> GetStudentFormatDocumentsAsync(long id)
+    {
+        var student = await _context.Students
+            .Include(s => s.User)
+            .FirstOrDefaultAsync(s => s.Id == id && s.IsActive);
+
+        if (student == null)
+            return Result<StudentFormatDocumentsDto>.Failure("Estudiante no encontrado.", 404);
+
+        var project = await _context.Projects
+            .Where(p => p.StudentId == student.Id && p.IsActive)
+            .OrderByDescending(p => p.Id)
+            .FirstOrDefaultAsync();
+
+        var docs = project != null
+            ? await _context.Documents
+                .Where(d => d.ProjectId == project.Id && d.IsActive)
+                .OrderByDescending(d => d.Id)
+                .ToListAsync()
+            : new List<Document>();
+
+        var docDtos = docs.Select(d => new DocumentResponseDto
+        {
+            Id = d.Id,
+            ProjectId = d.ProjectId,
+            DocumentType = d.DocumentType,
+            FileName = d.FileName,
+            FilePath = d.FilePath,
+            FileSize = d.FileSize,
+            ContentType = d.ContentType,
+            Status = d.Status,
+            RejectionReason = d.RejectionReason,
+            UploadedAt = d.UploadedAt,
+            IsActive = d.IsActive,
+            IsVisible = d.IsVisible,
+            DisplayOrder = d.DisplayOrder,
+            CreatedAt = d.CreatedAt,
+            UpdatedAt = d.UpdatedAt,
+            CreatedBy = d.CreatedBy,
+            UpdatedBy = d.UpdatedBy,
+            DeletedBy = d.DeletedBy,
+            DeletedAt = d.DeletedAt
+        }).ToList();
+
+        return Result<StudentFormatDocumentsDto>.Success(new StudentFormatDocumentsDto
+        {
+            StudentId = student.Id,
+            ControlNumber = student.ControlNumber,
+            FullName = $"{student.FirstName} {student.LastName} {student.LastName2}".Trim().Replace("  ", " "),
+            ProjectId = project?.Id,
+            ProjectTitle = project?.Title,
+            Documents = docDtos
+        });
+    }
+
+    public async Task<Result<GlobalDocumentDeadlinesDto>> GetGlobalDocumentDeadlinesAsync()
+    {
+        var global = await _settingService.GetGlobalDocumentDeadlinesAsync();
+        return Result<GlobalDocumentDeadlinesDto>.Success(global);
+    }
+
+    public async Task<Result<bool>> UpdateGlobalDocumentDeadlinesAsync(GlobalDocumentDeadlinesDto dto, long userId)
+    {
+        return await _settingService.UpdateGlobalDocumentDeadlinesAsync(dto, userId);
+    }
+
     private static StudentResponseDto MapToResponseDto(Student student)
     {
         var activeBlock = student.Blocks?.FirstOrDefault(b => b.IsActive);
@@ -1319,6 +1583,7 @@ public class StudentService : IStudentService
             Curp = student.Curp,
             Gender = student.Gender,
             CareerId = student.CareerId,
+            CareerName = null,
             AdvisorId = student.AdvisorId,
             AdvisorAssignedAt = student.AdvisorAssignedAt,
             AdvisorName = student.Advisor?.FullName,

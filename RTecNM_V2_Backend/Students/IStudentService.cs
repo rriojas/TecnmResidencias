@@ -24,4 +24,10 @@ public interface IStudentService
     Task<Result<bool>> BlockStudentAsync(long studentId, string reason);
     Task<Result<bool>> UnblockStudentAsync(long studentId);
     Task<Result<List<StudentBlock>>> GetBlockHistoryAsync(long studentId);
+    Task<Result<StudentDeadlineInfoDto>> GetStudentDocumentDeadlinesAsync(long id);
+    Task<Result<StudentDeadlineInfoDto>> GetMyDocumentDeadlinesAsync(long userId);
+    Task<Result<bool>> UpdateStudentDocumentDeadlinesAsync(long id, UpdateStudentDocumentDeadlinesDto dto);
+    Task<Result<StudentFormatDocumentsDto>> GetStudentFormatDocumentsAsync(long id);
+    Task<Result<GlobalDocumentDeadlinesDto>> GetGlobalDocumentDeadlinesAsync();
+    Task<Result<bool>> UpdateGlobalDocumentDeadlinesAsync(GlobalDocumentDeadlinesDto dto, long userId);
 }

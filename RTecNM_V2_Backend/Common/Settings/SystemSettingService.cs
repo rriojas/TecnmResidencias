@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using MimeKit;
 using TecNM.Residency.Common.Notifications;
+using TecNM.Residency.Students;
 
 namespace TecNM.Residency.Common.Settings;
 
@@ -433,5 +434,98 @@ public class SystemSettingService : ISystemSettingService
     </div>
 </body>
 </html>";
+    }
+
+    public async Task<GlobalDocumentDeadlinesDto> GetGlobalDocumentDeadlinesAsync()
+    {
+        var settings = await _context.SystemSettings
+            .Where(s => s.Key == "documents.formato29_deadline" || s.Key == "documents.formato30_deadline")
+            .ToDictionaryAsync(s => s.Key, s => s);
+
+        DateTime? f29 = null;
+        DateTime? f30 = null;
+        DateTime? lastUpdated = null;
+
+        if (settings.TryGetValue("documents.formato29_deadline", out var s29) && !string.IsNullOrWhiteSpace(s29.Value))
+        {
+            if (DateTime.TryParse(s29.Value, out var parsed29))
+                f29 = DateTime.SpecifyKind(parsed29, DateTimeKind.Utc);
+            lastUpdated = s29.UpdatedAt;
+        }
+
+        if (settings.TryGetValue("documents.formato30_deadline", out var s30) && !string.IsNullOrWhiteSpace(s30.Value))
+        {
+            if (DateTime.TryParse(s30.Value, out var parsed30))
+                f30 = DateTime.SpecifyKind(parsed30, DateTimeKind.Utc);
+            if (!lastUpdated.HasValue || s30.UpdatedAt > lastUpdated.Value)
+                lastUpdated = s30.UpdatedAt;
+        }
+
+        return new GlobalDocumentDeadlinesDto
+        {
+            Formato29Deadline = f29,
+            Formato30Deadline = f30,
+            UpdatedAt = lastUpdated
+        };
+    }
+
+    public async Task<Result<bool>> UpdateGlobalDocumentDeadlinesAsync(GlobalDocumentDeadlinesDto dto, long userId)
+    {
+        var now = DateTime.UtcNow;
+
+        var setting29 = await _context.SystemSettings.FirstOrDefaultAsync(s => s.Key == "documents.formato29_deadline");
+        if (setting29 == null)
+        {
+            setting29 = new SystemSetting
+            {
+                Key = "documents.formato29_deadline",
+                Description = "Fecha límite global para entrega de Formato 29 (Primer Seguimiento)"
+            };
+            _context.SystemSettings.Add(setting29);
+        }
+        setting29.Value = dto.Formato29Deadline.HasValue ? dto.Formato29Deadline.Value.ToString("O") : string.Empty;
+        setting29.UpdatedAt = now;
+        setting29.UpdatedBy = userId;
+
+        var setting30 = await _context.SystemSettings.FirstOrDefaultAsync(s => s.Key == "documents.formato30_deadline");
+        if (setting30 == null)
+        {
+            setting30 = new SystemSetting
+            {
+                Key = "documents.formato30_deadline",
+                Description = "Fecha límite global para entrega de Formato 30 y Formato 29v2"
+            };
+            _context.SystemSettings.Add(setting30);
+        }
+        setting30.Value = dto.Formato30Deadline.HasValue ? dto.Formato30Deadline.Value.ToString("O") : string.Empty;
+        setting30.UpdatedAt = now;
+        setting30.UpdatedBy = userId;
+
+        await _context.SaveChangesAsync();
+
+        // Propagar globalmente a estudiantes activos
+        if (dto.Formato29Deadline.HasValue)
+        {
+            await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE students SET formato_29_deadline = {0} WHERE is_active = true", dto.Formato29Deadline.Value);
+        }
+        else
+        {
+            await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE students SET formato_29_deadline = NULL WHERE is_active = true");
+        }
+
+        if (dto.Formato30Deadline.HasValue)
+        {
+            await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE students SET formato_30_deadline = {0} WHERE is_active = true", dto.Formato30Deadline.Value);
+        }
+        else
+        {
+            await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE students SET formato_30_deadline = NULL WHERE is_active = true");
+        }
+
+        return Result<bool>.Success(true);
     }
 }

@@ -37,6 +37,69 @@ const canAssignAdvisor = computed(() => {
   )
 })
 
+// Fechas límite y estados de formatos para estudiante
+const studentDeadlineInfo = ref({
+  formato29Deadline: null,
+  formato30Deadline: null,
+  formato29Status: 'not_uploaded',
+  formato29RejectionReason: null,
+  formato29V2Status: 'not_uploaded',
+  formato29V2RejectionReason: null,
+  formato30Status: 'not_uploaded',
+  formato30RejectionReason: null,
+  canUploadSecondPhase: false,
+  isDocumentBlocked: false,
+  blockedReason: null
+})
+
+async function fetchStudentDeadlineInfo() {
+  if (!isStudent.value) return
+  try {
+    const res = await apiClient.get('/v1/students/me/document-deadlines')
+    if (res.data) {
+      studentDeadlineInfo.value = res.data
+    }
+  } catch (err) {
+    console.error('Error al cargar fechas límite:', err)
+  }
+}
+
+const MONTH_NAMES_ES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+]
+
+function formatTecNMDate(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return '—'
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = MONTH_NAMES_ES[d.getMonth()]
+  const year = d.getFullYear()
+  return `${day}/${month}/${year}`
+}
+
+// Helper para verificar si la fecha límite ha pasado
+function isDeadlinePassed(deadline) {
+  if (!deadline) return false
+  const now = new Date()
+  const deadlineDate = new Date(deadline)
+  return now > deadlineDate
+}
+
+// Helper para obtener el estado de la fecha límite
+function getDeadlineStatus(deadline) {
+  if (!deadline) return 'Sin fecha límite'
+  if (isDeadlinePassed(deadline)) {
+    return 'Vencida'
+  }
+  const daysLeft = Math.ceil((new Date(deadline) - new Date()) / (1000 * 60 * 60 * 24))
+  if (daysLeft <= 3) {
+    return `Vence en ${daysLeft} día(s)`
+  }
+  return `Vence en ${daysLeft} días`
+}
+
 // Modo de visualización: 'matrix' (tabla general para staff) o 'detail' (expediente de un proyecto)
 const viewMode = ref('matrix')
 const matrixItems = ref([])
@@ -253,6 +316,9 @@ const documentTypeLabels = {
   manual_usuario: 'Manual de Usuario',
   manual_tecnico: 'Manual Técnico',
   libranza: 'Oficio de Liberación',
+  formato_29: 'Formato 29 (Primer Seguimiento)',
+  formato_29v2: 'Formato 29 (Segundo Seguimiento)',
+  formato_30: 'Formato 30 (Evaluación Final)',
   otro: 'Otro / Evidencia',
 }
 
@@ -264,21 +330,6 @@ function showAlert(message, type = 'info') {
       alertMessage.value = ''
     }
   }, 5000)
-}
-
-const MONTH_NAMES_ES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-]
-
-function formatTecNMDate(iso) {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return '—'
-  const day = String(d.getDate()).padStart(2, '0')
-  const month = MONTH_NAMES_ES[d.getMonth()]
-  const year = d.getFullYear()
-  return `${day}/${month}/${year}`
 }
 
 function formatFileSize(bytes) {
@@ -605,11 +656,19 @@ function changePage(page) {
 }
 
 // Modal Subida
-function openUploadModal() {
+async function openUploadModal() {
   if (!currentProject.value?.id) {
     showAlert('Debe seleccionar o registrar un anteproyecto primero.', 'warning')
     return
   }
+
+  if (isStudent.value) {
+    await fetchStudentDeadlineInfo()
+    if (studentDeadlineInfo.value.isDocumentBlocked) {
+      showAlert(studentDeadlineInfo.value.blockedReason || 'Acceso restringido: Las fechas límite han vencido. Únicamente puede cargar los formatos requeridos pendientes.', 'warning')
+    }
+  }
+
   if (!isStaff.value && isProjectReadOnly.value) {
     if (isProjectCompleted.value) {
       showAlert('El expediente de este proyecto concluido se encuentra en modo solo lectura.', 'info')
@@ -618,9 +677,23 @@ function openUploadModal() {
     }
     return
   }
+
+  let defaultDocType = !isProjectApproved.value ? 'carta_aceptacion' : ''
+  if (isStudent.value && studentDeadlineInfo.value.isDocumentBlocked) {
+    if (studentDeadlineInfo.value.formato29Status !== 'approved') {
+      defaultDocType = 'formato_29'
+    } else if (studentDeadlineInfo.value.formato29V2Status !== 'approved' && studentDeadlineInfo.value.formato30Status === 'approved') {
+      defaultDocType = 'formato_29v2'
+    } else if (studentDeadlineInfo.value.formato30Status !== 'approved' && studentDeadlineInfo.value.formato29V2Status === 'approved') {
+      defaultDocType = 'formato_30'
+    } else {
+      defaultDocType = 'formato_29v2'
+    }
+  }
+
   uploadForm.value = {
     projectId: currentProject.value?.id || null,
-    documentType: !isProjectApproved.value ? 'carta_aceptacion' : '',
+    documentType: defaultDocType,
     file: null,
   }
   uploadInitialProject.value = currentProject.value
@@ -686,6 +759,34 @@ async function handleUploadSubmit() {
   if (!uploadForm.value.file) {
     showAlert('Seleccione un archivo PDF o imagen válido.', 'danger')
     return
+  }
+
+  // Validación de orden de formatos para estudiantes
+  if (isStudent.value) {
+    // Obtener documentos existentes para este proyecto
+    const existingDocs = documents.value || []
+    const tipoSeleccionado = uploadForm.value.documentType.toLowerCase()
+
+    // Regla: Formato 29v2 y Formato 30 requieren que Formato 29 esté aprobado por la Coordinación
+    if (tipoSeleccionado === 'formato_29v2' || tipoSeleccionado === 'formato_30') {
+      if (!studentDeadlineInfo.value.canUploadSecondPhase) {
+        showAlert('No se puede subir Formato 29 (segunda entrega) ni Formato 30. Primero debe ser validado y aprobado el Formato 29 por la Coordinación.', 'warning')
+        return
+      }
+    }
+
+    // Regla: Restricción de subida si fecha límite ha vencido
+    if (studentDeadlineInfo.value.isDocumentBlocked) {
+      if (studentDeadlineInfo.value.formato29Status !== 'approved' && tipoSeleccionado !== 'formato_29') {
+        showAlert('La fecha límite del Formato 29 ha vencido. Únicamente tiene permitido cargar el Formato 29 pendiente.', 'warning')
+        return
+      }
+      if ((studentDeadlineInfo.value.formato29V2Status !== 'approved' || studentDeadlineInfo.value.formato30Status !== 'approved') &&
+          tipoSeleccionado !== 'formato_29v2' && tipoSeleccionado !== 'formato_30') {
+        showAlert('La fecha límite para los formatos finales ha vencido. Únicamente tiene permitido cargar el Formato 29v2 o Formato 30.', 'warning')
+        return
+      }
+    }
   }
 
   if (isStudent.value && !isProjectApproved.value) {
@@ -1127,6 +1228,30 @@ onMounted(() => {
         </button>
       </div>
 
+      <!-- Banner de Bloqueo por Fecha Límite en Expediente -->
+      <div
+        v-if="isStudent && studentDeadlineInfo.isDocumentBlocked"
+        class="tecnm-card tecnm-mb-3"
+        style="border-left: 5px solid #dc2626; background: #fff5f5;"
+      >
+        <div class="tecnm-card-body" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#dc2626" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+            </svg>
+            <div>
+              <strong style="color: #dc2626; font-size: 1rem;">Entrega Retrasada: Sistema Restringido</strong>
+              <p style="margin: 0.25rem 0 0 0; color: #7f1d1d; font-size: 0.875rem;">
+                {{ studentDeadlineInfo.blockedReason || 'La fecha límite de formatos obligatorios ha vencido. Sus operaciones se limitan a subir o corregir los formatos pendientes.' }}
+              </p>
+            </div>
+          </div>
+          <button type="button" class="tecnm-btn tecnm-btn-primary tecnm-btn-sm" @click="openUploadModal">
+            Subir Formato Requerido
+          </button>
+        </div>
+      </div>
+
       <!-- Widget Institucional: Asignación y Carga de Asesor Académico -->
       <div v-if="currentProject" class="tecnm-card" style="margin-bottom: 1.25rem; border: 1px solid var(--tecnm-border-color, #e2e8f0);">
         <div class="tecnm-card-header" style="background: var(--tecnm-bg-light, #f8fafc); padding: 0.75rem 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
@@ -1479,14 +1604,100 @@ onMounted(() => {
               required
             >
               <option value="">-- Seleccionar Tipo --</option>
-              <option value="carta_aceptacion">Carta de Aceptación / Aprobación *</option>
-              <option v-if="isProjectApproved || isStaff" value="solicitud">Solicitud de Residencia Profesional</option>
-              <option v-if="isProjectApproved || isStaff" value="dictamen">Dictamen de Aprobación</option>
-              <option v-if="isProjectApproved || isStaff" value="manual_usuario">Manual de Usuario</option>
-              <option v-if="isProjectApproved || isStaff" value="manual_tecnico">Manual Técnico</option>
-              <option v-if="isProjectApproved || isStaff" value="libranza">Oficio de Liberación</option>
-              <option value="otro">Otro / Evidencia Adicional</option>
+              <option
+                v-if="!isStudent || (!studentDeadlineInfo.isDocumentBlocked && !isProjectApproved)"
+                value="carta_aceptacion"
+              >
+                Carta de Aceptación / Aprobación *
+              </option>
+              <option
+                v-if="!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status !== 'approved')"
+                value="formato_29"
+              >
+                Formato 29 (Primer Seguimiento)
+              </option>
+              <option
+                v-if="(!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
+                value="formato_29v2"
+              >
+                Formato 29 (Segundo Seguimiento)
+              </option>
+              <option
+                v-if="(!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
+                value="formato_30"
+              >
+                Formato 30 (Evaluación Final)
+              </option>
+              <option v-if="(isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="solicitud">Solicitud de Residencia Profesional</option>
+              <option v-if="(isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="dictamen">Dictamen de Aprobación</option>
+              <option v-if="(isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="manual_usuario">Manual de Usuario</option>
+              <option v-if="(isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="manual_tecnico">Manual Técnico</option>
+              <option v-if="(isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="libranza">Oficio de Liberación</option>
+              <option v-if="!isStudent || !studentDeadlineInfo.isDocumentBlocked" value="otro">Otro / Evidencia Adicional</option>
             </select>
+
+            <div
+              v-if="isStudent && studentDeadlineInfo.isDocumentBlocked"
+              style="margin-top: 0.5rem; padding: 0.5rem 0.75rem; background: #fff5f5; border: 1px solid #fecaca; border-radius: 4px; color: #b91c1c; font-size: 0.85rem;"
+            >
+              <strong>Atención:</strong> Acceso restringido por fecha límite vencida. Únicamente puede cargar y entregar los formatos oficiales pendientes ({{ studentDeadlineInfo.formato29Status !== 'approved' ? 'Formato 29' : 'Formato 29v2 y Formato 30' }}).
+            </div>
+
+            <small
+              v-if="isStudent && !studentDeadlineInfo.canUploadSecondPhase && !studentDeadlineInfo.isDocumentBlocked"
+              class="tecnm-form-hint"
+              style="color: var(--tecnm-gray-600); margin-top: 0.35rem; display: block;"
+            >
+              * Los formatos de entrega final (Formato 29v2 y Formato 30) se habilitarán únicamente una vez que su primer Formato 29 sea validado y aprobado por la Coordinación.
+            </small>
+
+            <!-- Panel informativo de Fecha Límite según formato -->
+            <div
+              v-if="uploadForm.documentType === 'formato_29' && studentDeadlineInfo.formato29Deadline"
+              class="tecnm-card"
+              style="margin-top: 0.5rem; padding: 0.6rem 0.8rem; background: #F8FAFC; border-left: 4px solid var(--tecnm-blue-primary);"
+            >
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.875rem;">
+                <strong>Fecha Límite Formato 29:</strong>
+                <span
+                  class="tecnm-badge"
+                  :class="isDeadlinePassed(studentDeadlineInfo.formato29Deadline) ? 'tecnm-badge-danger' : 'tecnm-badge-info'"
+                >
+                  {{ formatTecNMDate(studentDeadlineInfo.formato29Deadline) }} ({{ getDeadlineStatus(studentDeadlineInfo.formato29Deadline) }})
+                </span>
+              </div>
+              <p v-if="studentDeadlineInfo.formato29RejectionReason" style="margin: 0.35rem 0 0 0; color: #dc2626; font-size: 0.825rem;">
+                <strong>Corrección solicitada por coordinación:</strong> {{ studentDeadlineInfo.formato29RejectionReason }}
+              </p>
+            </div>
+
+            <div
+              v-else-if="(uploadForm.documentType === 'formato_29v2' || uploadForm.documentType === 'formato_30') && studentDeadlineInfo.formato30Deadline"
+              class="tecnm-card"
+              style="margin-top: 0.5rem; padding: 0.6rem 0.8rem; background: #F8FAFC; border-left: 4px solid var(--tecnm-gold-accent);"
+            >
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.875rem;">
+                <strong>Fecha Límite Entrega Final (29v2 y 30):</strong>
+                <span
+                  class="tecnm-badge"
+                  :class="isDeadlinePassed(studentDeadlineInfo.formato30Deadline) ? 'tecnm-badge-danger' : 'tecnm-badge-info'"
+                >
+                  {{ formatTecNMDate(studentDeadlineInfo.formato30Deadline) }} ({{ getDeadlineStatus(studentDeadlineInfo.formato30Deadline) }})
+                </span>
+              </div>
+              <p
+                v-if="uploadForm.documentType === 'formato_29v2' && studentDeadlineInfo.formato29V2RejectionReason"
+                style="margin: 0.35rem 0 0 0; color: #dc2626; font-size: 0.825rem;"
+              >
+                <strong>Corrección solicitada (Formato 29v2):</strong> {{ studentDeadlineInfo.formato29V2RejectionReason }}
+              </p>
+              <p
+                v-if="uploadForm.documentType === 'formato_30' && studentDeadlineInfo.formato30RejectionReason"
+                style="margin: 0.35rem 0 0 0; color: #dc2626; font-size: 0.825rem;"
+              >
+                <strong>Corrección solicitada (Formato 30):</strong> {{ studentDeadlineInfo.formato30RejectionReason }}
+              </p>
+            </div>
           </div>
 
           <div class="tecnm-form-group">

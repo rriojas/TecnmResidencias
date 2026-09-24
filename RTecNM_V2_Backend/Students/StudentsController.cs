@@ -259,10 +259,73 @@ public class StudentsController : ControllerBase
     }
 
     [HttpGet("{id}/blocks")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
     public async Task<IActionResult> GetBlockHistory(long id)
     {
         var result = await _studentService.GetBlockHistoryAsync(id);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
+
+    [HttpGet("me/document-deadlines")]
+    [Authorize]
+    public async Task<IActionResult> GetMyDocumentDeadlines()
+    {
+        var result = await _studentService.GetMyDocumentDeadlinesAsync(_currentUser.UserId);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
+
+    [HttpGet("{id}/document-deadlines")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
+    public async Task<IActionResult> GetDocumentDeadlines(long id)
+    {
+        var result = await _studentService.GetStudentDocumentDeadlinesAsync(id);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
+
+    [HttpPatch("{id}/document-deadlines")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
+    public async Task<IActionResult> UpdateDocumentDeadlines(long id, [FromBody] UpdateStudentDocumentDeadlinesDto dto)
+    {
+        var result = await _studentService.UpdateStudentDocumentDeadlinesAsync(id, dto);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
+
+    [HttpGet("document-deadlines/global")]
+    [Authorize]
+    public async Task<IActionResult> GetGlobalDocumentDeadlines()
+    {
+        var result = await _studentService.GetGlobalDocumentDeadlinesAsync();
+        return Ok(result.Data);
+    }
+
+    [HttpPut("document-deadlines/global")]
+    [Authorize(Roles = "admin,coordinator,coordinadora,jefecarrera,careerhead,departmenthead,director")]
+    public async Task<IActionResult> UpdateGlobalDocumentDeadlines([FromBody] GlobalDocumentDeadlinesDto dto)
+    {
+        var result = await _studentService.UpdateGlobalDocumentDeadlinesAsync(dto, _currentUser.UserId);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
+
+        return Ok(new { message = "Fechas límite globales actualizadas exitosamente." });
+    }
+
+    [HttpGet("{id}/format-documents")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator,advisor")]
+    public async Task<IActionResult> GetStudentFormatDocuments(long id)
+    {
+        var result = await _studentService.GetStudentFormatDocumentsAsync(id);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 

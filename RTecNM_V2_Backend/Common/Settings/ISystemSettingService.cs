@@ -1,3 +1,5 @@
+using TecNM.Residency.Students;
+
 namespace TecNM.Residency.Common.Settings;
 
 public interface ISystemSettingService
@@ -9,4 +11,7 @@ public interface ISystemSettingService
     Task<Result<bool>> UpdatePresentationLetterTemplateAsync(string htmlContent, long userId);
     Task<Result<string>> UploadWordTemplateAsync(Stream wordStream, long userId);
     Task<Result<bool>> ResetPresentationLetterTemplateAsync(long userId);
+    Task<GlobalDocumentDeadlinesDto> GetGlobalDocumentDeadlinesAsync();
+    Task<Result<bool>> UpdateGlobalDocumentDeadlinesAsync(GlobalDocumentDeadlinesDto dto, long userId);
 }
+

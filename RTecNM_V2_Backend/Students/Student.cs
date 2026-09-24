@@ -23,6 +23,9 @@ public class Student : BaseEntity
     public DateTime? PresentationLetterSentAt { get; set; }
 
     public bool HasComplementaryActivities { get; set; } = false;
+
+    public DateTime? Formato29Deadline { get; set; }
+    public DateTime? Formato30Deadline { get; set; }
     public bool HasSocialService { get; set; } = false;
     public bool HasSpecialRequirements { get; set; } = false;
 

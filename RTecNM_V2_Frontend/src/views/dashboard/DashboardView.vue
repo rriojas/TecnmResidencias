@@ -70,7 +70,20 @@ const availableDashboardCareers = computed(() => {
 const studentProfile = ref(null)
 const studentProjects = ref([])
 const studentDocs = ref([])
+const studentDeadlinesInfo = ref(null)
 const completedWeeksCount = ref(0)
+
+function isDeadlinePassed(iso) {
+  if (!iso) return false
+  return new Date() > new Date(iso)
+}
+
+function getDeadlineTag(iso) {
+  if (!iso) return 'Sin fecha límite'
+  if (isDeadlinePassed(iso)) return 'Vencida'
+  const days = Math.ceil((new Date(iso) - new Date()) / (1000 * 60 * 60 * 24))
+  return days <= 3 ? `Vence en ${days} día(s)` : `Vence en ${days} días`
+}
 
 // Datos para Asesor
 const advisorProfile = ref(null)
@@ -583,11 +596,13 @@ async function loadDashboard() {
         }
       }
     } else if (role === 'student') {
-      const [sRes, pRes] = await Promise.all([
+      const [sRes, pRes, dLineRes] = await Promise.all([
         apiClient.get('/v1/students/me', { params: { _t: Date.now() } }).catch(() => ({ data: null })),
         apiClient.get('/v1/projects/me', { params: { pageNumber: 1, pageSize: 10, includeInactive: true, _t: Date.now() } }).catch(() => ({ data: { items: [] } })),
+        apiClient.get('/v1/students/me/document-deadlines', { params: { _t: Date.now() } }).catch(() => ({ data: null })),
       ])
       studentProfile.value = sRes.data
+      studentDeadlinesInfo.value = dLineRes.data
       if (pRes.data?.items) {
         studentProjects.value = pRes.data.items
       }
@@ -1852,6 +1867,128 @@ onMounted(() => {
         <!-- VISTA ESTUDIANTE: Stepper de Avance y Formatos -->
         <!-- ======================================================== -->
         <template v-else-if="authStore.currentRole === 'student'">
+          <!-- Banner de Bloqueo por Vencimiento de Fechas Límite -->
+          <div
+            v-if="studentDeadlinesInfo?.isDocumentBlocked"
+            class="tecnm-card tecnm-mb-3"
+            style="border-left: 5px solid #dc2626; background: #fff5f5;"
+          >
+            <div class="tecnm-card-body" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; color: #dc2626;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                  </svg>
+                  <strong style="font-size: 1.05rem;">Acciones Restringidas: Fecha Límite Vencida</strong>
+                </div>
+                <p style="margin: 0.4rem 0 0 0; color: #7f1d1d; font-size: 0.9rem;">
+                  {{ studentDeadlinesInfo?.blockedReason || 'La fecha límite de entrega de formatos obligatorios ha vencido. Sus operaciones en la plataforma están restringidas únicamente a la entrega de la documentación requerida.' }}
+                </p>
+              </div>
+              <router-link to="/documents" class="tecnm-btn tecnm-btn-primary">
+                Subir Formato Requerido &rarr;
+              </router-link>
+            </div>
+          </div>
+
+          <!-- Card de Fechas Límite y Estado de Formatos Obligatorios (29 y 30) - Solo alumnos con Anteproyecto y Carta de Aceptación Aprobados -->
+          <div v-if="studentDeadlinesInfo?.isEligibleForFormatDeadlines" class="tecnm-card tecnm-mb-3">
+            <div class="tecnm-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="tecnm-header-icon tecnm-header-icon--gold" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.253 3.75m3 0a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5m16.5 0v11.25a2.25 2.25 0 0 1-2.25 2.25H5.25a2.25 2.25 0 0 1-2.25-2.25V6.75m16.5 0v3.75m-16.5-3.75h16.5" />
+                </svg>
+                <h3 class="tecnm-card-title">Calendario de Formatos Obligatorios (29 y 30)</h3>
+              </div>
+              <span class="tecnm-badge" :class="studentDeadlinesInfo?.isDocumentBlocked ? 'tecnm-badge-danger' : 'tecnm-badge-info'">
+                {{ studentDeadlinesInfo?.isDocumentBlocked ? 'Entrega Retrasada' : 'En Plazo Oficial' }}
+              </span>
+            </div>
+            <div class="tecnm-card-body">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                
+                <!-- Formato 29 (Primera Entrega) -->
+                <div style="border: 1px solid var(--tecnm-gray-200); border-radius: var(--tecnm-radius-md); padding: 1rem; background: #ffffff;">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                    <div>
+                      <strong style="color: var(--tecnm-blue-primary); font-size: 1rem;">Formato 29 (Primer Seguimiento)</strong>
+                      <div style="font-size: 0.8rem; color: var(--tecnm-gray-600); margin-top: 0.2rem;">Primera entrega individual obligatoria</div>
+                    </div>
+                    <span
+                      class="tecnm-badge"
+                      :class="studentDeadlinesInfo?.formato29Status === 'approved' ? 'tecnm-badge-success' : (studentDeadlinesInfo?.formato29Status === 'rejected' ? 'tecnm-badge-danger' : (studentDeadlinesInfo?.formato29Status === 'under_review' || studentDeadlinesInfo?.formato29Status === 'uploaded' ? 'tecnm-badge-info' : 'tecnm-badge-secondary'))"
+                    >
+                      {{ studentDeadlinesInfo?.formato29Status === 'approved' ? 'Aprobado por Coordinación' : (studentDeadlinesInfo?.formato29Status === 'rejected' ? 'Corrección Requerida' : (studentDeadlinesInfo?.formato29Status === 'under_review' || studentDeadlinesInfo?.formato29Status === 'uploaded' ? 'En Revisión' : 'Pendiente de Carga')) }}
+                    </span>
+                  </div>
+                  <div style="margin-top: 0.75rem; font-size: 0.875rem;">
+                    <div><strong>Fecha Límite:</strong> {{ formatTecNMDate(studentDeadlinesInfo?.formato29Deadline) }}</div>
+                    <div style="margin-top: 0.25rem;">
+                      <span
+                        class="tecnm-badge tecnm-badge-sm"
+                        :class="isDeadlinePassed(studentDeadlinesInfo?.formato29Deadline) && studentDeadlinesInfo?.formato29Status !== 'approved' ? 'tecnm-badge-danger' : 'tecnm-badge-outline'"
+                      >
+                        {{ studentDeadlinesInfo?.formato29Status === 'approved' ? 'Cumplido con éxito' : getDeadlineTag(studentDeadlinesInfo?.formato29Deadline) }}
+                      </span>
+                    </div>
+                    <div v-if="studentDeadlinesInfo?.formato29RejectionReason" style="margin-top: 0.5rem; color: #dc2626; font-size: 0.825rem;">
+                      <strong>Observación:</strong> {{ studentDeadlinesInfo?.formato29RejectionReason }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Formatos 29v2 y 30 (Segunda Entrega) -->
+                <div style="border: 1px solid var(--tecnm-gray-200); border-radius: var(--tecnm-radius-md); padding: 1rem; background: #ffffff;">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                    <div>
+                      <strong style="color: var(--tecnm-blue-primary); font-size: 1rem;">Formatos 29 (Segunda Entrega) y 30</strong>
+                      <div style="font-size: 0.8rem; color: var(--tecnm-gray-600); margin-top: 0.2rem;">Evaluación final y segundo seguimiento</div>
+                    </div>
+                    <span
+                      class="tecnm-badge"
+                      :class="studentDeadlinesInfo?.formato30Status === 'approved' && studentDeadlinesInfo?.formato29V2Status === 'approved' ? 'tecnm-badge-success' : (!studentDeadlinesInfo?.canUploadSecondPhase ? 'tecnm-badge-secondary' : 'tecnm-badge-warning')"
+                    >
+                      {{ !studentDeadlinesInfo?.canUploadSecondPhase ? 'Bloqueado (Falta Formato 29)' : (studentDeadlinesInfo?.formato30Status === 'approved' ? 'Aprobados' : 'Habilitado para Carga') }}
+                    </span>
+                  </div>
+                  <div style="margin-top: 0.75rem; font-size: 0.875rem;">
+                    <div><strong>Fecha Límite:</strong> {{ formatTecNMDate(studentDeadlinesInfo?.formato30Deadline) }}</div>
+                    <div style="margin-top: 0.25rem;">
+                      <span
+                        class="tecnm-badge tecnm-badge-sm"
+                        :class="isDeadlinePassed(studentDeadlinesInfo?.formato30Deadline) && studentDeadlinesInfo?.formato30Status !== 'approved' ? 'tecnm-badge-danger' : 'tecnm-badge-outline'"
+                      >
+                        {{ studentDeadlinesInfo?.formato30Status === 'approved' ? 'Cumplido con éxito' : getDeadlineTag(studentDeadlinesInfo?.formato30Deadline) }}
+                      </span>
+                    </div>
+                    <div v-if="!studentDeadlinesInfo?.canUploadSecondPhase" style="margin-top: 0.5rem; color: var(--tecnm-gray-600); font-size: 0.825rem; font-style: italic;">
+                      * Requiere validación y aprobación del primer Formato 29 por parte de la Coordinación.
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- Mensaje Informativo para Alumnos en etapa previa a la Aprobación del Anteproyecto y Carta de Aceptación -->
+          <div
+            v-else-if="studentDeadlinesInfo && !studentDeadlinesInfo.isEligibleForFormatDeadlines"
+            class="tecnm-card tecnm-mb-3"
+            style="border-left: 4px solid var(--tecnm-blue-primary); background: #f8fafc;"
+          >
+            <div class="tecnm-card-body" style="display: flex; align-items: center; gap: 0.75rem;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" style="color: var(--tecnm-blue-primary); flex-shrink: 0;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+              </svg>
+              <div>
+                <strong style="color: var(--tecnm-blue-primary); font-size: 0.95rem;">Calendario de Formatos de Residencia</strong>
+                <p style="margin: 0.25rem 0 0 0; color: var(--tecnm-gray-700); font-size: 0.875rem;">
+                  Las fechas límite para entrega de los formatos de seguimiento (Formato 29 y 30) se activarán una vez que tu Anteproyecto y Carta de Aceptación hayan sido revisados y formalmente aprobados.
+                </p>
+              </div>
+            </div>
+          </div>
           <!-- ======================================================== -->
           <!-- CARD ESPECIAL: Acreditación InnovaTecNM Nacional -->
           <!-- ======================================================== -->

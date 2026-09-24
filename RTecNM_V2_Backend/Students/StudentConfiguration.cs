@@ -69,6 +69,12 @@ public class StudentConfiguration : IEntityTypeConfiguration<Student>
         builder.Property(s => s.AdvisorAssignedAt)
             .HasColumnName("advisor_assigned_at");
 
+        builder.Property(s => s.Formato29Deadline)
+            .HasColumnName("formato_29_deadline");
+
+        builder.Property(s => s.Formato30Deadline)
+            .HasColumnName("formato_30_deadline");
+
         builder.Property(s => s.Gpa)
             .HasColumnName("gpa")
             .HasColumnType("numeric(5,2)")

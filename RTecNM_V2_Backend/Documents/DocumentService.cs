@@ -66,6 +66,9 @@ public class DocumentService : IDocumentService
             throw new ArgumentException($"Tipo de documento no válido: '{dto.DocumentType}'.");
         }
 
+        // Validate format upload order and deadlines
+        await CheckFormatUploadOrderAsync(dto.ProjectId, dto.DocumentType);
+
         var project = await _projectRepository.GetByIdAsync(dto.ProjectId);
         if (project == null)
         {
@@ -270,33 +273,86 @@ public class DocumentService : IDocumentService
         return true;
     }
 
-    private static DocumentResponseDto MapToDto(Document doc)
-    {
-        return new DocumentResponseDto
+private static DocumentResponseDto MapToDto(Document doc)
         {
-            Id = doc.Id,
-            ProjectId = doc.ProjectId,
-            DocumentType = doc.DocumentType,
-            FileName = doc.FileName,
-            FilePath = doc.FilePath,
-            FileSize = doc.FileSize,
-            ContentType = doc.ContentType,
-            Status = doc.Status,
-            RejectionReason = doc.RejectionReason,
-            UploadedAt = doc.UploadedAt,
-            IsActive = doc.IsActive,
-            IsVisible = doc.IsVisible,
-            DisplayOrder = doc.DisplayOrder,
-            CreatedAt = doc.CreatedAt,
-            UpdatedAt = doc.UpdatedAt,
-            CreatedBy = doc.CreatedBy,
-            UpdatedBy = doc.UpdatedBy,
-            DeletedBy = doc.DeletedBy,
-            DeletedAt = doc.DeletedAt
-        };
-    }
+            return new DocumentResponseDto
+            {
+                Id = doc.Id,
+                ProjectId = doc.ProjectId,
+                DocumentType = doc.DocumentType,
+                FileName = doc.FileName,
+                FilePath = doc.FilePath,
+                FileSize = doc.FileSize,
+                ContentType = doc.ContentType,
+                Status = doc.Status,
+                RejectionReason = doc.RejectionReason,
+                UploadedAt = doc.UploadedAt,
+                IsActive = doc.IsActive,
+                IsVisible = doc.IsVisible,
+                DisplayOrder = doc.DisplayOrder,
+                CreatedAt = doc.CreatedAt,
+                UpdatedAt = doc.UpdatedAt,
+                CreatedBy = doc.CreatedBy,
+                UpdatedBy = doc.UpdatedBy,
+                DeletedBy = doc.DeletedBy,
+                DeletedAt = doc.DeletedAt
+            };
+        }
 
-    public async Task<List<PendingAcceptanceDto>> GetPendingAcceptanceLettersAsync(long? careerId = null)
+        private async Task CheckFormatUploadOrderAsync(long projectId, string documentType)
+        {
+            var project = await _projectRepository.GetByIdAsync(projectId);
+            if (project == null) return;
+
+            var studentId = project.StudentId;
+            var student = await _studentRepository.GetByIdAsync(studentId);
+            if (student == null) return;
+
+            var docTypeLower = documentType.Trim().ToLowerInvariant();
+
+            // Documentos existentes del proyecto
+            var existingDocs = await _context.Documents
+                .Where(d => d.ProjectId == projectId && d.IsActive)
+                .OrderByDescending(d => d.Id)
+                .ToListAsync();
+
+            var f29 = existingDocs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Formato29, StringComparison.OrdinalIgnoreCase));
+            bool isF29Approved = f29 != null && string.Equals(f29.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
+
+            // Regla: No se puede subir Formato 29v2 ni Formato 30 si el primer Formato 29 no está aprobado por coordinación
+            if (docTypeLower == DocumentType.Formato29V2 || docTypeLower == DocumentType.Formato30)
+            {
+                if (!isF29Approved)
+                {
+                    throw new InvalidOperationException("No se puede subir el Formato 29 (segunda entrega) ni el Formato 30 hasta que la Coordinación haya aprobado el primer Formato 29.");
+                }
+            }
+
+            // Regla: Si la fecha límite del Formato 29 venció y no está aprobado, solo se permite subir el Formato 29
+            if (student.Formato29Deadline.HasValue && DateTime.UtcNow > student.Formato29Deadline.Value)
+            {
+                if (!isF29Approved && docTypeLower != DocumentType.Formato29)
+                {
+                    throw new InvalidOperationException("La fecha límite para el Formato 29 ha vencido. Debe subir el Formato 29 requerido para continuar.");
+                }
+            }
+
+            // Regla: Si la fecha límite del Formato 30 venció y faltan los formatos finales, solo se permite subir 29v2 o 30
+            if (student.Formato30Deadline.HasValue && DateTime.UtcNow > student.Formato30Deadline.Value)
+            {
+                var f29v2 = existingDocs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Formato29V2, StringComparison.OrdinalIgnoreCase));
+                var f30 = existingDocs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Formato30, StringComparison.OrdinalIgnoreCase));
+                bool f29v2Approved = f29v2 != null && string.Equals(f29v2.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
+                bool f30Approved = f30 != null && string.Equals(f30.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
+
+                if ((!f29v2Approved || !f30Approved) && docTypeLower != DocumentType.Formato29V2 && docTypeLower != DocumentType.Formato30)
+                {
+                    throw new InvalidOperationException("La fecha límite para el Formato 29 (segunda entrega) y Formato 30 ha vencido. Debe subir los formatos requeridos para continuar.");
+                }
+            }
+        }
+
+        public async Task<List<PendingAcceptanceDto>> GetPendingAcceptanceLettersAsync(long? careerId = null)
     {
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
