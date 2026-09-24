@@ -56,7 +56,7 @@ public class DocumentsController : ControllerBase
         var projectResult = await _projectService.GetProjectByIdAsync(dto.ProjectId);
         if (projectResult.IsSuccess && projectResult.Data != null)
         {
-            var isStaff = User.IsInRole("admin") || User.IsInRole("departmenthead") || User.IsInRole("director") || User.IsInRole("academic");
+            var isStaff = User.IsInRole("admin") || User.IsInRole("departmenthead") || User.IsInRole("director") || User.IsInRole("academic") || User.IsInRole("jefecarrera") || User.IsInRole("careerhead") || User.IsInRole("coordinator") || User.IsInRole("coordinadora");
             if (projectResult.Data.IsCompleted && !isStaff)
                 return StatusCode(400, new { message = "El proyecto de residencia se encuentra concluido. No se permiten nuevas cargas al expediente digital." });
 
@@ -154,7 +154,7 @@ public class DocumentsController : ControllerBase
     /// Actualizar estado de aprobación del documento
     /// </summary>
     [HttpPatch("{id}/status")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,advisor")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,advisor,jefecarrera,careerhead,coordinadora,coordinator")]
     public async Task<ActionResult<DocumentResponseDto>> UpdateStatus(long id, [FromBody] UpdateDocumentStatusDto dto)
     {
         try

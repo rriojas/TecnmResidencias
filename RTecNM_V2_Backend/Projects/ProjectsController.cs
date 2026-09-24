@@ -110,7 +110,7 @@ public class ProjectsController : ControllerBase
     [HttpGet("student/{studentId:long}")]
     public async Task<IActionResult> GetByStudentId(long studentId, [FromQuery] PaginationQuery query)
     {
-        if (!_currentUser.IsInRole(UserRole.Admin) && !_currentUser.IsInRole(UserRole.DepartmentHead) && !_currentUser.IsInRole(UserRole.Director) && !_currentUser.IsInRole(UserRole.Academic) && !_currentUser.IsInRole(UserRole.Vinculacion) && !_currentUser.IsInRole(UserRole.Coordinator))
+        if (!_currentUser.IsInRole(UserRole.Admin) && !_currentUser.IsInRole(UserRole.DepartmentHead) && !_currentUser.IsInRole(UserRole.Director) && !_currentUser.IsInRole(UserRole.Academic) && !_currentUser.IsInRole(UserRole.Vinculacion) && !_currentUser.IsInRole(UserRole.Coordinator) && !_currentUser.IsInRole(UserRole.CareerHead) && !_currentUser.IsInRole(UserRole.Advisor))
             return StatusCode(403, new { message = "No tiene permisos para consultar anteproyectos de otros estudiantes." });
 
         var result = await _projectService.GetProjectsByStudentIdPagedAsync(studentId, query);

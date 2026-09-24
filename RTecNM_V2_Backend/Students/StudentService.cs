@@ -234,25 +234,7 @@ public class StudentService : IStudentService
 
         var dto = MapToResponseDto(student);
         var project = await _projectRepository.GetByStudentIdAsync(id);
-        if (project != null && project.IsActive)
-        {
-            dto.HasProject = true;
-            dto.ProjectTitle = project.Title;
-            dto.ProjectType = project.ProjectType;
-            bool isInnovatec = !string.IsNullOrWhiteSpace(project.ProjectType) && project.ProjectType.Contains("innovatec", StringComparison.OrdinalIgnoreCase);
-            bool isHackatec = !string.IsNullOrWhiteSpace(project.ProjectType) && project.ProjectType.Contains("hackatec", StringComparison.OrdinalIgnoreCase);
-            bool isAccreditation = isInnovatec || isHackatec || (project.ProjectType != null && project.ProjectType.StartsWith("acreditacion", StringComparison.OrdinalIgnoreCase));
-            dto.IsAccreditation = isAccreditation;
-            if (isInnovatec) dto.ExemptionReason = "Omisión InnovaTecNM";
-            else if (isHackatec) dto.ExemptionReason = "Omisión HackaTec";
-            else if (isAccreditation) dto.ExemptionReason = "Omisión por Acreditación";
-
-            dto.HasAcceptanceLetter = await _context.Documents.AnyAsync(d =>
-                d.ProjectId == project.Id && d.IsActive &&
-                (d.DocumentType == DocumentType.CartaAceptacion ||
-                 d.DocumentType == DocumentType.CartaAprobacion ||
-                 d.DocumentType == DocumentType.ConstanciaAcreditacion));
-        }
+        await EnrichWithProjectDetailsAsync(dto, student, project);
 
         return Result<StudentResponseDto>.Success(dto);
     }
@@ -266,7 +248,89 @@ public class StudentService : IStudentService
         if (student is null)
             return Result<StudentResponseDto>.Failure("No se encontró un perfil de estudiante asociado a tu cuenta.", 404);
 
-        return Result<StudentResponseDto>.Success(MapToResponseDto(student));
+        var dto = MapToResponseDto(student);
+        var project = await _projectRepository.GetByStudentIdAsync(student.Id);
+        await EnrichWithProjectDetailsAsync(dto, student, project);
+
+        return Result<StudentResponseDto>.Success(dto);
+    }
+
+    private async Task EnrichWithProjectDetailsAsync(StudentResponseDto dto, Student student, Project? project)
+    {
+        if (project != null && project.IsActive)
+        {
+            dto.HasProject = true;
+            dto.ProjectTitle = project.Title;
+            dto.ProjectType = project.ProjectType;
+            dto.ProjectStatus = project.Status.ToString().ToLowerInvariant();
+
+            bool isInnovatec = !string.IsNullOrWhiteSpace(project.ProjectType) && project.ProjectType.Contains("innovatec", StringComparison.OrdinalIgnoreCase);
+            bool isHackatec = !string.IsNullOrWhiteSpace(project.ProjectType) && project.ProjectType.Contains("hackatec", StringComparison.OrdinalIgnoreCase);
+            bool isAccreditation = isInnovatec || isHackatec || (project.ProjectType != null && project.ProjectType.StartsWith("acreditacion", StringComparison.OrdinalIgnoreCase));
+            dto.IsAccreditation = isAccreditation;
+            if (isInnovatec) dto.ExemptionReason = "Omisión InnovaTecNM";
+            else if (isHackatec) dto.ExemptionReason = "Omisión HackaTec";
+            else if (isAccreditation) dto.ExemptionReason = "Omisión por Acreditación";
+
+            var doc = await _context.Documents.FirstOrDefaultAsync(d =>
+                d.ProjectId == project.Id && d.IsActive &&
+                (d.DocumentType == DocumentType.CartaAceptacion ||
+                 d.DocumentType == DocumentType.CartaAprobacion ||
+                 d.DocumentType == DocumentType.ConstanciaAcreditacion));
+
+            if (doc != null)
+            {
+                dto.HasAcceptanceLetter = true;
+                dto.AcceptanceLetterStatus = doc.Status.ToString().ToLowerInvariant();
+            }
+
+            // Determinar Estado de las Residencias
+            if (project.Status == ProjectStatus.Completed)
+            {
+                dto.ResidencyStage = "Concluido / Evaluado";
+            }
+            else if (student.AdvisorId.HasValue && (project.Status == ProjectStatus.Approved || project.Status == ProjectStatus.InProgress))
+            {
+                dto.ResidencyStage = "En Residencia";
+            }
+            else if (student.AdvisorId.HasValue)
+            {
+                dto.ResidencyStage = "Asesor Asignado";
+            }
+            else if (project.Status == ProjectStatus.Approved)
+            {
+                dto.ResidencyStage = "Dictamen Aprobado";
+            }
+            else if (project.Status == ProjectStatus.Rejected)
+            {
+                dto.ResidencyStage = "Con Observaciones";
+            }
+            else if (isAccreditation)
+            {
+                dto.ResidencyStage = isInnovatec ? "Acreditación InnovaTecNM" : (isHackatec ? "Acreditación HackaTec" : "Acreditación");
+            }
+            else if (dto.HasAcceptanceLetter)
+            {
+                dto.ResidencyStage = "Carta Cargada";
+            }
+            else if (project.Status == ProjectStatus.Pending || project.Status == ProjectStatus.Proposed || project.Status == ProjectStatus.UnderReview)
+            {
+                dto.ResidencyStage = "Anteproyecto Registrado";
+            }
+            else if (project.Status == ProjectStatus.Draft)
+            {
+                dto.ResidencyStage = "Borrador";
+            }
+            else
+            {
+                dto.ResidencyStage = "En Proceso";
+            }
+        }
+        else
+        {
+            dto.HasProject = false;
+            dto.ResidencyStage = "Sin Anteproyecto";
+        }
     }
 
     public async Task<Result<StudentResponseDto>> CreateAsync(CreateStudentDto dto)

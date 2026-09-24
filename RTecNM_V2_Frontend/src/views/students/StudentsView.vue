@@ -575,25 +575,6 @@ async function handleSendIndividualPresentationLetter(student) {
   }
 }
 
-async function handleDownloadPresentationLetterPdf(student) {
-  try {
-    const res = await apiClient.get(`/v1/students/${student.id}/presentation-letter/pdf`, {
-      responseType: 'blob'
-    })
-    const blob = new Blob([res.data], { type: 'application/pdf' })
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `Carta_Presentacion_${student.controlNumber}.pdf`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
-  } catch {
-    showAlert('Error al descargar el PDF de la Carta de Presentación.', 'danger')
-  }
-}
-
 async function handleDownloadStudentTemplate() {
   try {
     const res = await apiClient.get('/v1/students/import/template', { responseType: 'blob' })
@@ -902,15 +883,6 @@ onMounted(() => {
                     @click="handleSendIndividualPresentationLetter(s)"
                   >
                     {{ isSendingIndividualLetterId === s.id ? 'Enviando...' : (s.isPresentationLetterSent ? 'Reenviar' : 'Enviar Carta') }}
-                  </button>
-                  <button
-                    v-if="authStore.isAdmin || authStore.hasRole('vinculacion') || authStore.hasRole('departmenthead') || authStore.hasRole('director')"
-                    type="button"
-                    class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
-                    title="Descargar PDF de la Carta de Presentación"
-                    @click="handleDownloadPresentationLetterPdf(s)"
-                  >
-                    PDF
                   </button>
                   <button
                     type="button"

@@ -20,6 +20,66 @@ const errorMessage = ref('')
 const alertMessage = ref('')
 const alertType = ref('success')
 const isSendingLetter = ref(false)
+const accreditationDoc = ref(null)
+const isDownloadingDoc = ref(false)
+
+function formatTecNMDate(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return iso
+  const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+  return `${d.getDate()}/${months[d.getMonth()]}/${d.getFullYear()}`
+}
+
+const isAccreditationProject = computed(() => {
+  const type = (project.value?.projectType || '').toLowerCase()
+  return (
+    type === 'acreditacion_innovatec' ||
+    type === 'acreditacion_hackatec' ||
+    type.includes('innovatec') ||
+    type.includes('acreditacion') ||
+    Boolean(student.value?.isAccreditation)
+  )
+})
+
+const accreditationLabel = computed(() => {
+  const type = (project.value?.projectType || '').toLowerCase()
+  if (type.includes('hackatec')) return 'HackaTec Nacional'
+  return 'InnovaTecNM Nacional'
+})
+
+async function loadProjectDocuments(projectId) {
+  if (!projectId) return
+  try {
+    const dRes = await apiClient.get(`/v1/documents/project/${projectId}`, {
+      params: { pageSize: 50, _t: Date.now() },
+    })
+    const docs = dRes.data?.items || []
+    accreditationDoc.value =
+      docs.find((d) =>
+        ['constancia_acreditacion', 'acreditacion'].includes((d.documentType || '').toLowerCase()) && d.isActive
+      ) || null
+  } catch {
+    accreditationDoc.value = null
+  }
+}
+
+async function downloadAccreditationDoc() {
+  if (!accreditationDoc.value?.id) return
+  isDownloadingDoc.value = true
+  try {
+    const res = await apiClient.get(`/v1/documents/${accreditationDoc.value.id}/download`, {
+      responseType: 'blob',
+    })
+    const file = new Blob([res.data], { type: res.headers['content-type'] || 'application/pdf' })
+    const fileUrl = window.URL.createObjectURL(file)
+    window.open(fileUrl, '_blank')
+  } catch {
+    showAlert('Error al descargar o visualizar la constancia.', 'danger')
+  } finally {
+    isDownloadingDoc.value = false
+  }
+}
 
 function showAlert(msg, type = 'success') {
   alertMessage.value = msg
@@ -50,26 +110,6 @@ async function handleSendPresentationLetter() {
     showAlert(err.response?.data?.message || 'Error al enviar la carta de presentación.', 'danger')
   } finally {
     isSendingLetter.value = false
-  }
-}
-
-async function handleDownloadPresentationLetterPdf() {
-  if (!student.value?.id) return
-  try {
-    const res = await apiClient.get(`/v1/students/${student.value.id}/presentation-letter/pdf`, {
-      responseType: 'blob'
-    })
-    const blob = new Blob([res.data], { type: 'application/pdf' })
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `Carta_Presentacion_${student.value.controlNumber}.pdf`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
-  } catch {
-    showAlert('Error al descargar el PDF de la carta de presentación.', 'danger')
   }
 }
 
@@ -143,6 +183,7 @@ async function loadProfile() {
 async function loadStudentProject(studentId) {
   if (!studentId) return
   isLoadingProject.value = true
+  accreditationDoc.value = null
   try {
     const queryStudentId = route.query.id
     if (queryStudentId) {
@@ -159,6 +200,18 @@ async function loadStudentProject(studentId) {
     // Si no tiene proyecto o no tiene permisos, no es bloqueante
     project.value = null
   } finally {
+    if (!project.value && student.value?.hasProject) {
+      project.value = {
+        title: student.value.projectTitle || 'Anteproyecto Registrado',
+        status: student.value.projectStatus || 'En Revisión',
+        projectType: student.value.projectType || 'Desarrollo Tecnológico',
+        advisorName: student.value.advisorName,
+        createdAt: null,
+      }
+    }
+    if (project.value?.id) {
+      await loadProjectDocuments(project.value.id)
+    }
     isLoadingProject.value = false
   }
 }
@@ -172,7 +225,6 @@ function handleGoBack() {
 }
 
 function goToProject() {
-  if (!project.value?.id) return
   if (authStore.currentRole === 'student') {
     router.push('/projects/proposal')
   } else {
@@ -210,14 +262,6 @@ watch(
           @click="handleSendPresentationLetter"
         >
           {{ isSendingLetter ? 'Enviando...' : (student?.isPresentationLetterSent ? 'Reenviar Carta' : 'Enviar Carta de Presentación') }}
-        </button>
-        <button
-          v-if="authStore.isAdmin || authStore.hasRole('vinculacion') || authStore.hasRole('departmenthead') || authStore.hasRole('director')"
-          type="button"
-          class="tecnm-btn tecnm-btn-secondary"
-          @click="handleDownloadPresentationLetterPdf"
-        >
-          PDF Carta
         </button>
         <button
           type="button"
@@ -283,6 +327,12 @@ watch(
                   <path stroke-linecap="round" stroke-linejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z" />
                 </svg>
                 No. Control: {{ student.controlNumber || '—' }}
+              </span>
+              <span v-if="student.residencyStage" class="tecnm-hero-tag" style="background-color: rgba(27, 57, 106, 0.08); color: var(--tecnm-blue-primary); font-weight: 600;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" />
+                </svg>
+                Etapa: {{ student.residencyStage }}
               </span>
             </div>
           </div>
@@ -370,6 +420,30 @@ watch(
                 <span class="tecnm-info-tile-value">{{ formattedCreatedAt }}</span>
               </div>
 
+              <!-- Asesor Institucional -->
+              <div class="tecnm-info-tile">
+                <span class="tecnm-info-tile-label">Asesor Institucional</span>
+                <span class="tecnm-info-tile-value">
+                  {{ student.advisorName || (project && project.advisorName) || (isAccreditationProject ? 'Exento (InnovaTecNM)' : 'Sin Asignar') }}
+                </span>
+              </div>
+
+              <!-- Servicio Social -->
+              <div class="tecnm-info-tile">
+                <span class="tecnm-info-tile-label">Servicio Social</span>
+                <span :style="{ color: student.hasSocialService ? '#047857' : '#b45309', fontWeight: 600, fontSize: '0.85rem' }">
+                  {{ student.hasSocialService ? 'Liberado' : 'Pendiente' }}
+                </span>
+              </div>
+
+              <!-- Actividades Complementarias -->
+              <div class="tecnm-info-tile">
+                <span class="tecnm-info-tile-label">Act. Complementarias</span>
+                <span :style="{ color: student.hasComplementaryActivities ? '#047857' : '#b45309', fontWeight: 600, fontSize: '0.85rem' }">
+                  {{ student.hasComplementaryActivities ? 'Liberadas' : 'Pendientes' }}
+                </span>
+              </div>
+
               <!-- Carta de Presentación -->
               <div class="tecnm-info-tile">
                 <span class="tecnm-info-tile-label">Carta de Presentación</span>
@@ -411,41 +485,110 @@ watch(
             <div v-else-if="project" class="tecnm-project-summary">
               <div class="tecnm-project-header-box">
                 <div class="tecnm-project-title-group">
-                  <span class="tecnm-info-tile-label">Título del Anteproyecto</span>
+                  <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <span class="tecnm-info-tile-label">Título del Anteproyecto</span>
+                    <span
+                      v-if="isAccreditationProject"
+                      class="tecnm-badge"
+                      style="font-size: 0.72rem; background-color: var(--tecnm-gold-accent, #C5A059); color: #fff;"
+                    >
+                      {{ accreditationLabel }}
+                    </span>
+                  </div>
                   <h4 class="tecnm-project-title">{{ project.title }}</h4>
                 </div>
                 <TecnmBadge :status="project.status" />
               </div>
 
+              <!-- Banner Especial para InnovaTecNM / Acreditación -->
+              <div
+                v-if="isAccreditationProject"
+                class="tecnm-alert tecnm-alert-info"
+                style="margin-top: 1rem; display: flex; align-items: flex-start; gap: 0.65rem;"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="flex-shrink: 0; color: var(--tecnm-blue-primary);">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+                </svg>
+                <span style="font-size: 0.88rem; line-height: 1.45;">
+                  <strong>Modalidad de Acreditación Directa ({{ accreditationLabel }}):</strong>
+                  El alumno tramitó su acreditación mediante certamen nacional. Este registro funge como su <strong>anteproyecto oficial</strong> para el expediente institucional de residencia. Al validarse la constancia, la residencia se acredita al 100% y queda exenta de asesor ordinario.
+                </span>
+              </div>
+
               <div class="tecnm-info-cards-grid" style="margin-top: 1rem;">
                 <div class="tecnm-info-tile">
-                  <span class="tecnm-info-tile-label">Empresa Receptora</span>
-                  <span class="tecnm-info-tile-value">{{ project.companyName || '—' }}</span>
+                  <span class="tecnm-info-tile-label">{{ isAccreditationProject ? 'Institución / Certamen' : 'Empresa Receptora' }}</span>
+                  <span class="tecnm-info-tile-value">{{ project.companyName || 'INSTITUTO TECNOLOGICO SUPERIOR DE MONCLOVA' }}</span>
                 </div>
 
                 <div class="tecnm-info-tile">
                   <span class="tecnm-info-tile-label">Asesor Interno</span>
-                  <span class="tecnm-info-tile-value">{{ project.advisorName || '—' }}</span>
+                  <span class="tecnm-info-tile-value">
+                    {{ project.advisorName || (isAccreditationProject ? 'Exento (Certamen Nacional)' : 'Sin Asignar') }}
+                  </span>
                 </div>
 
                 <div class="tecnm-info-tile">
-                  <span class="tecnm-info-tile-label">Tipo de Proyecto</span>
-                  <span class="tecnm-info-tile-value">{{ project.projectType || 'Desarrollo Tecnológico' }}</span>
+                  <span class="tecnm-info-tile-label">Modalidad / Tipo</span>
+                  <span class="tecnm-info-tile-value">
+                    {{ isAccreditationProject ? (accreditationLabel + ' (Acreditación)') : (project.projectType || 'Desarrollo Tecnológico') }}
+                  </span>
                 </div>
 
                 <div class="tecnm-info-tile">
                   <span class="tecnm-info-tile-label">Fecha de Registro</span>
                   <span class="tecnm-info-tile-value">
-                    {{ project.createdAt ? new Date(project.createdAt).toLocaleDateString('es-MX') : '—' }}
+                    {{ project.createdAt ? formatTecNMDate(project.createdAt) : '—' }}
                   </span>
                 </div>
               </div>
 
-              <!-- Objetivos del Anteproyecto -->
+              <!-- Constancia Oficial para InnovaTecNM / Acreditación -->
+              <div
+                v-if="isAccreditationProject"
+                class="tecnm-card"
+                style="margin-top: 1rem; border: 1px solid var(--tecnm-border-color, #e2e8f0); background: var(--tecnm-bg-light, #f8fafc); padding: 1rem;"
+              >
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                  <div>
+                    <span class="tecnm-info-tile-label">Constancia Oficial de Acreditación</span>
+                    <div style="font-weight: 600; color: var(--tecnm-blue-primary, #1b396a); margin-top: 0.25rem;">
+                      {{ accreditationDoc ? accreditationDoc.fileName : 'Constancia Oficial InnovaTecNM Nacional' }}
+                    </div>
+                    <div v-if="accreditationDoc" style="font-size: 0.8rem; color: var(--tecnm-text-secondary); margin-top: 0.2rem;">
+                      Subido: {{ formatTecNMDate(accreditationDoc.uploadedAt) }} &bull; Estado: <TecnmBadge :status="accreditationDoc.status" />
+                    </div>
+                    <div v-else style="font-size: 0.8rem; color: var(--tecnm-text-secondary); margin-top: 0.2rem;">
+                      Constancia oficial registrada en el expediente digital
+                    </div>
+                  </div>
+                  <button
+                    v-if="accreditationDoc"
+                    type="button"
+                    class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                    :disabled="isDownloadingDoc"
+                    @click="downloadAccreditationDoc"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem;">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    {{ isDownloadingDoc ? 'Abriendo...' : 'Ver / Descargar Constancia PDF' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Objetivos del Anteproyecto o Acreditación -->
               <div v-if="project.generalObjective" style="margin-top: 1rem;">
-                <span class="tecnm-info-tile-label">Objetivo General</span>
+                <span class="tecnm-info-tile-label">{{ isAccreditationProject ? 'Objetivo de Acreditación' : 'Objetivo General' }}</span>
                 <p class="tecnm-field-value tecnm-field-value-emphasis" style="margin-top: 0.25rem;">
                   {{ project.generalObjective }}
+                </p>
+              </div>
+
+              <div v-if="project.problemStatement && isAccreditationProject" style="margin-top: 0.75rem;">
+                <span class="tecnm-info-tile-label">Descripción Institucional</span>
+                <p class="tecnm-field-value" style="margin-top: 0.25rem;">
+                  {{ project.problemStatement }}
                 </p>
               </div>
 
@@ -458,13 +601,21 @@ watch(
                 </ul>
               </div>
 
+              <!-- Observaciones del Dictamen si existen -->
+              <div v-if="project.reviewComments" style="margin-top: 1rem; padding: 0.75rem 1rem; background-color: rgba(220, 38, 38, 0.05); border-left: 4px solid var(--tecnm-red, #dc2626); border-radius: 4px;">
+                <span class="tecnm-info-tile-label" style="color: var(--tecnm-red, #dc2626);">Observaciones de Revisión / Dictamen</span>
+                <p class="tecnm-field-value" style="margin-top: 0.25rem;">
+                  {{ project.reviewComments }}
+                </p>
+              </div>
+
               <div class="tecnm-project-actions">
                 <button
                   type="button"
                   class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
                   @click="goToProject"
                 >
-                  Ver Anteproyecto &rarr;
+                  {{ isAccreditationProject && authStore.currentRole !== 'student' ? 'Revisar / Dictaminar en Anteproyectos →' : 'Ver Anteproyecto →' }}
                 </button>
               </div>
             </div>

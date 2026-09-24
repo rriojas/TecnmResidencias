@@ -214,6 +214,19 @@ public class ProjectRepository : IProjectRepository
         if (!includeCancelled)
             q = q.Where(p => p.Status != ProjectStatus.Cancelled);
 
+        if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
+        {
+            q = q.Where(p => p.Student != null && p.Student.CareerId == _currentUser.CareerId.Value);
+        }
+        else if (_currentUser.Role == UserRole.Coordinator)
+        {
+            var allowedCareerIds = _currentUser.CareerIds;
+            if (allowedCareerIds.Any())
+            {
+                q = q.Where(p => p.Student != null && allowedCareerIds.Contains(p.Student.CareerId));
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var term = query.Search.Trim().ToLowerInvariant();

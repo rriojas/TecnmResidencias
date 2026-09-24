@@ -210,7 +210,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpGet("{id:long}/presentation-letter/pdf")]
-    [Authorize(Roles = "admin,vinculacion,departmenthead,director,student,coordinadora,coordinator")]
+    [Authorize(Roles = "admin,vinculacion,departmenthead,director,student,coordinadora,coordinator,jefecarrera,careerhead")]
     public async Task<IActionResult> DownloadPresentationLetterPdf(long id)
     {
         var result = await _studentService.GetPresentationLetterPdfAsync(id);
