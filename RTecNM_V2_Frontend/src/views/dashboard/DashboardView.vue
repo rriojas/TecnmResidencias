@@ -101,9 +101,22 @@ const assignedStudentsCount = computed(() => {
   return careerStudents.value.filter((s) => !!s.advisorId).length
 })
 
+const totalStudentsCount = computed(() => {
+  return adminMetrics.value?.totalStudents ?? careerStudents.value.length ?? 0
+})
+
+const effectiveAssignedCount = computed(() => {
+  return adminMetrics.value?.studentsWithAdvisor ?? assignedStudentsCount.value ?? 0
+})
+
+const effectiveUnassignedCount = computed(() => {
+  return adminMetrics.value?.studentsWithoutAdvisor ?? unassignedStudents.value.length ?? 0
+})
+
 const assignmentCoveragePercent = computed(() => {
-  if (!careerStudents.value.length) return 100
-  return Math.round((assignedStudentsCount.value / careerStudents.value.length) * 100)
+  const total = totalStudentsCount.value
+  if (!total) return 100
+  return Math.round((effectiveAssignedCount.value / total) * 100)
 })
 
 const selectedAdvisorForModal = ref(null)
@@ -1389,10 +1402,10 @@ onMounted(() => {
             <div class="tecnm-card-body">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
                 <span style="font-size: 0.9rem; font-weight: 600; color: var(--tecnm-text-primary, #0f172a);">
-                  Avance de Asignaciones: {{ assignedStudentsCount }} de {{ careerStudents.length }} Alumnos ({{ assignmentCoveragePercent }}%)
+                  Avance de Asignaciones: {{ effectiveAssignedCount }} de {{ totalStudentsCount }} Alumnos ({{ assignmentCoveragePercent }}%)
                 </span>
-                <span :class="unassignedStudents.length === 0 ? 'tecnm-badge tecnm-badge-success' : 'tecnm-badge tecnm-badge-warning'">
-                  {{ unassignedStudents.length === 0 ? '100% Asignados' : `${unassignedStudents.length} Pendiente(s)` }}
+                <span :class="effectiveUnassignedCount === 0 ? 'tecnm-badge tecnm-badge-success' : 'tecnm-badge tecnm-badge-warning'">
+                  {{ effectiveUnassignedCount === 0 ? '100% Asignados' : `${effectiveUnassignedCount} Pendiente(s)` }}
                 </span>
               </div>
               <!-- Barra de progreso visual -->
@@ -1404,11 +1417,11 @@ onMounted(() => {
               <div style="display: flex; gap: 1.5rem; font-size: 0.825rem; color: var(--tecnm-text-secondary, #64748b);">
                 <div style="display: flex; align-items: center; gap: 0.35rem;">
                   <span style="width: 10px; height: 10px; border-radius: 50%; background-color: #10b981; display: inline-block;"></span>
-                  <span>Asignados: <strong>{{ assignedStudentsCount }}</strong></span>
+                  <span>Asignados: <strong>{{ effectiveAssignedCount }}</strong></span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.35rem;">
                   <span style="width: 10px; height: 10px; border-radius: 50%; background-color: #f59e0b; display: inline-block;"></span>
-                  <span>Por Asignar: <strong>{{ unassignedStudents.length }}</strong></span>
+                  <span>Por Asignar: <strong>{{ effectiveUnassignedCount }}</strong></span>
                 </div>
               </div>
             </div>

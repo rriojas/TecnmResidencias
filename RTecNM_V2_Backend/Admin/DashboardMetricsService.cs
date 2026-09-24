@@ -34,8 +34,8 @@ public class DashboardMetricsService : IDashboardMetricsService
             studentsWithoutAdvisor = Math.Max(0, totalStudents - studentsWithAdvisor);
             activeAdvisors = await _context.Advisors.CountAsync(a => a.IsActive && a.DepartmentId == cid);
 
-            // Para Jefe de Carrera: se excluyen los borradores del conteo de anteproyectos
-            totalProjects = await _context.Projects.CountAsync(p => p.IsActive && p.Status != ProjectStatus.Draft && p.Student != null && p.Student.CareerId == cid);
+            // Para Jefe de Carrera: se excluyen los borradores y cancelados del conteo de anteproyectos
+            totalProjects = await _context.Projects.CountAsync(p => p.IsActive && p.Status != ProjectStatus.Draft && p.Status != ProjectStatus.Cancelled && p.Student != null && p.Student.CareerId == cid);
             approvedProjects = await _context.Projects.CountAsync(p => p.IsActive && p.Status == ProjectStatus.Approved && p.Student != null && p.Student.CareerId == cid);
             inProgressProjects = await _context.Projects.CountAsync(p => p.IsActive && p.Status == ProjectStatus.InProgress && p.Student != null && p.Student.CareerId == cid);
             pendingProjects = await _context.Projects.CountAsync(p => p.IsActive && (p.Status == ProjectStatus.Pending || p.Status == ProjectStatus.Proposed || p.Status == ProjectStatus.UnderReview) && p.Student != null && p.Student.CareerId == cid);
@@ -52,7 +52,7 @@ public class DashboardMetricsService : IDashboardMetricsService
             studentsWithAdvisor = await _context.Students.CountAsync(s => s.IsActive && s.AdvisorId != null);
             studentsWithoutAdvisor = Math.Max(0, totalStudents - studentsWithAdvisor);
             activeAdvisors = await _context.Advisors.CountAsync(a => a.IsActive);
-            totalProjects = await _context.Projects.CountAsync(p => p.IsActive);
+            totalProjects = await _context.Projects.CountAsync(p => p.IsActive && p.Status != ProjectStatus.Draft && p.Status != ProjectStatus.Cancelled);
             approvedProjects = await _context.Projects.CountAsync(p => p.IsActive && p.Status == ProjectStatus.Approved);
             inProgressProjects = await _context.Projects.CountAsync(p => p.IsActive && p.Status == ProjectStatus.InProgress);
             pendingProjects = await _context.Projects.CountAsync(p => p.IsActive && (p.Status == ProjectStatus.Pending || p.Status == ProjectStatus.Proposed || p.Status == ProjectStatus.UnderReview));

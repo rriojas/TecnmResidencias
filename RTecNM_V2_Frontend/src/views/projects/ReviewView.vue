@@ -24,6 +24,7 @@ const statusFilter = ref('all')
 const sortBy = ref('CreatedAt')
 const sortDir = ref('desc')
 const includeInactive = ref(false)
+const includeCancelled = ref(false)
 const isLoading = ref(false)
 
 // Notificaciones
@@ -188,6 +189,7 @@ async function loadProjects({ silent = false } = {}) {
       sortDir: sortDir.value,
       search: searchTerm.value.trim() || undefined,
       includeInactive: includeInactive.value,
+      includeCancelled: includeCancelled.value,
       careerId: selectedCareerFilter.value !== 'all' ? Number(selectedCareerFilter.value) : undefined,
     }
 
@@ -197,7 +199,7 @@ async function loadProjects({ silent = false } = {}) {
     projects.value = authStore.isCareerHead
       ? items.filter((p) => String(p.status || '').toLowerCase() !== 'draft')
       : items
-    totalCount.value = authStore.isCareerHead ? projects.value.length : (data.totalCount || 0)
+    totalCount.value = data.totalCount || 0
     totalPages.value = data.totalPages || 0
   } catch (err) {
     if (!silent) {
@@ -694,6 +696,7 @@ async function handleExportPdf() {
       sortBy: sortBy.value,
       sortDir: sortDir.value,
       includeInactive: includeInactive.value,
+      includeCancelled: includeCancelled.value,
       careerId: selectedCareerFilter.value !== 'all' ? Number(selectedCareerFilter.value) : undefined,
     }
     const res = await apiClient.get('/v1/projects/export', {
@@ -797,11 +800,23 @@ onMounted(() => {
                 id="includeInactiveToggle"
                 v-model="includeInactive"
                 type="checkbox"
-                @change="loadProjects"
+                @change="pageNumber = 1; loadProjects()"
               />
               <span class="tecnm-switch-slider"></span>
             </span>
             Mostrar inactivos
+          </label>
+          <label class="tecnm-switch-label">
+            <span class="tecnm-switch">
+              <input
+                id="includeCancelledToggle"
+                v-model="includeCancelled"
+                type="checkbox"
+                @change="pageNumber = 1; loadProjects()"
+              />
+              <span class="tecnm-switch-slider"></span>
+            </span>
+            Mostrar cancelados
           </label>
           <button
             id="exportProjectsBtn"

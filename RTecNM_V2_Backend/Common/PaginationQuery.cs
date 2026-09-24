@@ -2,7 +2,7 @@ namespace TecNM.Residency.Common;
 
 public class PaginationQuery
 {
-    private const int MaxPageSize = 50;
+    private const int MaxPageSize = 200;
     private int _pageSize = 10;
     private int _pageNumber = 1;
 
