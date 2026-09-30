@@ -2514,6 +2514,7 @@ onMounted(() => {
   <AdvisorWorkloadModal
     v-model="isWorkloadModalOpen"
     :advisor-id="selectedAdvisorForModal"
+    @updated="loadDashboard"
   />
 
   <!-- Ventana Modal de Solicitud y Re-envío de Acreditación InnovaTecNM Nacional -->

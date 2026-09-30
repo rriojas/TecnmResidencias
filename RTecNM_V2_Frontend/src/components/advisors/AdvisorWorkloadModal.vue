@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import apiClient from '@/services/api'
 import TecnmBadge from '@/components/common/TecnmBadge.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useConfirm } from '@/composables/useConfirm'
 
 const props = defineProps({
   modelValue: {
@@ -16,19 +17,33 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:modelValue', 'close'])
+const emit = defineEmits(['update:modelValue', 'close', 'updated'])
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { confirm } = useConfirm()
 
 const isLoading = ref(false)
 const errorMessage = ref('')
 const advisorData = ref(null)
 
+// Notificaciones internas del modal
+const alertMessage = ref('')
+const alertType = ref('success')
+let alertTimer = null
+
+function showAlert(msg, type = 'success') {
+  alertMessage.value = msg
+  alertType.value = type
+  clearTimeout(alertTimer)
+  alertTimer = setTimeout(() => {
+    alertMessage.value = ''
+  }, 4500)
+}
+
 const canManageAssignments = computed(() => {
   return authStore.isAdmin || authStore.isCareerHead || authStore.hasPermission('projects.advisor.assign')
 })
-
 
 const advisorInitials = computed(() => {
   if (!advisorData.value?.fullName) return 'DC'
@@ -45,7 +60,6 @@ async function fetchAdvisorDetails(id) {
   if (!id) return
   isLoading.value = true
   errorMessage.value = ''
-  advisorData.value = null
 
   try {
     const res = await apiClient.get(`/v1/advisors/${id}/residents`)
@@ -59,18 +73,7 @@ async function fetchAdvisorDetails(id) {
   }
 }
 
-watch(
-  () => [props.modelValue, props.advisorId],
-  ([isOpen, id]) => {
-    if (isOpen && id) {
-      fetchAdvisorDetails(id)
-    } else if (!isOpen) {
-      advisorData.value = null
-      errorMessage.value = ''
-    }
-  },
-  { immediate: true }
-)
+
 
 function closeModal() {
   emit('update:modelValue', false)
@@ -86,6 +89,244 @@ function goToReview() {
   closeModal()
   router.push('/projects/review')
 }
+
+// ---------------------------------------------------------------------------
+// 1. Quitar / Desasignar Alumno
+// ---------------------------------------------------------------------------
+const processingStudentId = ref(null)
+
+async function handleUnassignResident(resident) {
+  const confirmed = await confirm({
+    title: 'Desasignar Residente',
+    message: `¿Desea retirar a "${resident.fullName}" (${resident.controlNumber}) de la lista de residentes de este asesor?`,
+    okText: 'Quitar Residente',
+    cancelText: 'Cancelar',
+  })
+
+  if (!confirmed) return
+
+  processingStudentId.value = resident.studentId
+  try {
+    await apiClient.delete(`/v1/students/${resident.studentId}/advisor`)
+    showAlert(`Residente "${resident.fullName}" desasignado correctamente.`, 'success')
+    await fetchAdvisorDetails(props.advisorId)
+    emit('updated')
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al desasignar el residente.', 'danger')
+  } finally {
+    processingStudentId.value = null
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 2. Cambiar / Reasignar a Otro Asesor
+// ---------------------------------------------------------------------------
+const isReassignOpen = ref(false)
+const targetStudent = ref(null)
+const selectedNewAdvisorId = ref('')
+const availableAdvisors = ref([])
+const isLoadingAdvisors = ref(false)
+const isSubmittingReassign = ref(false)
+
+async function loadAdvisorsOptions() {
+  if (availableAdvisors.value.length > 0) return
+  isLoadingAdvisors.value = true
+  try {
+    const res = await apiClient.get('/v1/advisors/options')
+    availableAdvisors.value = res.data || []
+  } catch (err) {
+    console.error('Error al cargar lista de asesores:', err)
+  } finally {
+    isLoadingAdvisors.value = false
+  }
+}
+
+const otherAdvisors = computed(() => {
+  const currentId = Number(props.advisorId)
+  return availableAdvisors.value.filter((a) => Number(a.id) !== currentId)
+})
+
+function openReassignModal(resident) {
+  targetStudent.value = resident
+  selectedNewAdvisorId.value = ''
+  isReassignOpen.value = true
+  loadAdvisorsOptions()
+}
+
+function closeReassignModal() {
+  isReassignOpen.value = false
+  targetStudent.value = null
+  selectedNewAdvisorId.value = ''
+}
+
+async function submitReassignment() {
+  if (!selectedNewAdvisorId.value || !targetStudent.value) return
+  isSubmittingReassign.value = true
+  try {
+    await apiClient.put(`/v1/students/${targetStudent.value.studentId}/advisor`, {
+      advisorId: Number(selectedNewAdvisorId.value),
+    })
+    const newAdv = availableAdvisors.value.find((a) => Number(a.id) === Number(selectedNewAdvisorId.value))
+    showAlert(
+      `Residente reasignado exitosamente a ${newAdv ? newAdv.fullName : 'nuevo asesor'}.`,
+      'success'
+    )
+    closeReassignModal()
+    await fetchAdvisorDetails(props.advisorId)
+    emit('updated')
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al reasignar asesor.', 'danger')
+  } finally {
+    isSubmittingReassign.value = false
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 3. Añadir Residentes a Este Asesor
+// ---------------------------------------------------------------------------
+const isAddOpen = ref(false)
+const candidateSearch = ref('')
+const candidateList = ref([])
+const isLoadingCandidates = ref(false)
+const selectedCandidateIds = ref([])
+const isSubmittingAdd = ref(false)
+const filterOnlyUnassigned = ref(true)
+
+function getAcceptanceBadge(student) {
+  if (!student) return { text: 'Pendiente', class: 'tecnm-badge-warning' }
+  const type = (student.projectType || '').toLowerCase()
+  const title = (student.projectTitle || '').toLowerCase()
+  const isAccred =
+    student.isAccreditation ||
+    student.exemptionReason ||
+    type.includes('hackatec') ||
+    title.includes('hackatec') ||
+    type.includes('innovatec') ||
+    title.includes('innovatec')
+  if (isAccred) return { text: 'Acreditado', class: 'tecnm-badge-info' }
+  if (student.hasAcceptanceLetter) return { text: 'Carta Cargada', class: 'tecnm-badge-success' }
+  return { text: 'Sin Carta', class: 'tecnm-badge-warning' }
+}
+
+async function fetchCandidates() {
+  isLoadingCandidates.value = true
+  try {
+    const params = {
+      pageNumber: 1,
+      pageSize: 40,
+      search: candidateSearch.value.trim() || undefined,
+      includeInactive: false,
+      assignmentStatus: filterOnlyUnassigned.value ? 'unassigned' : undefined,
+    }
+    const res = await apiClient.get('/v1/students', { params })
+    const data = res.data
+    const items = Array.isArray(data) ? data : data.items || []
+    const currentResidentIds = (advisorData.value?.residents || []).map((r) => r.studentId)
+    candidateList.value = items.filter((s) => !currentResidentIds.includes(s.id))
+  } catch (err) {
+    console.error('Error al cargar alumnos candidatos:', err)
+  } finally {
+    isLoadingCandidates.value = false
+  }
+}
+
+let searchTimer = null
+function onSearchCandidateInput() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    fetchCandidates()
+  }, 300)
+}
+
+function openAddResidentsModal() {
+  candidateSearch.value = ''
+  selectedCandidateIds.value = []
+  isAddOpen.value = true
+  fetchCandidates()
+}
+
+function closeAddResidentsModal() {
+  isAddOpen.value = false
+  selectedCandidateIds.value = []
+  candidateSearch.value = ''
+}
+
+function toggleCandidate(studentId) {
+  const idx = selectedCandidateIds.value.indexOf(studentId)
+  if (idx > -1) {
+    selectedCandidateIds.value.splice(idx, 1)
+  } else {
+    selectedCandidateIds.value.push(studentId)
+  }
+}
+
+function toggleSelectAllCandidates(e) {
+  if (e.target.checked) {
+    selectedCandidateIds.value = candidateList.value.map((s) => s.id)
+  } else {
+    selectedCandidateIds.value = []
+  }
+}
+
+async function assignCandidate(student) {
+  isSubmittingAdd.value = true
+  try {
+    await apiClient.put(`/v1/students/${student.id}/advisor`, {
+      advisorId: Number(props.advisorId),
+    })
+    showAlert(
+      `Estudiante "${student.fullName || student.controlNumber}" asignado exitosamente a este asesor.`,
+      'success'
+    )
+    candidateList.value = candidateList.value.filter((s) => s.id !== student.id)
+    await fetchAdvisorDetails(props.advisorId)
+    emit('updated')
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al asignar estudiante al asesor.', 'danger')
+  } finally {
+    isSubmittingAdd.value = false
+  }
+}
+
+async function submitBatchAdd() {
+  if (selectedCandidateIds.value.length === 0) return
+  isSubmittingAdd.value = true
+  try {
+    const res = await apiClient.post('/v1/students/batch-assign-advisor', {
+      advisorId: Number(props.advisorId),
+      studentIds: selectedCandidateIds.value.map(Number),
+    })
+    showAlert(
+      res.data?.message ||
+        `${selectedCandidateIds.value.length} estudiantes asignados exitosamente a este asesor.`,
+      'success'
+    )
+    closeAddResidentsModal()
+    await fetchAdvisorDetails(props.advisorId)
+    emit('updated')
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error en la asignación masiva de residentes.', 'danger')
+  } finally {
+    isSubmittingAdd.value = false
+  }
+}
+
+watch(
+  () => [props.modelValue, props.advisorId],
+  ([isOpen, id]) => {
+    if (isOpen && id) {
+      alertMessage.value = ''
+      fetchAdvisorDetails(id)
+    } else if (!isOpen) {
+      advisorData.value = null
+      errorMessage.value = ''
+      alertMessage.value = ''
+      closeReassignModal()
+      closeAddResidentsModal()
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -119,6 +360,15 @@ function goToReview() {
 
       <!-- Main Content -->
       <div v-else-if="advisorData" class="modal-body-content">
+        <!-- Notificación Interna -->
+        <div
+          v-if="alertMessage"
+          :class="['tecnm-alert', `tecnm-alert-${alertType}`]"
+          role="alert"
+        >
+          <span>{{ alertMessage }}</span>
+        </div>
+
         <!-- Ficha del Asesor -->
         <div class="advisor-summary-banner">
           <div class="advisor-avatar-circle">
@@ -156,14 +406,25 @@ function goToReview() {
             <h4 class="residents-title">
               Residentes Asignados ({{ advisorData.residents.length }})
             </h4>
-            <button
-              v-if="canManageAssignments"
-              type="button"
-              class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
-              @click="goToAssignments"
-            >
-              + Gestionar Asignación
-            </button>
+            <div v-if="canManageAssignments" class="residents-header-actions">
+              <button
+                type="button"
+                class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                @click="openAddResidentsModal"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                <span>+ Añadir Alumno(s)</span>
+              </button>
+              <button
+                type="button"
+                class="tecnm-btn tecnm-btn-outline-secondary tecnm-btn-sm"
+                @click="goToAssignments"
+              >
+                Módulo Asignaciones &rarr;
+              </button>
+            </div>
           </div>
 
           <!-- Tabla de Residentes si los hay -->
@@ -203,14 +464,47 @@ function goToReview() {
                     {{ res.advisoryCount }} {{ res.advisoryCount === 1 ? 'asesoría' : 'asesorías' }}
                   </div>
                 </div>
-                <button
-                  v-if="res.projectId"
-                  type="button"
-                  class="tecnm-btn tecnm-btn-outline-primary tecnm-btn-sm"
-                  @click="goToReview"
-                >
-                  Ver Proyecto &rarr;
-                </button>
+
+                <div class="resident-actions-cluster">
+                  <button
+                    v-if="res.projectId"
+                    type="button"
+                    class="tecnm-btn tecnm-btn-outline-primary tecnm-btn-sm"
+                    title="Ver anteproyecto registrado"
+                    @click="goToReview"
+                  >
+                    Ver Proyecto
+                  </button>
+
+                  <button
+                    v-if="canManageAssignments"
+                    type="button"
+                    class="tecnm-btn tecnm-btn-outline-secondary tecnm-btn-sm"
+                    title="Cambiar a otro asesor académico"
+                    :disabled="processingStudentId === res.studentId"
+                    @click="openReassignModal(res)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                    </svg>
+                    <span>Cambiar</span>
+                  </button>
+
+                  <button
+                    v-if="canManageAssignments"
+                    type="button"
+                    class="tecnm-btn tecnm-btn-outline-danger tecnm-btn-sm"
+                    title="Quitar este residente de este asesor"
+                    :disabled="processingStudentId === res.studentId"
+                    @click="handleUnassignResident(res)"
+                  >
+                    <span v-if="processingStudentId === res.studentId" class="spinner-inline"></span>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                    <span>Quitar</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -233,9 +527,9 @@ function goToReview() {
               type="button"
               class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
               style="margin-top: 1rem;"
-              @click="goToAssignments"
+              @click="openAddResidentsModal"
             >
-              Asignar Residentes a este Asesor &rarr;
+              + Añadir Residentes a este Asesor
             </button>
           </div>
         </div>
@@ -258,6 +552,237 @@ function goToReview() {
       </div>
     </div>
   </div>
+
+  <!-- Sub-Modal: Cambiar Asesor a Residente -->
+  <Teleport to="body">
+    <div v-if="isReassignOpen" class="submodal-backdrop" @click.self="closeReassignModal">
+      <div class="submodal-dialog" role="dialog" aria-modal="true">
+        <div class="tecnm-modal-header">
+          <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="tecnm-header-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+            </svg>
+            <h3 class="tecnm-modal-title">Cambiar Asesor Académico</h3>
+          </div>
+          <button type="button" class="tecnm-modal-close" aria-label="Cerrar" @click="closeReassignModal">
+            &times;
+          </button>
+        </div>
+
+        <div class="submodal-body">
+          <p class="submodal-desc">
+            Seleccione el nuevo asesor al que se le transferirá el estudiante 
+            <strong>{{ targetStudent?.fullName }}</strong> ({{ targetStudent?.controlNumber }}).
+          </p>
+
+          <div class="reassign-card">
+            <div class="reassign-item">
+              <span class="reassign-label">Asesor Actual:</span>
+              <span class="reassign-val">{{ advisorData?.fullName }}</span>
+            </div>
+            <div class="reassign-item">
+              <span class="reassign-label">Carrera:</span>
+              <span class="reassign-val">{{ targetStudent?.careerName }}</span>
+            </div>
+            <div v-if="targetStudent?.projectTitle" class="reassign-item">
+              <span class="reassign-label">Proyecto:</span>
+              <span class="reassign-val">{{ targetStudent?.projectTitle }}</span>
+            </div>
+          </div>
+
+          <div class="tecnm-form-group" style="margin-top: 0.75rem;">
+            <label class="tecnm-label" for="newAdvisorSelect">
+              Nuevo Asesor Destino <span class="tecnm-required">*</span>
+            </label>
+            <div v-if="isLoadingAdvisors" class="submodal-loading-inline">
+              <span class="spinner-inline"></span> Cargando catálogo de asesores...
+            </div>
+            <select
+              v-else
+              id="newAdvisorSelect"
+              v-model="selectedNewAdvisorId"
+              class="tecnm-form-control"
+            >
+              <option value="" disabled>-- Seleccione un asesor --</option>
+              <option
+                v-for="adv in otherAdvisors"
+                :key="adv.id"
+                :value="adv.id"
+              >
+                {{ adv.fullName }} ({{ adv.assignedStudentsCount }} residentes actuales)
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="submodal-footer">
+          <button
+            type="button"
+            class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+            :disabled="isSubmittingReassign"
+            @click="closeReassignModal"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+            :disabled="isSubmittingReassign || !selectedNewAdvisorId"
+            @click="submitReassignment"
+          >
+            <span v-if="isSubmittingReassign" class="spinner-inline"></span>
+            <span>Confirmar Transferencia</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Sub-Modal: Añadir Residentes a Este Asesor -->
+  <Teleport to="body">
+    <div v-if="isAddOpen" class="submodal-backdrop" @click.self="closeAddResidentsModal">
+      <div class="submodal-dialog submodal-dialog-large" role="dialog" aria-modal="true">
+        <div class="tecnm-modal-header">
+          <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="tecnm-header-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM4 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 10.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
+            </svg>
+            <h3 class="tecnm-modal-title">Añadir Residentes a {{ advisorData?.fullName }}</h3>
+          </div>
+          <button type="button" class="tecnm-modal-close" aria-label="Cerrar" @click="closeAddResidentsModal">
+            &times;
+          </button>
+        </div>
+
+        <div class="submodal-body">
+          <!-- Barra de Búsqueda y Filtro -->
+          <div class="candidate-toolbar">
+            <div class="tecnm-form-group tecnm-mb-0" style="flex: 1; min-width: 240px;">
+              <input
+                v-model="candidateSearch"
+                type="search"
+                class="tecnm-form-control"
+                placeholder="Buscar estudiante por nombre o no. control..."
+                @input="onSearchCandidateInput"
+              />
+            </div>
+            <label class="candidate-checkbox-label">
+              <input
+                v-model="filterOnlyUnassigned"
+                type="checkbox"
+                @change="fetchCandidates"
+              />
+              <span>Solo sin asesor asignado</span>
+            </label>
+          </div>
+
+          <!-- Estado de Carga -->
+          <div v-if="isLoadingCandidates" class="submodal-loading">
+            <div class="spinner"></div>
+            <p>Consultando estudiantes candidatos...</p>
+          </div>
+
+          <!-- Lista de Candidatos -->
+          <div v-else-if="candidateList.length > 0" class="candidate-list-scroll">
+            <table class="tecnm-table candidate-table">
+              <thead>
+                <tr>
+                  <th style="width: 38px;">
+                    <input
+                      type="checkbox"
+                      :checked="candidateList.length > 0 && selectedCandidateIds.length === candidateList.length"
+                      @change="toggleSelectAllCandidates"
+                    />
+                  </th>
+                  <th>Estudiante</th>
+                  <th>Carrera / Anteproyecto</th>
+                  <th>Estado Carta</th>
+                  <th style="text-align: right;">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="cand in candidateList"
+                  :key="cand.id"
+                  :class="{ 'row-selected': selectedCandidateIds.includes(cand.id) }"
+                >
+                  <td>
+                    <input
+                      type="checkbox"
+                      :value="cand.id"
+                      :checked="selectedCandidateIds.includes(cand.id)"
+                      @change="toggleCandidate(cand.id)"
+                    />
+                  </td>
+                  <td>
+                    <div class="candidate-name">{{ cand.fullName || cand.name }}</div>
+                    <div class="candidate-control">{{ cand.controlNumber }}</div>
+                  </td>
+                  <td>
+                    <div class="candidate-career">{{ cand.careerName || 'Carrera general' }}</div>
+                    <div v-if="cand.projectTitle" class="candidate-project" :title="cand.projectTitle">
+                      {{ cand.projectTitle }}
+                    </div>
+                    <div v-else class="candidate-no-project">Sin anteproyecto</div>
+                  </td>
+                  <td>
+                    <span
+                      :class="['tecnm-badge', getAcceptanceBadge(cand).class]"
+                      style="font-size: 0.725rem;"
+                    >
+                      {{ getAcceptanceBadge(cand).text }}
+                    </span>
+                  </td>
+                  <td style="text-align: right;">
+                    <button
+                      type="button"
+                      class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                      :disabled="isSubmittingAdd"
+                      title="Asignar este alumno individualmente"
+                      @click="assignCandidate(cand)"
+                    >
+                      + Asignar
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Empty State -->
+          <div v-else class="submodal-empty">
+            <p>No se encontraron estudiantes disponibles con los criterios actuales.</p>
+          </div>
+        </div>
+
+        <div class="submodal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="candidate-selected-count">
+            {{ selectedCandidateIds.length }} estudiante(s) seleccionado(s)
+          </span>
+          <div class="tecnm-d-flex tecnm-gap-2">
+            <button
+              type="button"
+              class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+              :disabled="isSubmittingAdd"
+              @click="closeAddResidentsModal"
+            >
+              Cerrar
+            </button>
+            <button
+              v-if="selectedCandidateIds.length > 0"
+              type="button"
+              class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+              :disabled="isSubmittingAdd"
+              @click="submitBatchAdd"
+            >
+              <span v-if="isSubmittingAdd" class="spinner-inline"></span>
+              <span>Asignar Seleccionados ({{ selectedCandidateIds.length }})</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -278,7 +803,7 @@ function goToReview() {
   border-radius: 12px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
   width: 100%;
-  max-width: 780px;
+  max-width: 860px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -351,6 +876,18 @@ function goToReview() {
   to {
     transform: rotate(360deg);
   }
+}
+
+.spinner-inline {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-right: 4px;
+  vertical-align: middle;
 }
 
 .modal-body-content {
@@ -456,6 +993,14 @@ function goToReview() {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.residents-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .residents-title {
@@ -555,6 +1100,7 @@ function goToReview() {
   align-items: center;
   gap: 1rem;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .resident-status-box {
@@ -570,6 +1116,12 @@ function goToReview() {
   background: #f1f5f9;
   padding: 0.1rem 0.4rem;
   border-radius: 4px;
+}
+
+.resident-actions-cluster {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .empty-residents-box {
@@ -596,5 +1148,181 @@ function goToReview() {
   padding: 1rem 1.5rem;
   border-top: 1px solid var(--tecnm-border-color, #e2e8f0);
   background: #ffffff;
+}
+
+/* Sub-Modales (Reasignación y Añadir Alumnos) */
+.submodal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.submodal-dialog {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 540px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-top: 4px solid var(--tecnm-gold-primary, #D4AF37);
+  animation: modalEnter 0.2s ease-out;
+}
+
+.submodal-dialog-large {
+  max-width: 820px;
+}
+
+.submodal-body {
+  padding: 1.25rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.submodal-desc {
+  font-size: 0.875rem;
+  color: var(--tecnm-text-secondary, #64748b);
+  margin: 0;
+}
+
+.reassign-card {
+  background: #f8fafc;
+  border: 1px solid var(--tecnm-border-color, #e2e8f0);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.reassign-item {
+  display: flex;
+  font-size: 0.825rem;
+  gap: 0.5rem;
+}
+
+.reassign-label {
+  font-weight: 600;
+  color: var(--tecnm-text-secondary, #64748b);
+  min-width: 100px;
+}
+
+.reassign-val {
+  color: var(--tecnm-text-primary, #0f172a);
+}
+
+.submodal-footer {
+  padding: 0.875rem 1.25rem;
+  border-top: 1px solid var(--tecnm-border-color, #e2e8f0);
+  background: #ffffff;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.candidate-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.candidate-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.825rem;
+  color: var(--tecnm-text-primary, #0f172a);
+  cursor: pointer;
+  user-select: none;
+}
+
+.candidate-list-scroll {
+  max-height: 380px;
+  overflow-y: auto;
+  border: 1px solid var(--tecnm-border-color, #e2e8f0);
+  border-radius: 8px;
+}
+
+.candidate-table {
+  margin: 0;
+  width: 100%;
+}
+
+.candidate-table th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  z-index: 1;
+}
+
+.candidate-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--tecnm-text-primary, #0f172a);
+}
+
+.candidate-control {
+  font-size: 0.75rem;
+  color: var(--tecnm-text-secondary, #64748b);
+}
+
+.candidate-career {
+  font-size: 0.8rem;
+  color: var(--tecnm-text-primary, #0f172a);
+}
+
+.candidate-project {
+  font-size: 0.75rem;
+  color: var(--tecnm-text-secondary, #64748b);
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.candidate-no-project {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.row-selected {
+  background-color: #f0f7ff;
+}
+
+.submodal-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--tecnm-text-secondary, #64748b);
+  font-size: 0.875rem;
+}
+
+.submodal-loading {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--tecnm-text-secondary, #64748b);
+}
+
+.submodal-loading-inline {
+  font-size: 0.85rem;
+  color: var(--tecnm-text-secondary, #64748b);
+  padding: 0.5rem 0;
+}
+
+.candidate-selected-count {
+  font-size: 0.825rem;
+  color: var(--tecnm-text-secondary, #64748b);
+  font-weight: 500;
 }
 </style>

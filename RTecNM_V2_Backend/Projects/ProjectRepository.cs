@@ -312,20 +312,41 @@ public class ProjectRepository : IProjectRepository
         if (string.IsNullOrWhiteSpace(status) || status.Equals("all", StringComparison.OrdinalIgnoreCase))
             return q;
 
-        switch (status.ToLowerInvariant())
+        var normalized = status.ToLowerInvariant().Replace("_", "").Trim();
+        switch (normalized)
         {
             case "draft":
+            case "borrador":
                 return q.Where(p => p.Status == ProjectStatus.Draft);
             case "pending":
+            case "pendiente":
+            case "proposed":
                 return q.Where(p => p.Status == ProjectStatus.Pending
                                     || p.Status == ProjectStatus.Proposed
                                     || p.Status == ProjectStatus.UnderReview);
+            case "underreview":
+            case "revision":
+            case "enrevision":
+                return q.Where(p => p.Status == ProjectStatus.UnderReview);
             case "approved":
+            case "aprobado":
                 return q.Where(p => p.Status == ProjectStatus.Approved);
+            case "inprogress":
+            case "enprogreso":
+            case "encurso":
+                return q.Where(p => p.Status == ProjectStatus.InProgress);
+            case "completed":
+            case "completado":
+            case "concluido":
+                return q.Where(p => p.Status == ProjectStatus.Completed);
             case "rejected":
+            case "rechazado":
                 return q.Where(p => p.Status == ProjectStatus.Rejected);
+            case "cancelled":
+            case "cancelado":
+                return q.Where(p => p.Status == ProjectStatus.Cancelled);
             default:
-                if (Enum.TryParse<ProjectStatus>(status, true, out var parsed))
+                if (Enum.TryParse<ProjectStatus>(normalized, true, out var parsed))
                     return q.Where(p => p.Status == parsed);
                 return q;
         }

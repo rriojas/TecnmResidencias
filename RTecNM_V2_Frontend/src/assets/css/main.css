@@ -107,6 +107,13 @@ a:hover {
   background-color: var(--tecnm-bg-main);
 }
 
+.tecnm-public-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
 /* ============================================================
    5. HEADER INSTITUCIONAL (.tecnm-header) - Spec 08 §4.1
    ------------------------------------------------------------

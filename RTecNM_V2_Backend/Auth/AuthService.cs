@@ -134,6 +134,15 @@ public class AuthService : IAuthService
             }
         }
 
+        if (string.IsNullOrWhiteSpace(fullName))
+        {
+            var fallbackName = $"{user.FirstName} {user.LastName} {user.LastName2}".Trim();
+            if (!string.IsNullOrWhiteSpace(fallbackName))
+            {
+                fullName = fallbackName;
+            }
+        }
+
         var permissions = await GetUserPermissionSlugsAsync(user);
         var token = GenerateJwtToken(user, permissions, careerId, coordinatorCareerIds);
         var expiresIn = (int)TimeSpan.FromMinutes(_jwtSettings.ExpirationMinutes).TotalSeconds;

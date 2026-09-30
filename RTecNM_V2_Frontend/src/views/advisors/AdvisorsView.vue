@@ -1063,6 +1063,7 @@ onMounted(() => {
   <AdvisorWorkloadModal
     v-model="isWorkloadModalOpen"
     :advisor-id="selectedAdvisorForModal"
+    @updated="loadAdvisors({ silent: true })"
   />
 </template>
 

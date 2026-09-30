@@ -30,12 +30,9 @@ onMounted(() => {
     <AppNavbar v-if="authStore.isAuthenticated && !isPublicRoute" />
 
     <!-- Contenido Principal -->
-    <main v-if="isPublicRoute" class="tecnm-public-main">
-      <router-view />
-    </main>
-    <main v-else class="tecnm-main-content">
-      <div class="tecnm-container">
-        <router-view />
+    <main :class="isPublicRoute ? 'tecnm-public-main' : 'tecnm-main-content'">
+      <div :class="isPublicRoute ? 'tecnm-public-container' : 'tecnm-container'">
+        <router-view :key="$route.fullPath" />
       </div>
     </main>
 

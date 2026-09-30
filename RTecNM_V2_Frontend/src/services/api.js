@@ -13,6 +13,8 @@ apiClient.interceptors.request.use(
     const token = sessionStorage.getItem('authToken')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+    } else if (config.headers?.Authorization) {
+      delete config.headers.Authorization
     }
     if (config.data instanceof FormData && config.headers) {
       delete config.headers['Content-Type']
@@ -26,7 +28,8 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    const isAuthRequest = error.config?.url?.includes('/api/v1/auth/login')
+    const url = error.config?.url || ''
+    const isAuthRequest = url.includes('/auth/login') || url.includes('auth/login')
     if (error.response?.status === 401 && !isAuthRequest) {
       sessionStorage.removeItem('authToken')
       sessionStorage.removeItem('authUser')

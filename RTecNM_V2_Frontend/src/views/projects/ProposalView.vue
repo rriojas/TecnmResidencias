@@ -80,17 +80,35 @@ const CANCELLABLE_STUDENT_STATUSES = ['draft', 'borrador', 'pending', 'pendiente
 const isStaff = computed(() => {
   return (
     authStore.isAdmin ||
-    authStore.hasRole('departmenthead', 'advisor', 'vinculacion', 'director')
+    authStore.isCareerHead ||
+    authStore.isCoordinator ||
+    authStore.hasRole(
+      'departmenthead',
+      'advisor',
+      'vinculacion',
+      'director',
+      'academic',
+      'academico',
+      'jefecarrera',
+      'careerhead',
+      'coordinadora',
+      'coordinator'
+    ) ||
+    (authStore.currentRole !== 'student' && !authStore.hasRole('student'))
   )
 })
 
+function normStatus(st) {
+  return String(st || '').toLowerCase().replace(/_/g, '').trim()
+}
+
 function canCancelProposal(proposal) {
   if (!proposal || authStore.isReadOnly || authStore.hasRole('vinculacion')) return false
-  const st = String(proposal.status || '').toLowerCase()
+  const st = normStatus(proposal.status)
   if (!proposal.isActive || ['cancelled', 'cancelado', 'completed', 'completado'].includes(st)) return false
   if (isStaff.value) return true
   // Si es estudiante: NO puede cancelar una vez que ya fue aprobado o está en curso
-  return CANCELLABLE_STUDENT_STATUSES.includes(st)
+  return CANCELLABLE_STUDENT_STATUSES.some((s) => normStatus(s) === st)
 }
 
 const studentProfile = ref(null)
@@ -110,50 +128,74 @@ const hasAdvisor = computed(() => {
 const activeProposal = computed(() => {
   if (isStaff.value) return null
   return proposals.value.find((p) => {
-    const st = (p.status || '').toLowerCase()
-    return ACTIVE_STATUSES.includes(st) && p.isActive !== false && !['cancelled', 'cancelado'].includes(st)
+    const st = normStatus(p.status)
+    return (
+      ACTIVE_STATUSES.some((s) => normStatus(s) === st) &&
+      p.isActive !== false &&
+      !['cancelled', 'cancelado'].includes(st)
+    )
   })
 })
 
 function isAccreditationType(p) {
   if (!p) return false
-  const t = String(p.projectType || '').toLowerCase()
-  return t.includes('innovatec') || t.includes('hackatec') || t.startsWith('acreditacion')
+  const t = normStatus(p.projectType)
+  const title = normStatus(p.title || p.projectTitle)
+  return (
+    t.includes('innovatec') ||
+    t.includes('hackatec') ||
+    t.startsWith('acreditacion') ||
+    title.includes('innovatec') ||
+    title.includes('hackatec')
+  )
 }
 
 // Trámite de InnovaTecNM Nacional para estudiante
 const latestAccreditationProject = computed(() => {
+  if (isStaff.value) return null
   return proposals.value.find((p) => isAccreditationType(p))
 })
 
 const isAccreditationActive = computed(() => {
   if (!latestAccreditationProject.value || isStaff.value) return false
-  const st = String(latestAccreditationProject.value.status || '').toLowerCase()
-  return latestAccreditationProject.value.isActive !== false && !['rejected', 'rechazado', 'cancelled', 'cancelado'].includes(st)
+  const st = normStatus(latestAccreditationProject.value.status)
+  return (
+    latestAccreditationProject.value.isActive !== false &&
+    !['rejected', 'rechazado', 'cancelled', 'cancelado'].includes(st)
+  )
 })
 
 const isAccreditationUnderReview = computed(() => {
   if (!latestAccreditationProject.value || isStaff.value) return false
-  const st = String(latestAccreditationProject.value.status || '').toLowerCase()
-  return ['under_review', 'pending', 'proposed'].includes(st) && !latestAccreditationProject.value.reviewComments
+  const st = normStatus(latestAccreditationProject.value.status)
+  return (
+    ['underreview', 'pending', 'proposed', 'revision', 'enrevision'].includes(st) &&
+    !latestAccreditationProject.value.reviewComments
+  )
 })
 
 const isAccreditationReturned = computed(() => {
   if (!latestAccreditationProject.value || isStaff.value) return false
-  const st = String(latestAccreditationProject.value.status || '').toLowerCase()
-  return (st === 'draft' || st === 'rejected') && !!latestAccreditationProject.value.reviewComments
+  const st = normStatus(latestAccreditationProject.value.status)
+  return (
+    (st === 'draft' || st === 'rejected' || st === 'correccionesrequeridas') &&
+    !!latestAccreditationProject.value.reviewComments
+  )
 })
 
 const isAccreditationCompleted = computed(() => {
   if (!latestAccreditationProject.value || isStaff.value) return false
-  const st = String(latestAccreditationProject.value.status || '').toLowerCase()
-  return st === 'completed'
+  const st = normStatus(latestAccreditationProject.value.status)
+  return st === 'completed' || st === 'completado'
 })
 
 const isAccreditationDenied = computed(() => {
   if (!latestAccreditationProject.value || isStaff.value) return false
-  const st = String(latestAccreditationProject.value.status || '').toLowerCase()
-  return (st === 'rejected' || st === 'cancelled') && !latestAccreditationProject.value.reviewComments
+  const st = normStatus(latestAccreditationProject.value.status)
+  return (
+    (st === 'rejected' || st === 'rechazado' || st === 'cancelled' || st === 'cancelado') &&
+    !latestAccreditationProject.value.reviewComments
+  )
 })
 
 const canCreateProposal = computed(() => {
@@ -224,7 +266,7 @@ function openCreateModal() {
     ? { id: studentProfile.value.advisorId, fullName: studentProfile.value.advisorName }
     : null
   form.value = {
-    studentId: '',
+    studentId: studentProfile.value?.id || '',
     companyId: '',
     advisorId: studentProfile.value?.advisorId || '',
     title: '',
@@ -299,17 +341,36 @@ async function openDetailModal(proposal) {
       const dRes = await apiClient.get(`/v1/documents/project/${proposal.id}`, {
         params: { pageSize: 50, _t: Date.now() },
       })
-      const docs = dRes.data?.items || []
+      const docs = Array.isArray(dRes.data) ? dRes.data : dRes.data?.items || []
       accreditationDoc.value =
-        docs.find((d) =>
-          ['constancia_acreditacion', 'acreditacion', 'diploma'].includes((d.documentType || '').toLowerCase()) ||
-          (d.fileName || '').toLowerCase().includes('diploma') ||
-          (d.fileName || '').toLowerCase().includes('constancia') ||
-          (d.fileName || '').toLowerCase().includes('innovatec')
-        ) || null
+        docs.find((d) => {
+          const dt = normStatus(d.documentType)
+          const fn = String(d.fileName || '').toLowerCase()
+          return (
+            dt.includes('constancia') ||
+            dt.includes('acreditacion') ||
+            dt.includes('diploma') ||
+            dt.includes('innovatec') ||
+            fn.includes('diploma') ||
+            fn.includes('constancia') ||
+            fn.includes('innovatec')
+          )
+        }) || null
       cartaAceptacionDoc.value =
-        docs.find((d) => ['carta_aceptacion', 'carta_aprobacion'].includes((d.documentType || '').toLowerCase()) && d.isActive) || null
-    } catch {}
+        docs.find((d) => {
+          const dt = normStatus(d.documentType)
+          const fn = String(d.fileName || '').toLowerCase()
+          return (
+            (dt.includes('cartaaceptacion') ||
+              dt.includes('cartaaprobacion') ||
+              dt === 'carta' ||
+              fn.includes('carta')) &&
+            d.isActive !== false
+          )
+        }) || null
+    } catch (docErr) {
+      console.warn('No se pudieron consultar documentos del anteproyecto:', docErr)
+    }
 
     isDetailOpen.value = true
   } catch {
@@ -349,7 +410,7 @@ async function handleProposalSubmit() {
     formError.value = 'Seleccione la empresa receptora vinculada.'
     return
   }
-  if (authStore.isAdmin || authStore.hasRole('departmenthead')) {
+  if (isStaff.value && !authStore.hasRole('student')) {
     if (!form.value.studentId) {
       formError.value = 'Seleccione el estudiante destinatario.'
       return
@@ -895,10 +956,11 @@ onMounted(() => {
         <!-- Paginación -->
         <TecnmPagination
           v-if="totalCount > 0"
-          v-model:currentPage="pageNumber"
-          v-model:pageSize="pageSize"
-          :totalPages="totalPages"
-          :totalCount="totalCount"
+          :current-page="pageNumber"
+          :total-pages="totalPages"
+          :total-count="totalCount"
+          :page-size="pageSize"
+          @update:current-page="pageNumber = $event"
           @page-change="loadStudentProposals"
         />
       </div>
@@ -941,7 +1003,7 @@ onMounted(() => {
 
           <!-- Estudiante Destinatario (Solo visible para Staff) -->
           <div
-            v-if="authStore.isAdmin || authStore.hasRole('departmenthead')"
+            v-if="isStaff && !authStore.hasRole('student')"
             id="adminStudentGroup"
             class="tecnm-form-group"
           >

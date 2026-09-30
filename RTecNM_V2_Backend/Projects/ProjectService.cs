@@ -42,7 +42,9 @@ public class ProjectService : IProjectService
         _currentUser.IsInRole(UserRole.Academic) ||
         _currentUser.IsInRole(UserRole.Vinculacion) ||
         _currentUser.IsInRole(UserRole.Director) ||
-        _currentUser.IsInRole(UserRole.DepartmentHead);
+        _currentUser.IsInRole(UserRole.DepartmentHead) ||
+        _currentUser.IsInRole(UserRole.CareerHead) ||
+        _currentUser.IsInRole(UserRole.Coordinator);
 
     private async Task<Student?> GetSessionStudentAsync()
     {
