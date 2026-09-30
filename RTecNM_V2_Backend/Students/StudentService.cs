@@ -621,7 +621,8 @@ public class StudentService : IStudentService
             return Result<StudentResponseDto>.Failure("No tienes permiso para asignar asesores a estudiantes de otra carrera.", 403);
         }
 
-        // Si ya cuenta con asesor y se intenta cambiar o desasignar, verificar vigencia máxima de 1 semana (7 días)
+        // Temporalmente deshabilitado: límite de tiempo de 1 semana para cambiar asesor asignado
+        /*
         if (student.AdvisorId.HasValue && student.AdvisorId.Value != advisorId)
         {
             var assignedAt = student.AdvisorAssignedAt ?? student.UpdatedAt;
@@ -630,6 +631,7 @@ public class StudentService : IStudentService
                 return Result<StudentResponseDto>.Failure("No se puede cambiar el asesor asignado porque ha superado la vigencia máxima permitida de 1 semana (7 días).", 400);
             }
         }
+        */
 
         var advisor = await _advisorRepository.GetByIdAsync(advisorId);
         if (advisor is null)
@@ -695,11 +697,14 @@ public class StudentService : IStudentService
             return Result<StudentResponseDto>.Failure("El estudiante no tiene un asesor asignado actualmente.", 400);
         }
 
+        // Temporalmente deshabilitado: límite de tiempo de 1 semana para desasignar asesor
+        /*
         var assignedAt = student.AdvisorAssignedAt ?? student.UpdatedAt;
         if ((DateTime.UtcNow - assignedAt).TotalDays > 7 && _currentUser.Role == UserRole.CareerHead && !_currentUser.IsInRole(UserRole.Admin))
         {
             return Result<StudentResponseDto>.Failure("No se puede desasignar el asesor porque la asignación actual ha superado la vigencia máxima permitida de 1 semana (7 días).", 400);
         }
+        */
 
         student.AdvisorId = null;
         student.Advisor = null;
@@ -767,6 +772,8 @@ public class StudentService : IStudentService
                     continue; // Omitir: requiere carta de aceptación oficial
                 }
 
+                // Temporalmente deshabilitado: límite de tiempo de 1 semana en asignación masiva
+                /*
                 if (student.AdvisorId.HasValue && student.AdvisorId.Value != advisorId)
                 {
                     var assignedAt = student.AdvisorAssignedAt ?? student.UpdatedAt;
@@ -775,6 +782,7 @@ public class StudentService : IStudentService
                         continue; // Omitir si la vigencia previa supera 1 semana
                     }
                 }
+                */
 
                 student.AdvisorId = advisor.Id;
                 student.Advisor = advisor;
