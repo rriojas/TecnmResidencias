@@ -26,4 +26,6 @@ public class DocumentMatrixItemDto
     public bool IsCompleted { get; set; }
     public bool IsAccreditation { get; set; }
     public string? ProjectType { get; set; }
+    public long? AdvisorId { get; set; }
+    public string? AdvisorName { get; set; }
 }

@@ -183,10 +183,26 @@ const selectedCareerFilter = ref(
 )
 
 const stageFilter = ref('all')
+const selectedAdvisorFilter = ref('all')
+const advisorsList = ref([])
 
 function onStageFilterChange() {
   pageNumber.value = 1
   loadStudents()
+}
+
+function onAdvisorFilterChange() {
+  pageNumber.value = 1
+  loadStudents()
+}
+
+async function loadAdvisorsCatalog() {
+  try {
+    const res = await apiClient.get('/v1/advisors/options')
+    advisorsList.value = res.data || []
+  } catch {
+    advisorsList.value = []
+  }
 }
 
 const sortedStudents = computed(() => {
@@ -221,6 +237,7 @@ async function loadStudents({ silent = false } = {}) {
       includeInactive: includeInactive.value,
       excludeEvaluated: excludeEvaluated.value,
       careerId: selectedCareerFilter.value !== 'all' ? Number(selectedCareerFilter.value) : undefined,
+      advisorId: selectedAdvisorFilter.value !== 'all' ? Number(selectedAdvisorFilter.value) : undefined,
       residencyStage: stageFilter.value !== 'all' ? stageFilter.value : undefined,
     }
     const res = await apiClient.get('/v1/students', { params })
@@ -525,6 +542,7 @@ async function handleExportPdf() {
       includeInactive: includeInactive.value,
       excludeEvaluated: excludeEvaluated.value,
       careerId: selectedCareerFilter.value !== 'all' ? Number(selectedCareerFilter.value) : undefined,
+      advisorId: selectedAdvisorFilter.value !== 'all' ? Number(selectedAdvisorFilter.value) : undefined,
       residencyStage: stageFilter.value !== 'all' ? stageFilter.value : undefined,
     }
     const res = await apiClient.get('/v1/students/export', {
@@ -645,6 +663,7 @@ onMounted(() => {
     searchTerm.value = String(route.query.controlNumber)
   }
   loadCareersOptions()
+  loadAdvisorsCatalog()
   loadStudents()
 })
 </script>
@@ -747,6 +766,22 @@ onMounted(() => {
             <option value="all">{{ authStore.isCoordinator ? 'Mis Carreras Asignadas' : 'Todas las Carreras' }}</option>
             <option v-for="(name, id) in filteredCareers" :key="id" :value="id">
               {{ name }}
+            </option>
+          </select>
+        </div>
+
+        <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <label for="advisorFilterSelect" class="tecnm-field-label" style="margin-bottom: 0; white-space: nowrap; font-size: 0.85rem;">Asesor:</label>
+          <select
+            id="advisorFilterSelect"
+            v-model="selectedAdvisorFilter"
+            class="tecnm-form-control"
+            style="min-width: 220px; font-size: 0.85rem;"
+            @change="onAdvisorFilterChange"
+          >
+            <option value="all">Todos los Asesores</option>
+            <option v-for="adv in advisorsList" :key="adv.id" :value="String(adv.id)">
+              {{ adv.fullName }}
             </option>
           </select>
         </div>

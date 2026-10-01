@@ -47,9 +47,9 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] PaginationQuery query, [FromQuery] string? status, [FromQuery] bool includeInactive = false, [FromQuery] bool includeCancelled = false, [FromQuery] long? careerId = null)
+    public async Task<IActionResult> GetAll([FromQuery] PaginationQuery query, [FromQuery] string? status, [FromQuery] bool includeInactive = false, [FromQuery] bool includeCancelled = false, [FromQuery] long? careerId = null, [FromQuery] long? advisorId = null)
     {
-        var result = await _projectService.GetPagedAsync(query, status, includeInactive, careerId, includeCancelled);
+        var result = await _projectService.GetPagedAsync(query, status, includeInactive, careerId, includeCancelled, advisorId);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 
@@ -58,9 +58,9 @@ public class ProjectsController : ControllerBase
 
     [HttpGet("export")]
     [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
-    public async Task<IActionResult> ExportPdf([FromQuery] string? status, [FromQuery] string? search, [FromQuery] string? sortBy, [FromQuery] string? sortDir, [FromQuery] bool includeInactive = false, [FromQuery] bool includeCancelled = false, [FromQuery] long? careerId = null)
+    public async Task<IActionResult> ExportPdf([FromQuery] string? status, [FromQuery] string? search, [FromQuery] string? sortBy, [FromQuery] string? sortDir, [FromQuery] bool includeInactive = false, [FromQuery] bool includeCancelled = false, [FromQuery] long? careerId = null, [FromQuery] long? advisorId = null)
     {
-        var result = await _projectService.ExportPdfAsync(status, search, sortBy, sortDir, includeInactive, careerId, includeCancelled);
+        var result = await _projectService.ExportPdfAsync(status, search, sortBy, sortDir, includeInactive, careerId, includeCancelled, advisorId);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 

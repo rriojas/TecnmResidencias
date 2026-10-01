@@ -480,7 +480,7 @@ private static DocumentResponseDto MapToDto(Document doc)
         return result;
     }
 
-    private async Task<List<DocumentMatrixItemDto>> BuildDocumentMatrixItemsAsync(string? search, long? careerId, string? completionStatus)
+    private async Task<List<DocumentMatrixItemDto>> BuildDocumentMatrixItemsAsync(string? search, long? careerId, string? completionStatus, long? advisorId = null)
     {
         if (_currentUser.Role == UserRole.CareerHead && _currentUser.CareerId.HasValue)
         {
@@ -500,6 +500,8 @@ private static DocumentResponseDto MapToDto(Document doc)
 
         var q = _context.Projects
             .Include(p => p.Student)
+                .ThenInclude(s => s!.Advisor)
+            .Include(p => p.Advisor)
             .Include(p => p.Company)
             .Where(p => p.IsActive && p.Student != null && p.Student.IsActive)
             .Where(p => p.Status != ProjectStatus.Cancelled);
@@ -509,8 +511,12 @@ private static DocumentResponseDto MapToDto(Document doc)
             var adv = await _context.Advisors.FirstOrDefaultAsync(a => a.UserId == _currentUser.UserId && a.IsActive);
             if (adv != null)
             {
-                q = q.Where(p => p.AdvisorId == adv.Id || p.Student!.AdvisorId == adv.Id);
+                q = q.Where(p => p.AdvisorId == adv.Id || (p.Student != null && p.Student.AdvisorId == adv.Id));
             }
+        }
+        else if (advisorId.HasValue && advisorId.Value > 0)
+        {
+            q = q.Where(p => p.AdvisorId == advisorId.Value || (p.Student != null && p.Student.AdvisorId == advisorId.Value));
         }
 
         if (careerId.HasValue && careerId.Value > 0)
@@ -526,7 +532,9 @@ private static DocumentResponseDto MapToDto(Document doc)
                 p.Student!.FirstName.ToLower().Contains(term) ||
                 p.Student!.LastName.ToLower().Contains(term) ||
                 (p.Student.LastName2 != null && p.Student.LastName2.ToLower().Contains(term)) ||
-                p.Student.ControlNumber.ToLower().Contains(term));
+                p.Student.ControlNumber.ToLower().Contains(term) ||
+                (p.Advisor != null && p.Advisor.FullName.ToLower().Contains(term)) ||
+                (p.Student.Advisor != null && p.Student.Advisor.FullName.ToLower().Contains(term)));
         }
 
         q = q.OrderByDescending(p => p.CreatedAt);
@@ -586,6 +594,9 @@ private static DocumentResponseDto MapToDto(Document doc)
                     continue;
             }
 
+            var resolvedAdvisorId = p.AdvisorId ?? p.Student?.AdvisorId;
+            var resolvedAdvisorName = p.Advisor?.FullName ?? p.Student?.Advisor?.FullName;
+
             matrixItems.Add(new DocumentMatrixItemDto
             {
                 ProjectId = p.Id,
@@ -597,6 +608,8 @@ private static DocumentResponseDto MapToDto(Document doc)
                 ProjectTitle = p.Title,
                 CompanyName = p.Company?.Name,
                 ProjectStatus = p.Status.ToString(),
+                AdvisorId = resolvedAdvisorId,
+                AdvisorName = resolvedAdvisorName,
                 Documents = docMap,
                 UploadedCount = uploadedCount,
                 RequiredCount = requiredCount,
@@ -609,9 +622,9 @@ private static DocumentResponseDto MapToDto(Document doc)
         return matrixItems;
     }
 
-    public async Task<PaginatedResult<DocumentMatrixItemDto>> GetDocumentMatrixAsync(PaginationQuery query, long? careerId = null, string? completionStatus = null)
+    public async Task<PaginatedResult<DocumentMatrixItemDto>> GetDocumentMatrixAsync(PaginationQuery query, long? careerId = null, string? completionStatus = null, long? advisorId = null)
     {
-        var matrixItems = await BuildDocumentMatrixItemsAsync(query.Search, careerId, completionStatus);
+        var matrixItems = await BuildDocumentMatrixItemsAsync(query.Search, careerId, completionStatus, advisorId);
 
         var pageNumber = Math.Max(1, query.PageNumber);
         var pageSize = Math.Clamp(query.PageSize, 1, 100);
@@ -632,14 +645,15 @@ private static DocumentResponseDto MapToDto(Document doc)
         );
     }
 
-    public async Task<Result<byte[]>> ExportDocumentMatrixExcelAsync(string? search = null, long? careerId = null, string? completionStatus = null)
+    public async Task<Result<byte[]>> ExportDocumentMatrixExcelAsync(string? search = null, long? careerId = null, string? completionStatus = null, long? advisorId = null)
     {
-        var items = await BuildDocumentMatrixItemsAsync(search, careerId, completionStatus);
+        var items = await BuildDocumentMatrixItemsAsync(search, careerId, completionStatus, advisorId);
 
         var table = new DataTable("Expedientes");
         table.Columns.Add("No. Control", typeof(string));
         table.Columns.Add("Estudiante", typeof(string));
         table.Columns.Add("Carrera", typeof(string));
+        table.Columns.Add("Asesor Asignado", typeof(string));
         table.Columns.Add("Anteproyecto", typeof(string));
         table.Columns.Add("Empresa", typeof(string));
         table.Columns.Add("Solicitud (1=Entregado, 0=Faltante)", typeof(int));
@@ -656,6 +670,7 @@ private static DocumentResponseDto MapToDto(Document doc)
                 item.StudentControlNumber,
                 item.StudentName,
                 item.CareerName,
+                item.AdvisorName ?? "Sin Asignar",
                 item.ProjectTitle,
                 item.CompanyName ?? "—",
                 item.IsAccreditation ? 1 : (item.Documents.ContainsKey("solicitud") ? 1 : 0),

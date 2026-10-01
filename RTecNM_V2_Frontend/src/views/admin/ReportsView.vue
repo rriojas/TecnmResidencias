@@ -26,6 +26,29 @@ const alertType = ref('info')
 const sortBy = ref('title')
 const sortDir = ref('asc')
 
+const selectedCareerFilter = ref('all')
+const selectedAdvisorFilter = ref('all')
+const careersList = ref([])
+const advisorsList = ref([])
+
+async function loadCareersCatalog() {
+  try {
+    const res = await apiClient.get('/v1/careers/all')
+    careersList.value = res.data || []
+  } catch {
+    careersList.value = []
+  }
+}
+
+async function loadAdvisorsCatalog() {
+  try {
+    const res = await apiClient.get('/v1/advisors/options')
+    advisorsList.value = res.data || []
+  } catch {
+    advisorsList.value = []
+  }
+}
+
 function handleSort(field) {
   if (sortBy.value === field) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
@@ -90,6 +113,8 @@ async function loadReleasableProjects() {
     const params = {
       pageNumber: pageNumber.value,
       pageSize: pageSize.value,
+      careerId: selectedCareerFilter.value !== 'all' ? Number(selectedCareerFilter.value) : undefined,
+      advisorId: selectedAdvisorFilter.value !== 'all' ? Number(selectedAdvisorFilter.value) : undefined,
     }
     const res = await apiClient.get('/v1/admin/reports/releasable', { params })
     const data = res.data || {}
@@ -141,6 +166,8 @@ function handleExportMetrics() {
 }
 
 onMounted(async () => {
+  await loadCareersCatalog()
+  await loadAdvisorsCatalog()
   await loadMetrics()
   await loadReleasableProjects()
 })
@@ -240,6 +267,40 @@ onMounted(async () => {
     <div class="tecnm-card">
       <div class="tecnm-card-header">
         <h3 class="tecnm-card-title">Proyectos Elegibles para Emisión de Carta de Liberación (Libranza)</h3>
+      </div>
+
+      <div class="tecnm-card-toolbar">
+        <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <label for="reportCareerFilter" class="tecnm-field-label" style="margin-bottom: 0; white-space: nowrap; font-size: 0.85rem;">Carrera:</label>
+          <select
+            id="reportCareerFilter"
+            v-model="selectedCareerFilter"
+            class="tecnm-form-control"
+            style="min-width: 200px; font-size: 0.85rem;"
+            @change="pageNumber = 1; loadReleasableProjects()"
+          >
+            <option value="all">{{ authStore.isCoordinator ? 'Mis Carreras Asignadas' : 'Todas las Carreras' }}</option>
+            <option v-for="c in careersList" :key="c.id" :value="String(c.id)">
+              {{ c.name }}
+            </option>
+          </select>
+        </div>
+
+        <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <label for="reportAdvisorFilter" class="tecnm-field-label" style="margin-bottom: 0; white-space: nowrap; font-size: 0.85rem;">Asesor:</label>
+          <select
+            id="reportAdvisorFilter"
+            v-model="selectedAdvisorFilter"
+            class="tecnm-form-control"
+            style="min-width: 200px; font-size: 0.85rem;"
+            @change="pageNumber = 1; loadReleasableProjects()"
+          >
+            <option value="all">Todos los Asesores</option>
+            <option v-for="adv in advisorsList" :key="adv.id" :value="String(adv.id)">
+              {{ adv.fullName }}
+            </option>
+          </select>
+        </div>
       </div>
 
       <div class="tecnm-card-body">

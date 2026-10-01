@@ -276,9 +276,9 @@ public class DocumentsController : ControllerBase
     /// </summary>
     [HttpGet("matrix")]
     [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator,advisor")]
-    public async Task<IActionResult> GetDocumentMatrix([FromQuery] PaginationQuery query, [FromQuery] long? careerId = null, [FromQuery] string? completionStatus = null)
+    public async Task<IActionResult> GetDocumentMatrix([FromQuery] PaginationQuery query, [FromQuery] long? careerId = null, [FromQuery] string? completionStatus = null, [FromQuery] long? advisorId = null)
     {
-        var result = await _documentService.GetDocumentMatrixAsync(query, careerId, completionStatus);
+        var result = await _documentService.GetDocumentMatrixAsync(query, careerId, completionStatus, advisorId);
         return Ok(result);
     }
 
@@ -287,9 +287,9 @@ public class DocumentsController : ControllerBase
     /// </summary>
     [HttpGet("matrix/export")]
     [Authorize(Roles = "admin,vinculacion,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator,advisor")]
-    public async Task<IActionResult> ExportDocumentMatrixExcel([FromQuery] string? search = null, [FromQuery] long? careerId = null, [FromQuery] string? completionStatus = null)
+    public async Task<IActionResult> ExportDocumentMatrixExcel([FromQuery] string? search = null, [FromQuery] long? careerId = null, [FromQuery] string? completionStatus = null, [FromQuery] long? advisorId = null)
     {
-        var result = await _documentService.ExportDocumentMatrixExcelAsync(search, careerId, completionStatus);
+        var result = await _documentService.ExportDocumentMatrixExcelAsync(search, careerId, completionStatus, advisorId);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, result.ErrorMessage);
 

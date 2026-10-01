@@ -153,7 +153,60 @@ async function loadCareersCatalog() {
 }
 
 const selectedCareerFilter = ref('all')
+const selectedAdvisorFilter = ref('')
+const advisorsList = ref([])
 const searchTerm = ref('')
+
+async function loadAdvisorsCatalog() {
+  try {
+    const res = await apiClient.get('/v1/advisors/options')
+    advisorsList.value = res.data || []
+  } catch {}
+}
+
+const isDisapproveModalOpen = ref(false)
+const disapproveTargetStatus = ref('rejected')
+const disapproveComments = ref('')
+const isDisapproving = ref(false)
+
+const hasAcceptanceOrAccreditationLetter = computed(() => {
+  if (!selectedProject.value) return false
+  if (isAccreditation(selectedProject.value)) {
+    return Boolean(cartaAceptacionDoc.value || (accreditationDocs.value && accreditationDocs.value.length > 0) || accreditationDoc.value)
+  }
+  return Boolean(cartaAceptacionDoc.value)
+})
+
+function openDisapproveDialog() {
+  disapproveTargetStatus.value = 'rejected'
+  disapproveComments.value = ''
+  isDisapproveModalOpen.value = true
+}
+
+async function handleConfirmDisapprove() {
+  if (!selectedProject.value) return
+  if (!disapproveComments.value.trim()) {
+    showAlert('Debe ingresar las observaciones o motivo de la desaprobación.', 'warning')
+    return
+  }
+
+  isDisapproving.value = true
+  try {
+    await apiClient.patch(`/v1/projects/${selectedProject.value.id}/status`, {
+      status: disapproveTargetStatus.value,
+      comments: disapproveComments.value.trim(),
+    })
+    const statusText = disapproveTargetStatus.value === 'rejected' ? 'Solicitud de correcciones enviada' : 'Anteproyecto regresado a revisión'
+    showAlert(`${statusText} exitosamente.`, 'success')
+    isDisapproveModalOpen.value = false
+    isReviewModalOpen.value = false
+    loadProjects()
+  } catch (err) {
+    showAlert(err.response?.data?.message || 'Error al desaprobar el anteproyecto.', 'danger')
+  } finally {
+    isDisapproving.value = false
+  }
+}
 
 const filteredCareers = computed(() => {
   if (authStore.isCoordinator && authStore.userCareerIds.length > 0) {
@@ -191,6 +244,7 @@ async function loadProjects({ silent = false } = {}) {
       includeInactive: includeInactive.value,
       includeCancelled: includeCancelled.value,
       careerId: selectedCareerFilter.value !== 'all' ? Number(selectedCareerFilter.value) : undefined,
+      advisorId: selectedAdvisorFilter.value ? Number(selectedAdvisorFilter.value) : undefined,
     }
 
     const res = await apiClient.get('/v1/projects', { params })
@@ -572,6 +626,11 @@ async function handleAssignAdvisor() {
 async function handleApprove() {
   if (!selectedProject.value) return
 
+  if (!hasAcceptanceOrAccreditationLetter.value) {
+    showAlert('No se puede emitir dictamen de Aprobado sin contar con la Carta de Aceptación oficial (o constancia de acreditación en proyectos especiales).', 'warning')
+    return
+  }
+
   const confirmed = await confirm({
     title: 'Dictamen Aprobado',
     message: `¿Está seguro de emitir dictamen de APROBADO para el anteproyecto "${selectedProject.value.title}"?`,
@@ -698,6 +757,7 @@ async function handleExportPdf() {
       includeInactive: includeInactive.value,
       includeCancelled: includeCancelled.value,
       careerId: selectedCareerFilter.value !== 'all' ? Number(selectedCareerFilter.value) : undefined,
+      advisorId: selectedAdvisorFilter.value ? Number(selectedAdvisorFilter.value) : undefined,
     }
     const res = await apiClient.get('/v1/projects/export', {
       params,
@@ -719,6 +779,7 @@ async function handleExportPdf() {
 
 onMounted(() => {
   loadCareersCatalog()
+  loadAdvisorsCatalog()
   loadProjects()
 })
 </script>
@@ -789,6 +850,22 @@ onMounted(() => {
             <option value="all">{{ authStore.isCoordinator ? 'Mis Carreras Asignadas' : 'Todas las Carreras' }}</option>
             <option v-for="(name, id) in filteredCareers" :key="id" :value="id">
               {{ name }}
+            </option>
+          </select>
+        </div>
+
+        <div v-if="!authStore.hasRole('advisor')" class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <label for="reviewAdvisorFilter" class="tecnm-field-label" style="margin-bottom: 0; white-space: nowrap; font-size: 0.85rem;">Asesor:</label>
+          <select
+            id="reviewAdvisorFilter"
+            v-model="selectedAdvisorFilter"
+            class="tecnm-form-control"
+            style="min-width: 200px; font-size: 0.85rem;"
+            @change="pageNumber = 1; loadProjects()"
+          >
+            <option value="">Todos los Asesores</option>
+            <option v-for="a in advisorsList" :key="a.id" :value="String(a.id)">
+              {{ a.fullName }}
             </option>
           </select>
         </div>
@@ -1462,6 +1539,11 @@ onMounted(() => {
                 :disabled="isSubmitting"
               ></textarea>
             </div>
+
+            <!-- Advertencia si falta la carta de aceptación obligatoria -->
+            <div v-if="!hasAcceptanceOrAccreditationLetter" class="tecnm-alert tecnm-alert-warning" style="margin-top: 0.75rem;">
+              <strong>Requisito Faltante:</strong> El residente aún no cuenta con su <strong>Carta de Aceptación Oficial</strong> registrada. No es posible aprobar el anteproyecto sin este documento.
+            </div>
           </template>
         </div>
 
@@ -1488,6 +1570,17 @@ onMounted(() => {
             Descargar PDF Oficial
           </button>
 
+          <!-- Botón de Desaprobar Anteproyecto (sin límite de tiempo) -->
+          <button
+            v-if="['approved', 'aprobado', 'in_progress', 'inprogress'].includes((selectedProject.status || '').toLowerCase()) && !authStore.isReadOnly && !authStore.hasRole('vinculacion') && (authStore.isAdmin || authStore.isCareerHead || authStore.isCoordinator)"
+            id="modalDisapproveBtn"
+            type="button"
+            class="tecnm-btn tecnm-btn-warning"
+            :disabled="isSubmitting"
+            @click="openDisapproveDialog"
+          >
+            Desaprobar Anteproyecto
+          </button>
 
           <!-- Botones de Dictamen para Acreditación InnovaTecNM Nacional -->
           <template v-if="isAccreditation(selectedProject) && isDictaminable(selectedProject.status) && !authStore.isReadOnly && !authStore.hasRole('vinculacion')">
@@ -1510,7 +1603,8 @@ onMounted(() => {
             <button
               type="button"
               class="tecnm-btn tecnm-btn-success"
-              :disabled="isSubmitting"
+              :disabled="isSubmitting || !hasAcceptanceOrAccreditationLetter"
+              :title="!hasAcceptanceOrAccreditationLetter ? 'Requiere Constancia de InnovaTecNM para ser liberado' : 'Validar y Liberar'"
               @click="handleValidateAccreditation(true, false)"
             >
               Validar y Liberar Residencia (100%)
@@ -1532,7 +1626,8 @@ onMounted(() => {
               id="approveBtn"
               type="button"
               class="tecnm-btn tecnm-btn-success"
-              :disabled="isSubmitting"
+              :disabled="isSubmitting || !hasAcceptanceOrAccreditationLetter"
+              :title="!hasAcceptanceOrAccreditationLetter ? 'Requiere Carta de Aceptación para ser aprobado' : 'Dictaminar Aprobado'"
               @click="handleApprove"
             >
               Dictaminar Aprobado
@@ -1545,6 +1640,90 @@ onMounted(() => {
             @click="closeDetailModal"
           >
             Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para Desaprobar Anteproyecto -->
+    <div
+      v-if="isDisapproveModalOpen && selectedProject"
+      id="disapproveModal"
+      class="modal-backdrop active"
+      role="dialog"
+      aria-modal="true"
+      style="z-index: 1070;"
+      @click.self="isDisapproveModalOpen = false"
+    >
+      <div class="modal-card" style="max-width: 600px; width: 95vw;">
+        <div class="modal-header">
+          <h3 class="modal-title">Desaprobar Anteproyecto</h3>
+          <button
+            type="button"
+            class="modal-close"
+            aria-label="Cerrar modal"
+            @click="isDisapproveModalOpen = false"
+          >
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <p style="margin-bottom: 1rem; color: var(--tecnm-gray-700);">
+            Seleccione el estado de retorno para el anteproyecto <strong>{{ selectedProject.title }}</strong> y registre las observaciones obligatorias para el residente:
+          </p>
+
+          <div class="tecnm-form-group">
+            <label class="tecnm-field-label">Acción de Desaprobación *</label>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input
+                  v-model="disapproveTargetStatus"
+                  type="radio"
+                  value="rejected"
+                />
+                <span><strong>Solicitar Correcciones</strong> (Devolver con observaciones al alumno)</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input
+                  v-model="disapproveTargetStatus"
+                  type="radio"
+                  value="under_review"
+                />
+                <span><strong>Regresar a Revisión</strong> (Poner en dictamen pendiente)</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="tecnm-form-group" style="margin-top: 1rem;">
+            <label for="disapproveComments" class="tecnm-field-label">
+              Observaciones del Dictamen / Motivo *
+            </label>
+            <textarea
+              id="disapproveComments"
+              v-model="disapproveComments"
+              class="tecnm-form-control"
+              rows="4"
+              placeholder="Explique detalladamente las razones técnicas u operativas por las cuales se desaprueba el anteproyecto..."
+              :disabled="isDisapproving"
+            ></textarea>
+          </div>
+        </div>
+        <div class="tecnm-modal-footer">
+          <button
+            type="button"
+            class="tecnm-btn tecnm-btn-secondary"
+            :disabled="isDisapproving"
+            @click="isDisapproveModalOpen = false"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="tecnm-btn tecnm-btn-warning"
+            :disabled="isDisapproving || !disapproveComments.trim()"
+            @click="handleConfirmDisapprove"
+          >
+            {{ isDisapproving ? 'Procesando...' : 'Confirmar Desaprobación' }}
           </button>
         </div>
       </div>

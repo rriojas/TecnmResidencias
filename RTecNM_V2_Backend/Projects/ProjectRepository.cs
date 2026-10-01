@@ -78,7 +78,7 @@ public class ProjectRepository : IProjectRepository
             .FirstOrDefaultAsync();
     }
 
-    public async Task<PaginatedResult<Project>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, long? careerId = null, bool includeCancelled = false)
+    public async Task<PaginatedResult<Project>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, long? careerId = null, bool includeCancelled = false, long? advisorId = null)
     {
         IQueryable<Project> q = QueryWithDetails();
         if (!includeInactive)
@@ -112,6 +112,11 @@ public class ProjectRepository : IProjectRepository
         else if (careerId.HasValue && careerId.Value > 0)
         {
             q = q.Where(p => p.Student != null && p.Student.CareerId == careerId.Value);
+        }
+
+        if (advisorId.HasValue && advisorId.Value > 0)
+        {
+            q = q.Where(p => p.AdvisorId == advisorId.Value || (p.Student != null && p.Student.AdvisorId == advisorId.Value));
         }
 
         q = ApplyStatusFilter(q, status);
@@ -209,7 +214,7 @@ public class ProjectRepository : IProjectRepository
         return result;
     }
 
-    public async Task<List<Project>> GetAllForExportAsync(string? status, string? search, string? sortBy, string? sortDir, bool includeInactive = false, long? careerId = null, bool includeCancelled = false)
+    public async Task<List<Project>> GetAllForExportAsync(string? status, string? search, string? sortBy, string? sortDir, bool includeInactive = false, long? careerId = null, bool includeCancelled = false, long? advisorId = null)
     {
         IQueryable<Project> q = QueryWithDetails().AsNoTracking();
         if (!includeInactive)
@@ -243,6 +248,11 @@ public class ProjectRepository : IProjectRepository
         else if (careerId.HasValue && careerId.Value > 0)
         {
             q = q.Where(p => p.Student != null && p.Student.CareerId == careerId.Value);
+        }
+
+        if (advisorId.HasValue && advisorId.Value > 0)
+        {
+            q = q.Where(p => p.AdvisorId == advisorId.Value || (p.Student != null && p.Student.AdvisorId == advisorId.Value));
         }
 
         q = ApplyStatusFilter(q, status);

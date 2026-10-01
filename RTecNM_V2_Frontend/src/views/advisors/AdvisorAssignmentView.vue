@@ -27,11 +27,19 @@ const sortDir = ref('asc')
 const includeInactive = ref(false)
 
 const DEPARTMENTS = ref({})
+const careersList = ref([])
+const selectedCareerFilter = ref(
+  authStore.isCareerHead && authStore.userCareerId
+    ? String(authStore.userCareerId)
+    : 'all'
+)
+const selectedAdvisorFilter = ref('all')
 
 async function loadDepartmentsCatalog() {
   try {
     const res = await apiClient.get('/v1/careers/all')
     const list = res.data || []
+    careersList.value = list
     list.forEach(c => {
       DEPARTMENTS.value[c.id] = c.name
     })
@@ -193,6 +201,8 @@ async function loadStudents({ silent = false } = {}) {
       includeInactive: includeInactive.value,
       onlyApprovedProject: false,
       excludeEvaluated: true,
+      careerId: selectedCareerFilter.value !== 'all' ? Number(selectedCareerFilter.value) : undefined,
+      advisorId: selectedAdvisorFilter.value !== 'all' ? Number(selectedAdvisorFilter.value) : undefined,
       assignmentStatus: assignmentFilter.value !== 'all' ? assignmentFilter.value : undefined,
       acceptanceLetterStatus: acceptanceFilter.value !== 'all' ? acceptanceFilter.value : undefined,
     }
@@ -438,6 +448,38 @@ onMounted(() => {
             placeholder="Buscar por alumno, matrícula o correo..."
             @input="onSearchInput"
           />
+        </div>
+
+        <div v-if="!authStore.isCareerHead" class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <label for="careerFilterSelect" class="tecnm-field-label" style="margin-bottom: 0; white-space: nowrap; font-size: 0.85rem;">Carrera:</label>
+          <select
+            id="careerFilterSelect"
+            v-model="selectedCareerFilter"
+            class="tecnm-form-control"
+            style="min-width: 180px; font-size: 0.85rem;"
+            @change="onFilterChange"
+          >
+            <option value="all">{{ authStore.isCoordinator ? 'Mis Carreras Asignadas' : 'Todas las Carreras' }}</option>
+            <option v-for="c in careersList" :key="c.id" :value="String(c.id)">
+              {{ c.name }}
+            </option>
+          </select>
+        </div>
+
+        <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <label for="advisorFilterSelect" class="tecnm-field-label" style="margin-bottom: 0; white-space: nowrap; font-size: 0.85rem;">Asesor:</label>
+          <select
+            id="advisorFilterSelect"
+            v-model="selectedAdvisorFilter"
+            class="tecnm-form-control"
+            style="min-width: 180px; font-size: 0.85rem;"
+            @change="onFilterChange"
+          >
+            <option value="all">Todos los Asesores</option>
+            <option v-for="adv in advisors" :key="adv.id" :value="String(adv.id)">
+              {{ adv.fullName || adv.name }}
+            </option>
+          </select>
         </div>
 
         <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">

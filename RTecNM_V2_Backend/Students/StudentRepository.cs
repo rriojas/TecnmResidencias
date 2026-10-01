@@ -25,7 +25,8 @@ public class StudentRepository : IStudentRepository
         bool excludeEvaluated = false,
         string? assignmentStatus = null,
         string? acceptanceLetterStatus = null,
-        string? residencyStage = null)
+        string? residencyStage = null,
+        long? advisorId = null)
     {
         IQueryable<Student> q = _context.Students.Include(s => s.User).Include(s => s.Advisor)
             .Where(s => s.User == null || s.User.Role == UserRole.Student);
@@ -51,6 +52,11 @@ public class StudentRepository : IStudentRepository
         else if (careerId.HasValue && careerId.Value > 0)
         {
             q = q.Where(s => s.CareerId == careerId.Value);
+        }
+
+        if (advisorId.HasValue && advisorId.Value > 0)
+        {
+            q = q.Where(s => s.AdvisorId == advisorId.Value || _context.Projects.Any(p => p.StudentId == s.Id && p.IsActive && p.AdvisorId == advisorId.Value));
         }
 
         if (onlyApprovedProject)
@@ -172,7 +178,8 @@ public class StudentRepository : IStudentRepository
         bool excludeEvaluated = false,
         string? assignmentStatus = null,
         string? acceptanceLetterStatus = null,
-        string? residencyStage = null)
+        string? residencyStage = null,
+        long? advisorId = null)
     {
         IQueryable<Student> q = _context.Students.Include(s => s.User).AsNoTracking()
             .Where(s => s.User == null || s.User.Role == UserRole.Student);
@@ -198,6 +205,11 @@ public class StudentRepository : IStudentRepository
         else if (careerId.HasValue && careerId.Value > 0)
         {
             q = q.Where(s => s.CareerId == careerId.Value);
+        }
+
+        if (advisorId.HasValue && advisorId.Value > 0)
+        {
+            q = q.Where(s => s.AdvisorId == advisorId.Value || _context.Projects.Any(p => p.StudentId == s.Id && p.IsActive && p.AdvisorId == advisorId.Value));
         }
 
         if (onlyApprovedProject)

@@ -60,9 +60,10 @@ public class StudentService : IStudentService
         bool excludeEvaluated = false,
         string? assignmentStatus = null,
         string? acceptanceLetterStatus = null,
-        string? residencyStage = null)
+        string? residencyStage = null,
+        long? advisorId = null)
     {
-        var paged = await _studentRepository.GetPagedAsync(query, status, includeInactive, onlyApprovedProject, careerId, excludeEvaluated, assignmentStatus, acceptanceLetterStatus, residencyStage);
+        var paged = await _studentRepository.GetPagedAsync(query, status, includeInactive, onlyApprovedProject, careerId, excludeEvaluated, assignmentStatus, acceptanceLetterStatus, residencyStage, advisorId);
         var studentIds = paged.Items.Select(s => s.Id).ToList();
 
         var projects = await _context.Projects
@@ -260,9 +261,10 @@ public class StudentService : IStudentService
         bool excludeEvaluated = false,
         string? assignmentStatus = null,
         string? acceptanceLetterStatus = null,
-        string? residencyStage = null)
+        string? residencyStage = null,
+        long? advisorId = null)
     {
-        var students = await _studentRepository.GetAllForExportAsync(search, sortBy, sortDir, includeInactive, onlyApprovedProject, careerId, excludeEvaluated, assignmentStatus, acceptanceLetterStatus, residencyStage);
+        var students = await _studentRepository.GetAllForExportAsync(search, sortBy, sortDir, includeInactive, onlyApprovedProject, careerId, excludeEvaluated, assignmentStatus, acceptanceLetterStatus, residencyStage, advisorId);
         var definition = new PdfTableDefinition
         {
             Title = "Directorio de Estudiantes Residentes - TecNM Campus Monclova",

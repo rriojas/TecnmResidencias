@@ -15,7 +15,7 @@ public class ReportGeneratorService : IReportGeneratorService
         _currentUser = currentUser;
     }
 
-    public async Task<Result<PaginatedResult<ReleasableProjectDto>>> GetReleasableProjectsAsync(PaginationQuery query)
+    public async Task<Result<PaginatedResult<ReleasableProjectDto>>> GetReleasableProjectsAsync(PaginationQuery query, long? careerId = null, long? advisorId = null)
     {
         var projectsQuery = _context.Projects
             .Include(p => p.Student)
@@ -29,7 +29,25 @@ public class ReportGeneratorService : IReportGeneratorService
         }
         else if (_currentUser.Role == UserRole.Coordinator)
         {
-            projectsQuery = projectsQuery.Where(p => p.Student != null && _currentUser.CareerIds.Contains(p.Student.CareerId));
+            if (careerId.HasValue && careerId.Value > 0)
+            {
+                projectsQuery = _currentUser.CareerIds.Contains(careerId.Value)
+                    ? projectsQuery.Where(p => p.Student != null && p.Student.CareerId == careerId.Value)
+                    : projectsQuery.Where(p => false);
+            }
+            else
+            {
+                projectsQuery = projectsQuery.Where(p => p.Student != null && _currentUser.CareerIds.Contains(p.Student.CareerId));
+            }
+        }
+        else if (careerId.HasValue && careerId.Value > 0)
+        {
+            projectsQuery = projectsQuery.Where(p => p.Student != null && p.Student.CareerId == careerId.Value);
+        }
+
+        if (advisorId.HasValue && advisorId.Value > 0)
+        {
+            projectsQuery = projectsQuery.Where(p => p.AdvisorId == advisorId.Value || (p.Student != null && p.Student.AdvisorId == advisorId.Value));
         }
 
         var projects = await projectsQuery.ToListAsync();

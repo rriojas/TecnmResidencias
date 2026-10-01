@@ -18,6 +18,13 @@ public class DocumentRepository : IDocumentRepository
             .FirstOrDefaultAsync(d => d.Id == id && d.DocumentType != DocumentType.Anteproyecto && d.DocumentType != DocumentType.CartaPresentacion);
     }
 
+    public async Task<List<Document>> GetActiveByProjectIdAsync(long projectId)
+    {
+        return await _context.Set<Document>()
+            .Where(d => d.ProjectId == projectId && d.IsActive)
+            .ToListAsync();
+    }
+
     public async Task<PaginatedResult<Document>> GetPagedByProjectIdAsync(long projectId, PaginationQuery query, bool includeInactive = false)
     {
         IQueryable<Document> q = _context.Set<Document>()

@@ -128,6 +128,8 @@ const matrixCareerFilter = ref(
     : ''
 )
 const matrixCompletionFilter = ref('')
+const matrixAdvisorFilter = ref('')
+const advisorOptions = ref([])
 const isExportingMatrix = ref(false)
 
 const currentProject = ref(null)
@@ -428,6 +430,13 @@ async function loadCareers() {
   } catch {}
 }
 
+async function loadAdvisors() {
+  try {
+    const res = await apiClient.get('/v1/advisors/options')
+    advisorOptions.value = res.data || []
+  } catch {}
+}
+
 async function loadMatrix() {
   matrixLoading.value = true
   try {
@@ -438,6 +447,9 @@ async function loadMatrix() {
     }
     if (matrixCareerFilter.value) {
       params.careerId = matrixCareerFilter.value
+    }
+    if (matrixAdvisorFilter.value) {
+      params.advisorId = matrixAdvisorFilter.value
     }
     if (matrixCompletionFilter.value) {
       params.completionStatus = matrixCompletionFilter.value
@@ -475,6 +487,9 @@ async function handleExportMatrixExcel() {
     }
     if (matrixCareerFilter.value) {
       params.careerId = matrixCareerFilter.value
+    }
+    if (matrixAdvisorFilter.value) {
+      params.advisorId = matrixAdvisorFilter.value
     }
     if (matrixCompletionFilter.value) {
       params.completionStatus = matrixCompletionFilter.value
@@ -530,7 +545,7 @@ async function initPage() {
     viewMode.value = 'detail'
     await resolveStudentProject()
   } else {
-    await loadCareers()
+    await Promise.all([loadCareers(), loadAdvisors()])
     const qPid = route.query.projectId
     if (qPid) {
       try {
@@ -1199,6 +1214,19 @@ onMounted(() => {
           <option value="incomplete">Incompletos (Archivos faltantes)</option>
         </select>
 
+        <select
+          v-if="!authStore.hasRole('advisor')"
+          v-model="matrixAdvisorFilter"
+          class="tecnm-form-control tecnm-form-control-sm"
+          style="width: auto; min-width: 190px;"
+          @change="handleMatrixSearch"
+        >
+          <option value="">Todos los Asesores</option>
+          <option v-for="a in advisorOptions" :key="a.id" :value="String(a.id)">
+            {{ a.fullName }}
+          </option>
+        </select>
+
         <button type="button" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" @click="handleMatrixSearch">
           Filtrar
         </button>
@@ -1225,6 +1253,7 @@ onMounted(() => {
               <tr>
                 <th>Estudiante</th>
                 <th>Carrera</th>
+                <th>Asesor Asignado</th>
                 <th title="Solicitud de Residencia">Solicitud</th>
                 <th title="Carta de Aceptación">C. Aceptación</th>
                 <th title="Dictamen de Aprobación">Dictamen</th>
@@ -1235,10 +1264,10 @@ onMounted(() => {
             </thead>
             <tbody>
               <tr v-if="matrixLoading">
-                <td colspan="8" class="tecnm-table-empty">Cargando matriz de expedientes...</td>
+                <td colspan="9" class="tecnm-table-empty">Cargando matriz de expedientes...</td>
               </tr>
               <tr v-else-if="matrixItems.length === 0">
-                <td colspan="8" class="tecnm-table-empty">No se encontraron expedientes con los criterios seleccionados.</td>
+                <td colspan="9" class="tecnm-table-empty">No se encontraron expedientes con los criterios seleccionados.</td>
               </tr>
               <tr v-for="item in matrixItems" v-else :key="item.projectId">
                 <td>
@@ -1247,6 +1276,14 @@ onMounted(() => {
                 </td>
                 <td>
                   <span>{{ item.careerName }}</span>
+                </td>
+                <td>
+                  <span v-if="item.advisorName" style="font-weight: 500;">
+                    {{ item.advisorName }}
+                  </span>
+                  <span v-else class="tecnm-badge tecnm-badge-secondary" style="font-size: 0.75rem;">
+                    Sin Asignar
+                  </span>
                 </td>
                 <td>
                   <span v-if="item.isAccreditation" class="tecnm-badge tecnm-badge-secondary" title="Exento por InnovaTecNM">Exento</span>

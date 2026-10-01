@@ -23,6 +23,33 @@ const includeCancelled = ref(false)
 const isLoading = ref(false)
 const isSubmitting = ref(false)
 
+const selectedCareerFilter = ref(
+  authStore.isCareerHead && authStore.userCareerId
+    ? String(authStore.userCareerId)
+    : 'all'
+)
+const selectedAdvisorFilter = ref('all')
+const careersList = ref([])
+const advisorsList = ref([])
+
+async function loadCareersCatalog() {
+  try {
+    const res = await apiClient.get('/v1/careers/all')
+    careersList.value = res.data || []
+  } catch {
+    careersList.value = []
+  }
+}
+
+async function loadAdvisorsCatalog() {
+  try {
+    const res = await apiClient.get('/v1/advisors/options')
+    advisorsList.value = res.data || []
+  } catch {
+    advisorsList.value = []
+  }
+}
+
 // Paginación
 const pageNumber = ref(1)
 const pageSize = ref(10)
@@ -230,6 +257,12 @@ async function loadStudentProposals() {
     }
     if (statusFilter.value && statusFilter.value !== 'all') {
       params.status = statusFilter.value
+    }
+    if (isStaff.value && selectedCareerFilter.value !== 'all') {
+      params.careerId = Number(selectedCareerFilter.value)
+    }
+    if (isStaff.value && selectedAdvisorFilter.value !== 'all') {
+      params.advisorId = Number(selectedAdvisorFilter.value)
     }
     const res = await apiClient.get('/v1/projects', { params })
     const data = res.data
@@ -645,6 +678,10 @@ function formatTecNMDate(dateStr) {
 }
 
 onMounted(() => {
+  if (isStaff.value) {
+    loadCareersCatalog()
+    loadAdvisorsCatalog()
+  }
   loadStudentProposals()
 })
 </script>
@@ -784,6 +821,38 @@ onMounted(() => {
             <option value="rejected">Devueltos con Observaciones</option>
             <option value="completed">Concluidos</option>
             <option value="cancelled">Cancelados</option>
+          </select>
+        </div>
+
+        <div v-if="isStaff && !authStore.isCareerHead" class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <label for="proposalCareerFilter" class="tecnm-field-label" style="margin-bottom: 0; white-space: nowrap; font-size: 0.85rem;">Carrera:</label>
+          <select
+            id="proposalCareerFilter"
+            v-model="selectedCareerFilter"
+            class="tecnm-form-control"
+            style="min-width: 180px; font-size: 0.85rem;"
+            @change="pageNumber = 1; loadStudentProposals()"
+          >
+            <option value="all">{{ authStore.isCoordinator ? 'Mis Carreras Asignadas' : 'Todas las Carreras' }}</option>
+            <option v-for="c in careersList" :key="c.id" :value="String(c.id)">
+              {{ c.name }}
+            </option>
+          </select>
+        </div>
+
+        <div v-if="isStaff" class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <label for="proposalAdvisorFilter" class="tecnm-field-label" style="margin-bottom: 0; white-space: nowrap; font-size: 0.85rem;">Asesor:</label>
+          <select
+            id="proposalAdvisorFilter"
+            v-model="selectedAdvisorFilter"
+            class="tecnm-form-control"
+            style="min-width: 180px; font-size: 0.85rem;"
+            @change="pageNumber = 1; loadStudentProposals()"
+          >
+            <option value="all">Todos los Asesores</option>
+            <option v-for="adv in advisorsList" :key="adv.id" :value="String(adv.id)">
+              {{ adv.fullName }}
+            </option>
           </select>
         </div>
 

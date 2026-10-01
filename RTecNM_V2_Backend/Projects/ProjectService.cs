@@ -317,7 +317,7 @@ public class ProjectService : IProjectService
         return Result<ProjectResponseDto>.Success(MapToDto(project));
     }
 
-    public async Task<Result<PaginatedResult<ProjectResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, long? careerId = null, bool includeCancelled = false)
+    public async Task<Result<PaginatedResult<ProjectResponseDto>>> GetPagedAsync(PaginationQuery query, string? status, bool includeInactive = false, long? careerId = null, bool includeCancelled = false, long? advisorId = null)
     {
         // Vista Estudiante: únicamente sus registros.
         if (_currentUser.IsInRole(UserRole.Student))
@@ -329,7 +329,7 @@ public class ProjectService : IProjectService
             _currentUser.IsInRole(UserRole.DepartmentHead) ||
             _currentUser.IsInRole(UserRole.Director))
         {
-            var pagedAll = await _repository.GetPagedAsync(query, status, includeInactive, careerId, includeCancelled);
+            var pagedAll = await _repository.GetPagedAsync(query, status, includeInactive, careerId, includeCancelled, advisorId);
             return Result<PaginatedResult<ProjectResponseDto>>.Success(MapPaged(pagedAll));
         }
 
@@ -338,16 +338,16 @@ public class ProjectService : IProjectService
             return await GetAdvisorProjectsPagedAsync(query);
 
         // Fallback general: todos los registros.
-        var paged = await _repository.GetPagedAsync(query, status, includeInactive, careerId, includeCancelled);
+        var paged = await _repository.GetPagedAsync(query, status, includeInactive, careerId, includeCancelled, advisorId);
         return Result<PaginatedResult<ProjectResponseDto>>.Success(MapPaged(paged));
     }
 
-    public async Task<Result<byte[]>> ExportPdfAsync(string? status, string? search, string? sortBy, string? sortDir, bool includeInactive = false, long? careerId = null, bool includeCancelled = false)
+    public async Task<Result<byte[]>> ExportPdfAsync(string? status, string? search, string? sortBy, string? sortDir, bool includeInactive = false, long? careerId = null, bool includeCancelled = false, long? advisorId = null)
     {
         if (!IsStaff())
             return Result<byte[]>.Failure("No tiene permisos para exportar anteproyectos.", 403);
 
-        var projects = await _repository.GetAllForExportAsync(status, search, sortBy, sortDir, includeInactive, careerId, includeCancelled);
+        var projects = await _repository.GetAllForExportAsync(status, search, sortBy, sortDir, includeInactive, careerId, includeCancelled, advisorId);
         var definition = new PdfTableDefinition
         {
             Title = "Anteproyectos de Residencia Profesional - TecNM Campus Monclova",
@@ -589,19 +589,43 @@ public class ProjectService : IProjectService
                 return Result<ProjectResponseDto>.Failure($"Estado '{dto.Status}' no es válido.");
         }
 
-        if (project.Status == ProjectStatus.Approved && newStatus == ProjectStatus.Rejected)
+        // Permitir desaprobar (pasar a Rejected o UnderReview) incluso si está Approved o InProgress
+        if ((project.Status is ProjectStatus.Approved or ProjectStatus.InProgress) && (newStatus is ProjectStatus.Rejected or ProjectStatus.UnderReview))
         {
-            return Result<ProjectResponseDto>.Failure("No se pueden solicitar correcciones a un anteproyecto que ya fue Aprobado.", 400);
+            if (!_currentUser.IsInRole(UserRole.Admin) && !_currentUser.IsInRole(UserRole.CareerHead) && !_currentUser.IsInRole(UserRole.Coordinator))
+            {
+                return Result<ProjectResponseDto>.Failure("Solo el Administrador, Jefe de Carrera o Coordinador pueden desaprobar un anteproyecto.", 403);
+            }
+        }
+        else if (project.Status == ProjectStatus.InProgress && newStatus is ProjectStatus.Draft or ProjectStatus.Pending or ProjectStatus.Approved)
+        {
+            return Result<ProjectResponseDto>.Failure("Un proyecto en progreso no puede ser retornado a borrador ni re-aprobado directamente.", 400);
         }
 
-        if (project.Status == ProjectStatus.InProgress && newStatus is ProjectStatus.Draft or ProjectStatus.Pending or ProjectStatus.UnderReview or ProjectStatus.Rejected or ProjectStatus.Approved)
+        if (newStatus == ProjectStatus.Approved)
         {
-            return Result<ProjectResponseDto>.Failure("Un proyecto en progreso no puede ser dictaminado ni retornado a revisión.", 400);
-        }
+            if (!_currentUser.IsInRole(UserRole.Admin) && !_currentUser.IsInRole(UserRole.CareerHead))
+            {
+                return Result<ProjectResponseDto>.Failure("Solo el Administrador y el Jefe de Carrera tienen permiso para aprobar anteproyectos.", 403);
+            }
 
-        if (newStatus == ProjectStatus.Approved && !_currentUser.IsInRole(UserRole.Admin) && !_currentUser.IsInRole(UserRole.CareerHead))
-        {
-            return Result<ProjectResponseDto>.Failure("Solo el Administrador y el Jefe de Carrera tienen permiso para aprobar anteproyectos.", 403);
+            // Validar existencia de Carta de Aceptación o constancia de acreditación
+            var activeDocs = await _documentRepository.GetActiveByProjectIdAsync(project.Id);
+            var docTypes = activeDocs.Select(d => (d.DocumentType ?? "").ToLowerInvariant()).ToHashSet();
+
+            bool isAccreditation = project.ProjectType is "acreditacion_innovatec" or "acreditacion_hackatec";
+            bool hasAcceptanceLetter = docTypes.Contains(DocumentType.CartaAceptacion.ToLowerInvariant()) ||
+                                      docTypes.Contains(DocumentType.CartaAprobacion.ToLowerInvariant());
+
+            if (isAccreditation)
+            {
+                hasAcceptanceLetter = hasAcceptanceLetter || docTypes.Contains(DocumentType.ConstanciaAcreditacion.ToLowerInvariant());
+            }
+
+            if (!hasAcceptanceLetter)
+            {
+                return Result<ProjectResponseDto>.Failure("No se puede aprobar el anteproyecto sin contar con la Carta de Aceptación oficial (o constancia de acreditación en proyectos especiales) registrada en el sistema.", 400);
+            }
         }
 
         project.Status = newStatus;

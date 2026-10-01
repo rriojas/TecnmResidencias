@@ -37,9 +37,10 @@ public class StudentsController : ControllerBase
         [FromQuery] bool excludeEvaluated = false,
         [FromQuery] string? assignmentStatus = null,
         [FromQuery] string? acceptanceLetterStatus = null,
-        [FromQuery] string? residencyStage = null)
+        [FromQuery] string? residencyStage = null,
+        [FromQuery] long? advisorId = null)
     {
-        var result = await _studentService.GetPagedAsync(query, status, includeInactive, onlyApprovedProject, careerId, excludeEvaluated, assignmentStatus, acceptanceLetterStatus, residencyStage);
+        var result = await _studentService.GetPagedAsync(query, status, includeInactive, onlyApprovedProject, careerId, excludeEvaluated, assignmentStatus, acceptanceLetterStatus, residencyStage, advisorId);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 
@@ -58,9 +59,10 @@ public class StudentsController : ControllerBase
         [FromQuery] bool excludeEvaluated = false,
         [FromQuery] string? assignmentStatus = null,
         [FromQuery] string? acceptanceLetterStatus = null,
-        [FromQuery] string? residencyStage = null)
+        [FromQuery] string? residencyStage = null,
+        [FromQuery] long? advisorId = null)
     {
-        var result = await _studentService.ExportPdfAsync(search, sortBy, sortDir, includeInactive, onlyApprovedProject, careerId, excludeEvaluated, assignmentStatus, acceptanceLetterStatus, residencyStage);
+        var result = await _studentService.ExportPdfAsync(search, sortBy, sortDir, includeInactive, onlyApprovedProject, careerId, excludeEvaluated, assignmentStatus, acceptanceLetterStatus, residencyStage, advisorId);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 

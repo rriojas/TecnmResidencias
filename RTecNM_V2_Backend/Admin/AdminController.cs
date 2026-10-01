@@ -49,9 +49,9 @@ public class AdminController : ControllerBase
 
     [HttpGet("reports/releasable")]
     [Authorize(Roles = "admin,departmenthead,director,coordinadora,coordinator")]
-    public async Task<IActionResult> GetReleasableProjects([FromQuery] PaginationQuery query)
+    public async Task<IActionResult> GetReleasableProjects([FromQuery] PaginationQuery query, [FromQuery] long? careerId = null, [FromQuery] long? advisorId = null)
     {
-        var result = await _reportService.GetReleasableProjectsAsync(query);
+        var result = await _reportService.GetReleasableProjectsAsync(query, careerId, advisorId);
         if (!result.IsSuccess)
             return StatusCode(result.StatusCode ?? 400, new { message = result.ErrorMessage });
 
