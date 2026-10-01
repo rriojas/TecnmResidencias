@@ -213,7 +213,7 @@ public class SystemSettingService : ISystemSettingService
     private static string ConvertWordDocumentToHtmlWithExactStyles(MemoryStream stream)
     {
         using var doc = WordprocessingDocument.Open(stream, false);
-        var body = doc.MainDocumentPart?.Document.Body;
+        var body = doc.MainDocumentPart?.Document?.Body;
         if (body == null) return "<!DOCTYPE html><html><body></body></html>";
 
         var sb = new StringBuilder();

@@ -578,45 +578,47 @@ async function loadDashboard() {
 
   try {
     if (isStaff.value) {
-      const promises = [
+      const [mRes, rRes, pRes] = await Promise.all([
         loadStaffMetrics(),
         apiClient.get('/v1/projects', { params: { pageNumber: 1, pageSize: 25 } }).catch(() => ({ data: { items: [] } })),
         apiClient.get('/v1/projects', { params: { status: 'pending', pageNumber: 1, pageSize: 25 } }).catch(() => ({ data: { items: [] } })),
-      ]
-
-      if (role === 'vinculacion' || role === 'admin') {
-        promises.push(apiClient.get('/v1/companies', { params: { pageNumber: 1, pageSize: 10 } }).catch(() => ({ data: { items: [] } })))
-      }
-
-      if (role === 'departmenthead' || role === 'academic') {
-        promises.push(apiClient.get('/v1/advisors', { params: { pageNumber: 1, pageSize: 15 } }).catch(() => ({ data: { items: [] } })))
-      }
-
-      if (authStore.isCareerHead) {
-        promises.push(apiClient.get('/v1/students', { params: { pageSize: 100 } }).catch(() => ({ data: { items: [] } })))
-        promises.push(apiClient.get('/v1/advisors', { params: { pageSize: 100 } }).catch(() => ({ data: { items: [] } })))
-      }
-
-      const results = await Promise.all(promises)
-      const rRes = results[1]
-      const pRes = results[2]
+      ])
 
       recentProjects.value = (rRes.data?.items || []).filter((p) => p.isActive !== false)
       pendingProjects.value = (pRes.data?.items || []).filter((p) => p.isActive !== false)
 
+      const sideTasks = []
+      if (role === 'vinculacion' || role === 'admin') {
+        sideTasks.push(
+          apiClient.get('/v1/companies', { params: { pageNumber: 1, pageSize: 10 } })
+            .then((res) => { companiesList.value = res.data?.items || [] })
+            .catch(() => { companiesList.value = [] })
+        )
+      }
+
+      if (role === 'departmenthead' || role === 'academic') {
+        sideTasks.push(
+          apiClient.get('/v1/advisors', { params: { pageNumber: 1, pageSize: 15 } })
+            .then((res) => { advisorsList.value = res.data?.items || [] })
+            .catch(() => { advisorsList.value = [] })
+        )
+      }
+
       if (authStore.isCareerHead) {
-        const stuRes = results[3]
-        const advRes = results[4]
-        careerStudents.value = stuRes?.data?.items || []
-        careerAdvisors.value = advRes?.data?.items || []
+        sideTasks.push(
+          apiClient.get('/v1/students', { params: { pageSize: 250 } })
+            .then((res) => { careerStudents.value = res.data?.items || [] })
+            .catch(() => { careerStudents.value = [] }),
+          apiClient.get('/v1/advisors', { params: { pageSize: 100 } })
+            .then((res) => { careerAdvisors.value = res.data?.items || [] })
+            .catch(() => { careerAdvisors.value = [] })
+        )
         recentProjects.value = recentProjects.value.filter((p) => String(p.status || '').toLowerCase() !== 'draft')
         pendingProjects.value = pendingProjects.value.filter((p) => String(p.status || '').toLowerCase() !== 'draft')
-      } else if (results[3]) {
-        if (role === 'vinculacion' || role === 'admin') {
-          companiesList.value = results[3].data?.items || []
-        } else if (role === 'departmenthead' || role === 'academic') {
-          advisorsList.value = results[3].data?.items || []
-        }
+      }
+
+      if (sideTasks.length > 0) {
+        await Promise.all(sideTasks)
       }
     } else if (role === 'student') {
       const [sRes, pRes, dLineRes] = await Promise.all([

@@ -213,7 +213,7 @@ async function fetchCandidates() {
   try {
     const params = {
       pageNumber: 1,
-      pageSize: 40,
+      pageSize: 250,
       search: candidateSearch.value.trim() || undefined,
       includeInactive: false,
       assignmentStatus: filterOnlyUnassigned.value ? 'unassigned' : undefined,

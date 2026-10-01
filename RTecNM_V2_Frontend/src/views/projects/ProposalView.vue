@@ -1432,7 +1432,7 @@ onMounted(() => {
                   </button>
                   <router-link
                     v-else
-                    to="/documents"
+                    :to="{ path: '/documents', query: { projectId: selectedProject.id } }"
                     class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                   >
                     + Subir en Expediente

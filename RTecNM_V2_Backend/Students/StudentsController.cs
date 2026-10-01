@@ -122,7 +122,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpPut("{id}/advisor")]
-    [Authorize(Roles = "admin,departmenthead,academic,academico,jefecarrera,careerhead")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,jefecarrera,careerhead,coordinator,coordinadora")]
     public async Task<IActionResult> AssignAdvisor(long id, [FromBody] AssignAdvisorDto dto)
     {
         var result = await _studentService.AssignAdvisorAsync(id, dto.AdvisorId);
@@ -133,7 +133,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpDelete("{id}/advisor")]
-    [Authorize(Roles = "admin,departmenthead,academic,academico,jefecarrera,careerhead")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,jefecarrera,careerhead,coordinator,coordinadora")]
     public async Task<IActionResult> UnassignAdvisor(long id)
     {
         var result = await _studentService.UnassignAdvisorAsync(id);
@@ -144,7 +144,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpPost("batch-assign-advisor")]
-    [Authorize(Roles = "admin,departmenthead,academic,academico,jefecarrera,careerhead")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,jefecarrera,careerhead,coordinator,coordinadora")]
     public async Task<IActionResult> BatchAssignAdvisor([FromBody] BatchAssignAdvisorDto dto)
     {
         var result = await _studentService.BatchAssignAdvisorAsync(dto.AdvisorId, dto.StudentIds);

@@ -46,6 +46,13 @@ public class ProjectService : IProjectService
         _currentUser.IsInRole(UserRole.CareerHead) ||
         _currentUser.IsInRole(UserRole.Coordinator);
 
+    private bool IsGlobalStaff() =>
+        _currentUser.IsInRole(UserRole.Admin) ||
+        _currentUser.IsInRole(UserRole.Academic) ||
+        _currentUser.IsInRole(UserRole.Vinculacion) ||
+        _currentUser.IsInRole(UserRole.Director) ||
+        _currentUser.IsInRole(UserRole.DepartmentHead);
+
     private async Task<Student?> GetSessionStudentAsync()
     {
         if (!_currentUser.IsInRole(UserRole.Student)) return null;
@@ -477,7 +484,7 @@ public class ProjectService : IProjectService
         if (project is null)
             return Result<bool>.Failure("Anteproyecto no encontrado.", 404);
 
-        if (IsStaff())
+        if (IsGlobalStaff())
             return Result<bool>.Success(true);
 
         if (_currentUser.IsInRole(UserRole.Student))
@@ -500,15 +507,29 @@ public class ProjectService : IProjectService
 
         if (_currentUser.IsInRole(UserRole.CareerHead))
         {
-            if (_currentUser.CareerId.HasValue && project.Student != null && project.Student.CareerId == _currentUser.CareerId.Value)
+            var careerId = project.Student?.CareerId;
+            if (careerId == null)
+            {
+                var st = await _studentRepository.GetByIdAsync(project.StudentId);
+                careerId = st?.CareerId;
+            }
+
+            if (_currentUser.CareerId.HasValue && careerId.HasValue && careerId.Value == _currentUser.CareerId.Value)
                 return Result<bool>.Success(true);
 
-            return Result<bool>.Failure("No tiene acceso a este anteproyecto.", 403);
+            return Result<bool>.Failure("No tiene acceso a este anteproyecto de otra carrera.", 403);
         }
 
         if (_currentUser.IsInRole(UserRole.Coordinator))
         {
-            if (project.Student != null && _currentUser.CareerIds.Contains(project.Student.CareerId))
+            var careerId = project.Student?.CareerId;
+            if (careerId == null)
+            {
+                var st = await _studentRepository.GetByIdAsync(project.StudentId);
+                careerId = st?.CareerId;
+            }
+
+            if (careerId.HasValue && _currentUser.CareerIds.Contains(careerId.Value))
                 return Result<bool>.Success(true);
 
             return Result<bool>.Failure("No tiene acceso a este anteproyecto de otra carrera.", 403);
