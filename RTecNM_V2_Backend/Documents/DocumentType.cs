@@ -15,6 +15,10 @@ public static class DocumentType
     public const string Formato29 = "formato_29";
     public const string Formato29V2 = "formato_29v2";
     public const string Formato30 = "formato_30";
+    public const string CartaTerminacion = "carta_terminacion";
+    public const string Avance1 = "avance_1";
+    public const string Avance2 = "avance_2";
+    public const string ProyectoFinal = "proyecto_final";
     public const string Otro = "otro";
 
     public static readonly HashSet<string> ValidTypes = new(StringComparer.OrdinalIgnoreCase)
@@ -30,6 +34,10 @@ public static class DocumentType
         Formato29,
         Formato29V2,
         Formato30,
+        CartaTerminacion,
+        Avance1,
+        Avance2,
+        ProyectoFinal,
         Otro
     };
 

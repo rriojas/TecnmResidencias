@@ -274,6 +274,7 @@ public class ProjectService : IProjectService
             return Result<ProjectResponseDto>.Failure("Solo se pueden enviar a revisión anteproyectos en estado de borrador o devueltos con correcciones.", 400);
 
         project.Status = ProjectStatus.Pending;
+        project.ReviewComments = null;
         project.UpdatedAt = DateTime.UtcNow;
         project.UpdatedBy = _currentUser.UserId;
 

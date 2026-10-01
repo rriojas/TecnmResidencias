@@ -173,13 +173,28 @@ public class ProjectRepository : IProjectRepository
         if (result.Items.Any())
         {
             var advisorIds = result.Items.Where(p => p.AdvisorId.HasValue).Select(p => p.AdvisorId!.Value).Distinct().ToList();
-            var counts = advisorIds.Count > 0
-                ? await _context.Students
+            var counts = new Dictionary<long, int>();
+            if (advisorIds.Count > 0)
+            {
+                var studentCounts = await _context.Students
                     .Where(s => s.AdvisorId.HasValue && advisorIds.Contains(s.AdvisorId.Value) && s.IsActive)
                     .GroupBy(s => s.AdvisorId!.Value)
                     .Select(g => new { AdvisorId = g.Key, Count = g.Count() })
-                    .ToDictionaryAsync(x => x.AdvisorId, x => x.Count)
-                : new Dictionary<long, int>();
+                    .ToDictionaryAsync(x => x.AdvisorId, x => x.Count);
+
+                var projectCounts = await _context.Projects
+                    .Where(p => p.AdvisorId.HasValue && advisorIds.Contains(p.AdvisorId.Value) && p.IsActive && p.Status != ProjectStatus.Cancelled && p.Status != ProjectStatus.Draft)
+                    .GroupBy(p => p.AdvisorId!.Value)
+                    .Select(g => new { AdvisorId = g.Key, Count = g.Select(x => x.StudentId).Distinct().Count() })
+                    .ToDictionaryAsync(x => x.AdvisorId, x => x.Count);
+
+                foreach (var id in advisorIds)
+                {
+                    int sc = studentCounts.TryGetValue(id, out var c1) ? c1 : 0;
+                    int pc = projectCounts.TryGetValue(id, out var c2) ? c2 : 0;
+                    counts[id] = Math.Max(sc, pc);
+                }
+            }
 
             foreach (var item in result.Items)
             {
@@ -289,7 +304,25 @@ public class ProjectRepository : IProjectRepository
             .Where(p => p.AdvisorId == advisorId && p.IsActive)
             .OrderByDescending(p => p.CreatedAt);
 
-        return await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        var result = await q.ToPaginatedAsync(query.PageNumber, query.PageSize);
+        if (result.Items.Any())
+        {
+            var studentCount = await _context.Students
+                .CountAsync(s => s.AdvisorId == advisorId && s.IsActive);
+            var projectCount = await _context.Projects
+                .Where(p => p.AdvisorId == advisorId && p.IsActive && p.Status != ProjectStatus.Cancelled && p.Status != ProjectStatus.Draft)
+                .Select(p => p.StudentId)
+                .Distinct()
+                .CountAsync();
+            var totalAssigned = Math.Max(studentCount, projectCount);
+
+            foreach (var item in result.Items)
+            {
+                item.AdvisorAssignedStudentsCount = totalAssigned;
+            }
+        }
+
+        return result;
     }
 
     public async Task<List<Project>> GetOptionsAsync(long? studentId, long? advisorId)

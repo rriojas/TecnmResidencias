@@ -184,6 +184,9 @@ const sortedAdvisors = computed(() => {
     } else if (field === 'IsActive') {
       valA = a.isActive ? 1 : 0
       valB = b.isActive ? 1 : 0
+    } else if (field === 'AssignedStudentsCount' || field === 'assignedStudentsCount') {
+      valA = a.assignedStudentsCount || 0
+      valB = b.assignedStudentsCount || 0
     } else {
       valA = a[field] ?? ''
       valB = b[field] ?? ''
@@ -617,6 +620,15 @@ onMounted(() => {
                 </th>
                 <th
                   class="tecnm-th-sortable"
+                  @click="handleSort('AssignedStudentsCount')"
+                >
+                  Volumen Académico
+                  <span class="tecnm-sort-icon" :class="{ active: sortBy.toLowerCase() === 'assignedstudentscount' }">
+                    {{ sortBy.toLowerCase() === 'assignedstudentscount' ? (sortDir === 'asc' ? '↑' : '↓') : '↕' }}
+                  </span>
+                </th>
+                <th
+                  class="tecnm-th-sortable"
                   @click="handleSort('IsActive')"
                 >
                   Estado
@@ -629,12 +641,12 @@ onMounted(() => {
             </thead>
             <tbody id="advisorsTableBody">
               <tr v-if="isLoading">
-                <td colspan="7" class="tecnm-table-empty">
+                <td colspan="8" class="tecnm-table-empty">
                   Cargando catálogo de asesores...
                 </td>
               </tr>
               <tr v-else-if="sortedAdvisors.length === 0">
-                <td colspan="7" class="tecnm-table-empty">
+                <td colspan="8" class="tecnm-table-empty">
                   <span v-if="includeInactive">No hay asesores inactivos (deshabilitados) registrados.</span>
                   <span v-else>No hay asesores registrados.</span>
                 </td>
@@ -661,6 +673,17 @@ onMounted(() => {
                 <td>{{ a.title || '—' }}</td>
                 <td>{{ a.departmentName || DEPARTMENTS[a.departmentId] || 'General' }}</td>
                 <td>{{ a.phone || '—' }}</td>
+                <td>
+                  <span
+                    class="tecnm-badge"
+                    :class="(a.assignedStudentsCount || 0) > 0 ? 'tecnm-badge-primary' : 'tecnm-badge-secondary'"
+                    style="cursor: pointer;"
+                    :title="`Ver residentes asignados a ${a.fullName || a.name}`"
+                    @click="openAdvisorWorkloadModal(a.id)"
+                  >
+                    {{ a.assignedStudentsCount || 0 }} residente{{ (a.assignedStudentsCount || 0) === 1 ? '' : 's' }}
+                  </span>
+                </td>
                 <td>
                   <TecnmBadge :status="a.isActive ? 'Activo' : 'Inactivo'" />
                 </td>

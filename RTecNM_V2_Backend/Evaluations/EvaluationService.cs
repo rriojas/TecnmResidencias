@@ -142,7 +142,7 @@ public class EvaluationService : IEvaluationService
         if (project is null)
             return Result<AdvisorySessionResponseDto>.Failure("El anteproyecto especificado no existe.", 404);
 
-        // Atribución inmutable: el asesor se deriva de la sesión activa.
+        // Atribución inmutable: el asesor registra sus asesorías; administradores supervisan; académicos/jefes son solo lectura.
         long advisorId;
         if (_currentUser.IsInRole(UserRole.Advisor))
         {
@@ -150,18 +150,18 @@ public class EvaluationService : IEvaluationService
             if (!sessionAdvisorId.HasValue)
                 return Result<AdvisorySessionResponseDto>.Failure("No se encontró un perfil de asesor asociado a tu cuenta.", 403);
 
-            if (project.AdvisorId != sessionAdvisorId.Value && !IsStaff())
+            if (project.AdvisorId != sessionAdvisorId.Value && !_currentUser.IsInRole(UserRole.Admin))
                 return Result<AdvisorySessionResponseDto>.Failure("Solo puedes registrar asesorías a tus alumnos asignados.", 403);
 
             advisorId = sessionAdvisorId.Value;
         }
-        else if (IsStaff())
+        else if (_currentUser.IsInRole(UserRole.Admin))
         {
             advisorId = dto.AdvisorId;
         }
         else
         {
-            return Result<AdvisorySessionResponseDto>.Failure("No tiene permisos para registrar asesorías.", 403);
+            return Result<AdvisorySessionResponseDto>.Failure("Las fechas y sesiones de asesoría son registradas exclusivamente por el asesor asignado.", 403);
         }
 
         var session = new AdvisorySession
@@ -183,17 +183,25 @@ public class EvaluationService : IEvaluationService
 
     public async Task<Result<AdvisorySessionResponseDto>> UpdateAdvisorySessionAsync(long id, UpdateAdvisorySessionDto dto)
     {
-        if (!IsStaff())
-            return Result<AdvisorySessionResponseDto>.Failure("No tiene permisos para editar sesiones de asesoría.", 403);
-
-        if (string.IsNullOrWhiteSpace(dto.TopicsCovered))
-            return Result<AdvisorySessionResponseDto>.Failure("Debe especificar los temas o avances abordados en la asesoría.");
-
         var session = await _repository.GetSessionByIdAsync(id);
         if (session == null || !session.IsActive)
             return Result<AdvisorySessionResponseDto>.Failure("Sesión de asesoría no encontrada.", 404);
 
-        session.AdvisorId = dto.AdvisorId;
+        if (_currentUser.IsInRole(UserRole.Advisor))
+        {
+            var sessionAdvisorId = await GetSessionAdvisorIdAsync();
+            if (session.AdvisorId != sessionAdvisorId && !_currentUser.IsInRole(UserRole.Admin))
+                return Result<AdvisorySessionResponseDto>.Failure("Solo puedes modificar tus propias sesiones de asesoría.", 403);
+        }
+        else if (!_currentUser.IsInRole(UserRole.Admin))
+        {
+            return Result<AdvisorySessionResponseDto>.Failure("No tiene permisos para editar sesiones de asesoría. Esta función es exclusiva del asesor.", 403);
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.TopicsCovered))
+            return Result<AdvisorySessionResponseDto>.Failure("Debe especificar los temas o avances abordados en la asesoría.");
+
+        session.AdvisorId = dto.AdvisorId != 0 ? dto.AdvisorId : session.AdvisorId;
         session.SessionDate = dto.SessionDate ?? session.SessionDate;
         session.TopicsCovered = dto.TopicsCovered.Trim();
         session.StudentAgreements = dto.StudentAgreements?.Trim();
@@ -206,8 +214,20 @@ public class EvaluationService : IEvaluationService
 
     public async Task<Result<bool>> DeleteAdvisorySessionAsync(long id)
     {
-        if (!IsStaff())
+        var session = await _repository.GetSessionByIdAsync(id);
+        if (session == null || !session.IsActive)
+            return Result<bool>.Failure("Sesión de asesoría no encontrada o ya fue eliminada.", 404);
+
+        if (_currentUser.IsInRole(UserRole.Advisor))
+        {
+            var sessionAdvisorId = await GetSessionAdvisorIdAsync();
+            if (session.AdvisorId != sessionAdvisorId && !_currentUser.IsInRole(UserRole.Admin))
+                return Result<bool>.Failure("Solo puedes eliminar tus propias sesiones de asesoría.", 403);
+        }
+        else if (!_currentUser.IsInRole(UserRole.Admin))
+        {
             return Result<bool>.Failure("No tiene permisos para eliminar sesiones de asesoría.", 403);
+        }
 
         var deleted = await _repository.SoftDeleteSessionAsync(id, _currentUser.UserId);
         if (!deleted)

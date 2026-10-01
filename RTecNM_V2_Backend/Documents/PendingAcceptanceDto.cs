@@ -13,5 +13,7 @@ public class PendingAcceptanceDto
     public string ProjectStatus { get; set; } = string.Empty;
     public bool HasAcceptanceLetter { get; set; } = false;
     public string StatusLabel { get; set; } = "Sin carta de aceptación";
+    public long? AdvisorId { get; set; }
+    public string? AdvisorName { get; set; }
     public DateTime? ProjectCreatedAt { get; set; }
 }

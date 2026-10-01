@@ -132,6 +132,25 @@ const assignmentCoveragePercent = computed(() => {
 const selectedAdvisorForModal = ref(null)
 const isWorkloadModalOpen = ref(false)
 
+const collapsedTables = ref({
+  pendingAcceptance: true,
+  adminRecent: true,
+  adminPending: true,
+  careerMonitor: true,
+  careerUnassigned: true,
+  careerProjects: true,
+  deptPending: true,
+  deptRecent: true,
+  vinculacionCompanies: true,
+  vinculacionReady: true,
+  directorDistribution: true,
+  advisorProjects: true,
+})
+
+function toggleTableCollapse(key) {
+  collapsedTables.value[key] = !collapsedTables.value[key]
+}
+
 const pendingAcceptanceList = ref([])
 const isPendingAcceptanceLoading = ref(false)
 
@@ -1226,11 +1245,34 @@ onMounted(() => {
                 </span>
               </h3>
             </div>
-            <router-link to="/documents" class="tecnm-link-action">
-              Ir a Expediente Digital &rarr;
-            </router-link>
+            <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+              <router-link to="/documents" class="tecnm-link-action">
+                Ir a Expediente Digital &rarr;
+              </router-link>
+              <button
+                type="button"
+                class="tecnm-btn tecnm-btn-ghost tecnm-btn-sm"
+                style="padding: 0.2rem 0.5rem; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem;"
+                :title="collapsedTables.pendingAcceptance ? 'Expandir tabla' : 'Colapsar tabla'"
+                @click="toggleTableCollapse('pendingAcceptance')"
+              >
+                <span>{{ collapsedTables.pendingAcceptance ? 'Mostrar' : 'Ocultar' }}</span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  :style="{ transform: collapsedTables.pendingAcceptance ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.2s ease' }"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
+            </div>
           </div>
-          <div class="tecnm-card-body tecnm-p-0">
+          <div v-show="!collapsedTables.pendingAcceptance" class="tecnm-card-body tecnm-p-0">
             <div class="tecnm-table-responsive">
               <table class="tecnm-table tecnm-table-striped">
                 <thead>
@@ -1238,16 +1280,17 @@ onMounted(() => {
                     <th>Estudiante</th>
                     <th>Proyecto y Empresa</th>
                     <th>Carrera</th>
+                    <th>Asesor Asignado</th>
                     <th>Estatus de Entrega</th>
                     <th style="text-align: right;">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-if="isPendingAcceptanceLoading">
-                    <td colspan="5" class="tecnm-table-empty">Consultando alumnos pendientes de carta de aceptación...</td>
+                    <td colspan="6" class="tecnm-table-empty">Consultando alumnos pendientes de carta de aceptación...</td>
                   </tr>
                   <tr v-else-if="pendingAcceptanceList.length === 0">
-                    <td colspan="5" class="tecnm-table-empty" style="color: var(--tecnm-success, #10b981);">
+                    <td colspan="6" class="tecnm-table-empty" style="color: var(--tecnm-success, #10b981);">
                       ✓ Todos los alumnos con residencia activa han entregado su Carta de Aceptación.
                     </td>
                   </tr>
@@ -1262,6 +1305,14 @@ onMounted(() => {
                     </td>
                     <td>
                       <span>{{ item.careerName || CAREERS[item.careerId] || '—' }}</span>
+                    </td>
+                    <td>
+                      <div v-if="item.advisorName">
+                        <strong style="color: var(--tecnm-blue-primary, #1B396A);">{{ item.advisorName }}</strong>
+                      </div>
+                      <span v-else class="tecnm-badge tecnm-badge-secondary" style="font-size: 0.75rem;">
+                        Sin asignar
+                      </span>
                     </td>
                     <td>
                       <span class="tecnm-badge tecnm-badge-warning" style="font-weight: 600;">
@@ -1301,11 +1352,34 @@ onMounted(() => {
                   </span>
                 </h3>
               </div>
-              <router-link to="/projects" class="tecnm-link-action">
-                Ver todos ({{ filteredRecentProjects.length }}) &rarr;
-              </router-link>
+              <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+                <router-link to="/projects" class="tecnm-link-action">
+                  Ver todos ({{ filteredRecentProjects.length }}) &rarr;
+                </router-link>
+                <button
+                  type="button"
+                  class="tecnm-btn tecnm-btn-ghost tecnm-btn-sm"
+                  style="padding: 0.2rem 0.5rem; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem;"
+                  :title="collapsedTables.adminRecent ? 'Expandir tabla' : 'Colapsar tabla'"
+                  @click="toggleTableCollapse('adminRecent')"
+                >
+                  <span>{{ collapsedTables.adminRecent ? 'Mostrar' : 'Ocultar' }}</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    :style="{ transform: collapsedTables.adminRecent ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.2s ease' }"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div class="tecnm-card-body tecnm-p-0">
+            <div v-show="!collapsedTables.adminRecent" class="tecnm-card-body tecnm-p-0">
               <div class="tecnm-table-responsive">
                 <table class="tecnm-table">
                   <thead>
@@ -1358,11 +1432,34 @@ onMounted(() => {
                 </svg>
                 <h3 class="tecnm-card-title">Anteproyectos Pendientes de Dictamen</h3>
               </div>
-              <router-link to="/projects" class="tecnm-link-action">
-                Ver todos ({{ filteredPendingProjects.length }}) &rarr;
-              </router-link>
+              <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+                <router-link to="/projects" class="tecnm-link-action">
+                  Ver todos ({{ filteredPendingProjects.length }}) &rarr;
+                </router-link>
+                <button
+                  type="button"
+                  class="tecnm-btn tecnm-btn-ghost tecnm-btn-sm"
+                  style="padding: 0.2rem 0.5rem; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem;"
+                  :title="collapsedTables.adminPending ? 'Expandir tabla' : 'Colapsar tabla'"
+                  @click="toggleTableCollapse('adminPending')"
+                >
+                  <span>{{ collapsedTables.adminPending ? 'Mostrar' : 'Ocultar' }}</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    :style="{ transform: collapsedTables.adminPending ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.2s ease' }"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div class="tecnm-card-body tecnm-p-0">
+            <div v-show="!collapsedTables.adminPending" class="tecnm-card-body tecnm-p-0">
               <div class="tecnm-table-responsive">
                 <table class="tecnm-table">
                   <thead>
@@ -1407,11 +1504,34 @@ onMounted(() => {
                 </svg>
                 <h3 class="tecnm-card-title">Monitor de Cobertura de Asesorías Académicas</h3>
               </div>
-              <router-link to="/advisors/assignments" class="tecnm-link-action">
-                Asignar Asesores &rarr;
-              </router-link>
+              <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+                <router-link to="/advisors/assignments" class="tecnm-link-action">
+                  Asignar Asesores &rarr;
+                </router-link>
+                <button
+                  type="button"
+                  class="tecnm-btn tecnm-btn-ghost tecnm-btn-sm"
+                  style="padding: 0.2rem 0.5rem; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem;"
+                  :title="collapsedTables.careerMonitor ? 'Expandir widget' : 'Colapsar widget'"
+                  @click="toggleTableCollapse('careerMonitor')"
+                >
+                  <span>{{ collapsedTables.careerMonitor ? 'Mostrar' : 'Ocultar' }}</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    :style="{ transform: collapsedTables.careerMonitor ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.2s ease' }"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div class="tecnm-card-body">
+            <div v-show="!collapsedTables.careerMonitor" class="tecnm-card-body">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
                 <span style="font-size: 0.9rem; font-weight: 600; color: var(--tecnm-text-primary, #0f172a);">
                   Avance de Asignaciones: {{ effectiveAssignedCount }} de {{ eligibleStudentsCount }} Alumnos Listos ({{ assignmentCoveragePercent }}%)
@@ -1451,11 +1571,34 @@ onMounted(() => {
                   {{ unassignedStudents.length }} por asignar
                 </span>
               </div>
-              <router-link to="/advisors/assignments" class="tecnm-link-action">
-                Asignar Asesores &rarr;
-              </router-link>
+              <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+                <router-link to="/advisors/assignments" class="tecnm-link-action">
+                  Asignar Asesores &rarr;
+                </router-link>
+                <button
+                  type="button"
+                  class="tecnm-btn tecnm-btn-ghost tecnm-btn-sm"
+                  style="padding: 0.2rem 0.5rem; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem;"
+                  :title="collapsedTables.careerUnassigned ? 'Expandir lista' : 'Colapsar lista'"
+                  @click="toggleTableCollapse('careerUnassigned')"
+                >
+                  <span>{{ collapsedTables.careerUnassigned ? 'Mostrar' : 'Ocultar' }}</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    :style="{ transform: collapsedTables.careerUnassigned ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.2s ease' }"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div class="tecnm-card-body tecnm-p-0">
+            <div v-show="!collapsedTables.careerUnassigned" class="tecnm-card-body tecnm-p-0">
               <ul class="list-panel">
                 <li
                   v-for="stu in recentUnassignedStudents"
@@ -1498,11 +1641,34 @@ onMounted(() => {
                 </svg>
                 <h3 class="tecnm-card-title">Supervisión de Anteproyectos Recientes</h3>
               </div>
-              <router-link to="/projects/review" class="tecnm-link-action">
-                Ver todos ({{ careerHeadActiveProjects.length }}) &rarr;
-              </router-link>
+              <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+                <router-link to="/projects/review" class="tecnm-link-action">
+                  Ver todos ({{ careerHeadActiveProjects.length }}) &rarr;
+                </router-link>
+                <button
+                  type="button"
+                  class="tecnm-btn tecnm-btn-ghost tecnm-btn-sm"
+                  style="padding: 0.2rem 0.5rem; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem;"
+                  :title="collapsedTables.careerProjects ? 'Expandir lista' : 'Colapsar lista'"
+                  @click="toggleTableCollapse('careerProjects')"
+                >
+                  <span>{{ collapsedTables.careerProjects ? 'Mostrar' : 'Ocultar' }}</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    :style="{ transform: collapsedTables.careerProjects ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.2s ease' }"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div class="tecnm-card-body tecnm-p-0">
+            <div v-show="!collapsedTables.careerProjects" class="tecnm-card-body tecnm-p-0">
               <div v-if="isLoading" style="padding: 2rem; text-align: center; color: var(--tecnm-text-muted);">
                 Cargando anteproyectos...
               </div>
@@ -1550,11 +1716,34 @@ onMounted(() => {
                 </svg>
                 <h3 class="tecnm-card-title">Bandeja de Dictamen de Anteproyectos</h3>
               </div>
-              <router-link to="/projects" class="tecnm-link-action">
-                Ver todos los pendientes ({{ filteredPendingProjects.length }}) &rarr;
-              </router-link>
+              <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+                <router-link to="/projects" class="tecnm-link-action">
+                  Ver todos los pendientes ({{ filteredPendingProjects.length }}) &rarr;
+                </router-link>
+                <button
+                  type="button"
+                  class="tecnm-btn tecnm-btn-ghost tecnm-btn-sm"
+                  style="padding: 0.2rem 0.5rem; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem;"
+                  :title="collapsedTables.deptPending ? 'Expandir bandeja' : 'Colapsar bandeja'"
+                  @click="toggleTableCollapse('deptPending')"
+                >
+                  <span>{{ collapsedTables.deptPending ? 'Mostrar' : 'Ocultar' }}</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    :style="{ transform: collapsedTables.deptPending ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.2s ease' }"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div class="tecnm-card-body tecnm-p-0">
+            <div v-show="!collapsedTables.deptPending" class="tecnm-card-body tecnm-p-0">
               <div class="tecnm-table-responsive">
                 <table class="tecnm-table">
                   <thead>
@@ -1604,11 +1793,34 @@ onMounted(() => {
           <div class="tecnm-card" style="margin-top: 1.5rem;">
             <div class="tecnm-card-header">
               <h3 class="tecnm-card-title">Anteproyectos en Seguimiento</h3>
-              <router-link to="/projects" class="tecnm-link-action">
-                Ver todos &rarr;
-              </router-link>
+              <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+                <router-link to="/projects" class="tecnm-link-action">
+                  Ver todos &rarr;
+                </router-link>
+                <button
+                  type="button"
+                  class="tecnm-btn tecnm-btn-ghost tecnm-btn-sm"
+                  style="padding: 0.2rem 0.5rem; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem;"
+                  :title="collapsedTables.deptRecent ? 'Expandir tabla' : 'Colapsar tabla'"
+                  @click="toggleTableCollapse('deptRecent')"
+                >
+                  <span>{{ collapsedTables.deptRecent ? 'Mostrar' : 'Ocultar' }}</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    :style="{ transform: collapsedTables.deptRecent ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.2s ease' }"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div class="tecnm-card-body tecnm-p-0">
+            <div v-show="!collapsedTables.deptRecent" class="tecnm-card-body tecnm-p-0">
               <div class="tecnm-table-responsive">
                 <table class="tecnm-table">
                   <thead>
@@ -1648,11 +1860,34 @@ onMounted(() => {
                 </svg>
                 <h3 class="tecnm-card-title">Empresas Receptoras Vinculadas</h3>
               </div>
-              <router-link to="/companies" class="tecnm-link-action">
-                Gestionar Empresas &rarr;
-              </router-link>
+              <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+                <router-link to="/companies" class="tecnm-link-action">
+                  Gestionar Empresas &rarr;
+                </router-link>
+                <button
+                  type="button"
+                  class="tecnm-btn tecnm-btn-ghost tecnm-btn-sm"
+                  style="padding: 0.2rem 0.5rem; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem;"
+                  :title="collapsedTables.vinculacionCompanies ? 'Expandir tabla' : 'Colapsar tabla'"
+                  @click="toggleTableCollapse('vinculacionCompanies')"
+                >
+                  <span>{{ collapsedTables.vinculacionCompanies ? 'Mostrar' : 'Ocultar' }}</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    :style="{ transform: collapsedTables.vinculacionCompanies ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.2s ease' }"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div class="tecnm-card-body tecnm-p-0">
+            <div v-show="!collapsedTables.vinculacionCompanies" class="tecnm-card-body tecnm-p-0">
               <div class="tecnm-table-responsive">
                 <table class="tecnm-table">
                   <thead>
@@ -1693,11 +1928,34 @@ onMounted(() => {
           <div class="tecnm-card" style="margin-top: 1.5rem;">
             <div class="tecnm-card-header">
               <h3 class="tecnm-card-title">Proyectos Listos para Carta de Presentación</h3>
-              <router-link to="/projects" class="tecnm-link-action">
-                Ver todos &rarr;
-              </router-link>
+              <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+                <router-link to="/projects" class="tecnm-link-action">
+                  Ver todos &rarr;
+                </router-link>
+                <button
+                  type="button"
+                  class="tecnm-btn tecnm-btn-ghost tecnm-btn-sm"
+                  style="padding: 0.2rem 0.5rem; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem;"
+                  :title="collapsedTables.vinculacionReady ? 'Expandir tabla' : 'Colapsar tabla'"
+                  @click="toggleTableCollapse('vinculacionReady')"
+                >
+                  <span>{{ collapsedTables.vinculacionReady ? 'Mostrar' : 'Ocultar' }}</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    :style="{ transform: collapsedTables.vinculacionReady ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.2s ease' }"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div class="tecnm-card-body tecnm-p-0">
+            <div v-show="!collapsedTables.vinculacionReady" class="tecnm-card-body tecnm-p-0">
               <div class="tecnm-table-responsive">
                 <table class="tecnm-table">
                   <thead>
@@ -1744,8 +2002,29 @@ onMounted(() => {
                 </svg>
                 <h3 class="tecnm-card-title">Distribución Institucional por Carrera</h3>
               </div>
+              <button
+                type="button"
+                class="tecnm-btn tecnm-btn-ghost tecnm-btn-sm"
+                style="padding: 0.2rem 0.5rem; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem;"
+                :title="collapsedTables.directorDistribution ? 'Expandir tabla' : 'Colapsar tabla'"
+                @click="toggleTableCollapse('directorDistribution')"
+              >
+                <span>{{ collapsedTables.directorDistribution ? 'Mostrar' : 'Ocultar' }}</span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  :style="{ transform: collapsedTables.directorDistribution ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.2s ease' }"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
             </div>
-            <div class="tecnm-card-body tecnm-p-0">
+            <div v-show="!collapsedTables.directorDistribution" class="tecnm-card-body tecnm-p-0">
               <div class="tecnm-table-responsive">
                 <table class="tecnm-table">
                   <thead>
@@ -1802,12 +2081,35 @@ onMounted(() => {
               </svg>
               <h3 class="tecnm-card-title">Mis Residentes Asignados</h3>
             </div>
-            <router-link to="/evaluations" class="tecnm-link-action">
-              Ver todos ({{ advisorProjects.length }}) &rarr;
-            </router-link>
+            <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2">
+              <router-link to="/evaluations" class="tecnm-link-action">
+                Ver todos ({{ advisorProjects.length }}) &rarr;
+              </router-link>
+              <button
+                type="button"
+                class="tecnm-btn tecnm-btn-ghost tecnm-btn-sm"
+                style="padding: 0.2rem 0.5rem; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem;"
+                :title="collapsedTables.advisorProjects ? 'Expandir tabla' : 'Colapsar tabla'"
+                @click="toggleTableCollapse('advisorProjects')"
+              >
+                <span>{{ collapsedTables.advisorProjects ? 'Mostrar' : 'Ocultar' }}</span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  :style="{ transform: collapsedTables.advisorProjects ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.2s ease' }"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
+            </div>
           </div>
 
-          <div class="tecnm-card-body tecnm-p-0">
+          <div v-show="!collapsedTables.advisorProjects" class="tecnm-card-body tecnm-p-0">
             <div class="tecnm-table-responsive">
               <table class="tecnm-table tecnm-table-striped">
                 <thead>

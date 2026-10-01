@@ -1,9 +1,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useGlobalSearch } from '@/composables/useGlobalSearch'
 import apiClient from '@/services/api'
 
+const route = useRoute()
 const authStore = useAuthStore()
 const { open: openGlobalSearch } = useGlobalSearch()
 
@@ -159,6 +161,18 @@ const projectStatusLabel = computed(() => {
 })
 
 async function initSchedule() {
+  if (route.query.projectId) {
+    try {
+      const res = await apiClient.get(`/v1/projects/${route.query.projectId}`)
+      if (res.data?.id) {
+        await selectProject(res.data)
+        return
+      }
+    } catch (err) {
+      console.warn('No se pudo cargar el proyecto solicitado por query params:', err)
+    }
+  }
+
   if (isStudent.value) {
     await resolveStudentProject()
   } else {

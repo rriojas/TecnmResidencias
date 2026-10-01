@@ -50,7 +50,7 @@ function formatTecNMDate(iso) {
 }
 
 // Helpers de ciclo de vida
-const DICTAMINABLE_STATUSES = ['pending', 'pendiente', 'under_review', 'underreview', 'proposed', 'propuesto']
+const DICTAMINABLE_STATUSES = ['pending', 'pendiente', 'under_review', 'underreview', 'proposed', 'propuesto', 'rejected', 'rechazado']
 const PRINTABLE_STATUSES = ['approved', 'aprobado', 'in_progress', 'inprogress', 'en_progreso', 'completed', 'completado']
 
 function isDictaminable(status) {
@@ -79,7 +79,7 @@ function getActionLabel(project) {
     }
   }
   if (!authStore.isReadOnly && !authStore.hasRole('vinculacion') && isDictaminable(st)) {
-    return 'Revisar y Dictaminar'
+    return st === 'rejected' || st === 'rechazado' ? 'Revisar Correcciones' : 'Revisar y Dictaminar'
   }
   if (st === 'rejected' || st === 'rechazado') {
     return 'Ver Observaciones'
@@ -945,7 +945,7 @@ onMounted(() => {
                         class="tecnm-badge"
                         style="font-size: 0.72rem; margin-top: 2px; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;"
                       >
-                        {{ p.advisorAssignedStudentsCount ?? 0 }} alumno(s) asignado(s)
+                        {{ Math.max(1, p.advisorAssignedStudentsCount || 0) }} alumno(s) asignado(s)
                       </span>
                     </div>
                   </div>
@@ -967,6 +967,13 @@ onMounted(() => {
                     >
                       {{ getActionLabel(p) }}
                     </button>
+                    <router-link
+                      :to="{ path: '/activities/schedule', query: { projectId: p.id } }"
+                      class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                      title="Ver Cronograma de Actividades"
+                    >
+                      Cronograma
+                    </router-link>
                     <button
                       v-if="PRINTABLE_STATUSES.includes((p.status||'').toLowerCase())"
                       type="button"

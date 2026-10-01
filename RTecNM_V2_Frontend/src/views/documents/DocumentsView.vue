@@ -28,6 +28,16 @@ const isStaff = computed(() =>
 const canEvaluateDoc = computed(() =>
   !authStore.isReadOnly && (isStaff.value || isAdvisor.value)
 )
+
+function canEvaluateThisDoc(doc) {
+  if (authStore.isReadOnly) return false
+  if (authStore.isAdmin) return true
+  const docType = (doc?.documentType || '').toLowerCase()
+  if (docType === 'avance_1' || docType === 'avance_2') {
+    return isAdvisor.value
+  }
+  return isStaff.value || isAdvisor.value
+}
 const canAssignAdvisor = computed(() => {
   if (authStore.isReadOnly) return false
   return (
@@ -254,6 +264,34 @@ const isProjectApproved = computed(() => {
   return ['approved', 'aprobado', 'in_progress', 'inprogress', 'en_progreso', 'completed', 'completado'].includes(st)
 })
 
+const hasApprovedFormato29 = computed(() => {
+  return (documents.value || []).some(
+    (d) => d.documentType === 'formato_29' && (d.status === 'approved' || d.status === 1) && d.isActive
+  )
+})
+
+const hasApprovedFormato29v2 = computed(() => {
+  return (documents.value || []).some(
+    (d) => d.documentType === 'formato_29v2' && (d.status === 'approved' || d.status === 1) && d.isActive
+  )
+})
+
+const hasApprovedFormato30 = computed(() => {
+  return (documents.value || []).some(
+    (d) => d.documentType === 'formato_30' && (d.status === 'approved' || d.status === 1) && d.isActive
+  )
+})
+
+const hasApprovedCartaTerminacion = computed(() => {
+  return (documents.value || []).some(
+    (d) => d.documentType === 'carta_terminacion' && ['approved', 'uploaded', 1].includes(d.status) && d.isActive
+  )
+})
+
+const canUploadProyectoFinal = computed(() => {
+  return hasApprovedFormato29.value && hasApprovedFormato29v2.value && hasApprovedFormato30.value && hasApprovedCartaTerminacion.value
+})
+
 const isProjectReadOnly = computed(() => {
   if (!currentProject.value) return true
   const st = String(currentProject.value?.status || '').toLowerCase()
@@ -313,15 +351,20 @@ const statusForm = ref({
 })
 
 const documentTypeLabels = {
-  solicitud: 'Solicitud de Residencia',
   carta_aceptacion: 'Carta de Aceptación',
+  formato_29: 'Formato 29 (Primer Seguimiento)',
+  formato_29v2: 'Formato 29 (Segundo Seguimiento)',
+  formato_30: 'Formato 30 (Evaluación Final)',
+  carta_terminacion: 'Carta de Terminación',
+  avance_1: 'Primer Avance de Residencia',
+  avance_2: 'Segundo Avance de Residencia',
+  proyecto_final: 'Reporte de Proyecto Final',
+  solicitud: 'Solicitud de Residencia',
   dictamen: 'Dictamen de Aprobación',
   manual_usuario: 'Manual de Usuario',
   manual_tecnico: 'Manual Técnico',
   libranza: 'Oficio de Liberación',
-  formato_29: 'Formato 29 (Primer Seguimiento)',
-  formato_29v2: 'Formato 29 (Segundo Seguimiento)',
-  formato_30: 'Formato 30 (Evaluación Final)',
+  constancia_acreditacion: 'Constancia de Acreditación',
   otro: 'Otro / Evidencia',
 }
 
@@ -812,8 +855,27 @@ async function handleUploadSubmit() {
     }
   }
 
+  if (uploadForm.value.documentType === 'proyecto_final') {
+    const existingDocs = documents.value || []
+    const isF29Approved = existingDocs.some(d => d.documentType === 'formato_29' && (d.status === 'approved' || d.status === 1) && d.isActive)
+    const isF29v2Approved = existingDocs.some(d => d.documentType === 'formato_29v2' && (d.status === 'approved' || d.status === 1) && d.isActive)
+    const isF30Approved = existingDocs.some(d => d.documentType === 'formato_30' && (d.status === 'approved' || d.status === 1) && d.isActive)
+    const isCTerminacionApproved = existingDocs.some(d => d.documentType === 'carta_terminacion' && ['approved', 'uploaded', 1].includes(d.status) && d.isActive)
+
+    const missing = []
+    if (!isF29Approved) missing.push('Formato 29 (Primer Seguimiento)')
+    if (!isF29v2Approved) missing.push('Formato 29 (Segundo Seguimiento)')
+    if (!isF30Approved) missing.push('Formato 30 (Evaluación Final)')
+    if (!isCTerminacionApproved) missing.push('Carta de Terminación')
+
+    if (missing.length > 0) {
+      showAlert(`Para subir el Reporte de Proyecto Final es obligatorio contar con los siguientes documentos validados: ${missing.join(', ')}.`, 'warning')
+      return
+    }
+  }
+
   if (isStudent.value && !isProjectApproved.value) {
-    const preApprovalAllowed = ['carta_aceptacion', 'otro']
+    const preApprovalAllowed = ['carta_aceptacion', 'constancia_acreditacion', 'otro']
     if (!preApprovalAllowed.includes(uploadForm.value.documentType)) {
       showAlert('En esta etapa previa al dictamen, solo se requiere subir tu Carta de Aceptación de la empresa.', 'warning')
       return
@@ -1540,7 +1602,7 @@ onMounted(() => {
                       ⬇ Descargar
                     </a>
                     <button
-                      v-if="canEvaluateDoc"
+                      v-if="canEvaluateThisDoc(doc)"
                       type="button"
                       class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                       @click="openStatusModal(doc)"
@@ -1640,29 +1702,47 @@ onMounted(() => {
                 Carta de Aceptación / Aprobación *
               </option>
               <option
-                v-if="!isAccreditationActive && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status !== 'approved'))"
+                v-if="!isAccreditationActive && (isProjectApproved || isStaff)"
+                value="avance_1"
+              >
+                Primer Avance de Residencia
+              </option>
+              <option
+                v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status !== 'approved'))"
                 value="formato_29"
               >
                 Formato 29 (Primer Seguimiento)
               </option>
               <option
-                v-if="!isAccreditationActive && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
+                v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase)"
+                value="avance_2"
+              >
+                Segundo Avance de Residencia
+              </option>
+              <option
+                v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
                 value="formato_29v2"
               >
                 Formato 29 (Segundo Seguimiento)
               </option>
               <option
-                v-if="!isAccreditationActive && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
+                v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
                 value="formato_30"
               >
                 Formato 30 (Evaluación Final)
               </option>
-              <option v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="solicitud">Solicitud de Residencia Profesional</option>
-              <option v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="dictamen">Dictamen de Aprobación</option>
-              <option v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="manual_usuario">Manual de Usuario</option>
-              <option v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="manual_tecnico">Manual Técnico</option>
-              <option v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked)" value="libranza">Oficio de Liberación</option>
-              <option v-if="!isStudent || !studentDeadlineInfo.isDocumentBlocked || isAccreditationActive" value="otro">Otro / Evidencia Adicional</option>
+              <option
+                v-if="!isAccreditationActive && (isProjectApproved || isStaff)"
+                value="carta_terminacion"
+              >
+                Carta de Terminación de la Empresa
+              </option>
+              <option
+                v-if="!isAccreditationActive && (isProjectApproved || isStaff)"
+                value="proyecto_final"
+              >
+                Reporte de Proyecto Final
+              </option>
             </select>
 
             <div
@@ -1677,8 +1757,58 @@ onMounted(() => {
               class="tecnm-form-hint"
               style="color: var(--tecnm-gray-600); margin-top: 0.35rem; display: block;"
             >
-              * Los formatos de entrega final (Formato 29v2 y Formato 30) se habilitarán únicamente una vez que su primer Formato 29 sea validado y aprobado por la Coordinación.
+              * Los formatos de segunda fase (Avance 2, Formato 29v2 y Formato 30) se habilitarán únicamente una vez que su primer Formato 29 sea validado y aprobado por la Coordinación.
             </small>
+
+            <!-- Panel informativo para Proyecto Final -->
+            <div
+              v-if="uploadForm.documentType === 'proyecto_final'"
+              class="tecnm-card"
+              style="margin-top: 0.5rem; padding: 0.6rem 0.8rem; background: #F8FAFC; border-left: 4px solid var(--tecnm-blue-primary);"
+            >
+              <div style="font-size: 0.875rem; margin-bottom: 0.35rem;">
+                <strong>Requisitos para entrega de Proyecto Final:</strong>
+              </div>
+              <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.825rem; list-style-type: none;">
+                <li :style="{ color: hasApprovedFormato29 ? '#15803d' : '#b91c1c' }">
+                  {{ hasApprovedFormato29 ? '✓' : '✗' }} Formato 29 (Primer Seguimiento)
+                </li>
+                <li :style="{ color: hasApprovedFormato29v2 ? '#15803d' : '#b91c1c' }">
+                  {{ hasApprovedFormato29v2 ? '✓' : '✗' }} Formato 29 (Segundo Seguimiento)
+                </li>
+                <li :style="{ color: hasApprovedFormato30 ? '#15803d' : '#b91c1c' }">
+                  {{ hasApprovedFormato30 ? '✓' : '✗' }} Formato 30 (Evaluación Final)
+                </li>
+                <li :style="{ color: hasApprovedCartaTerminacion ? '#15803d' : '#b91c1c' }">
+                  {{ hasApprovedCartaTerminacion ? '✓' : '✗' }} Carta de Terminación de la Empresa
+                </li>
+              </ul>
+              <small v-if="!canUploadProyectoFinal" style="color: #b91c1c; display: block; margin-top: 0.35rem; font-weight: 500;">
+                No puede entregar el Proyecto Final hasta que todos los formatos previos estén validados y aprobados.
+              </small>
+            </div>
+
+            <!-- Panel informativo para Avances -->
+            <div
+              v-if="uploadForm.documentType === 'avance_1' || uploadForm.documentType === 'avance_2'"
+              class="tecnm-card"
+              style="margin-top: 0.5rem; padding: 0.6rem 0.8rem; background: #F0FDF4; border-left: 4px solid #16A34A;"
+            >
+              <div style="font-size: 0.85rem; color: #166534;">
+                <strong>Nota:</strong> Los avances de residencia son evaluados y calificados de manera exclusiva por su Asesor(a) asignado(a).
+              </div>
+            </div>
+
+            <!-- Panel informativo de Asesorías Previas requeridas -->
+            <div
+              v-if="uploadForm.documentType === 'formato_29v2' || uploadForm.documentType === 'formato_30' || uploadForm.documentType === 'avance_2'"
+              class="tecnm-card"
+              style="margin-top: 0.5rem; padding: 0.6rem 0.8rem; background: #EFF6FF; border-left: 4px solid var(--tecnm-blue-primary);"
+            >
+              <div style="font-size: 0.85rem; color: #1e40af;">
+                <strong>Asesorías requeridas:</strong> Debe haber asistido a las sesiones de asesoría con su asesor(a) antes de cargar los formatos de entrega subsecuente.
+              </div>
+            </div>
 
             <!-- Panel informativo de Fecha Límite según formato -->
             <div
@@ -1775,7 +1905,7 @@ onMounted(() => {
               id="submitUploadBtn"
               type="submit"
               class="tecnm-btn tecnm-btn-primary"
-              :disabled="isSubmitting"
+              :disabled="isSubmitting || (uploadForm.documentType === 'proyecto_final' && !canUploadProyectoFinal)"
             >
               {{ isSubmitting ? 'Subiendo...' : 'Subir Documento' }}
             </button>

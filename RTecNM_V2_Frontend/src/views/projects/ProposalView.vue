@@ -457,7 +457,18 @@ async function handleProposalSubmit() {
   try {
     if (isEditMode.value) {
       await apiClient.put(`/v1/projects/${editingProposalId.value}`, payload)
-      showAlert('Anteproyecto actualizado exitosamente.', 'success')
+      const prevProject = proposals.value.find((p) => p.id === editingProposalId.value)
+      const prevStatus = String(prevProject?.status || '').toLowerCase()
+      if (['rejected', 'rechazado', 'correcciones requeridas'].includes(prevStatus)) {
+        try {
+          await apiClient.patch(`/v1/projects/${editingProposalId.value}/submit`)
+          showAlert('Correcciones guardadas y anteproyecto enviado a revisión para nuevo dictamen.', 'success')
+        } catch {
+          showAlert('Anteproyecto actualizado. Envíalo a revisión para que la Academia proceda con el dictamen.', 'info')
+        }
+      } else {
+        showAlert('Anteproyecto actualizado exitosamente.', 'success')
+      }
     } else {
       await apiClient.post('/v1/projects', payload)
       showAlert('Solicitud de anteproyecto registrada como borrador.', 'success')

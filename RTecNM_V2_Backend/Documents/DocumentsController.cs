@@ -220,6 +220,10 @@ public class DocumentsController : ControllerBase
             }
             return Ok(result);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
+        }
         catch (ArgumentException ex)
         {
             return BadRequest(new { message = ex.Message });

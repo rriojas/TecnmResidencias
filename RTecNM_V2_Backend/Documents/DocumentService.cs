@@ -173,6 +173,17 @@ public class DocumentService : IDocumentService
             throw new ArgumentException($"Estado no válido: '{dto.Status}'.");
         }
 
+        if (document.DocumentType.Equals(DocumentType.Avance1, StringComparison.OrdinalIgnoreCase) ||
+            document.DocumentType.Equals(DocumentType.Avance2, StringComparison.OrdinalIgnoreCase))
+        {
+            var isAdvisor = _currentUser.IsInRole(UserRole.Advisor);
+            var isAdmin = _currentUser.IsInRole(UserRole.Admin);
+            if (!isAdvisor && !isAdmin)
+            {
+                throw new UnauthorizedAccessException("Los avances de residencia únicamente pueden ser calificados y validados por el Asesor asignado.");
+            }
+        }
+
         document.Status = dto.Status.ToLowerInvariant();
         document.RejectionReason = dto.Status.Equals(DocumentStatus.Rejected, StringComparison.OrdinalIgnoreCase)
             ? dto.RejectionReason
@@ -350,6 +361,47 @@ private static DocumentResponseDto MapToDto(Document doc)
                     throw new InvalidOperationException("La fecha límite para el Formato 29 (segunda entrega) y Formato 30 ha vencido. Debe subir los formatos requeridos para continuar.");
                 }
             }
+
+            // Regla: El alumno debe haber completado al menos una sesión de asesoría antes de entregar formatos subsecuentes
+            if (docTypeLower == DocumentType.Formato29V2 || docTypeLower == DocumentType.Formato30 || docTypeLower == DocumentType.Avance2)
+            {
+                var sessionCount = await _context.AdvisorySessions
+                    .CountAsync(s => s.ProjectId == projectId && s.IsActive);
+                if (sessionCount < 1)
+                {
+                    throw new InvalidOperationException("Debe contar con al menos una sesión de asesoría registrada por su asesor antes de entregar el siguiente seguimiento.");
+                }
+            }
+
+            // Regla: Proyecto Final solo se puede subir tras contar con Formato 29, 29v2, 30 y Carta de Terminación aprobados
+            if (docTypeLower == DocumentType.ProyectoFinal)
+            {
+                var f29v2 = existingDocs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Formato29V2, StringComparison.OrdinalIgnoreCase));
+                var f30 = existingDocs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Formato30, StringComparison.OrdinalIgnoreCase));
+                var cTerminacion = existingDocs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.CartaTerminacion, StringComparison.OrdinalIgnoreCase));
+
+                bool f29v2Approved = f29v2 != null && string.Equals(f29v2.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
+                bool f30Approved = f30 != null && string.Equals(f30.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
+                bool cTerminacionApproved = cTerminacion != null && (string.Equals(cTerminacion.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase) || string.Equals(cTerminacion.Status, DocumentStatus.Uploaded, StringComparison.OrdinalIgnoreCase));
+
+                var missing = new List<string>();
+                if (!isF29Approved) missing.Add("Formato 29 (Primer Seguimiento)");
+                if (!f29v2Approved) missing.Add("Formato 29 (Segundo Seguimiento)");
+                if (!f30Approved) missing.Add("Formato 30 (Evaluación Final)");
+                if (!cTerminacionApproved) missing.Add("Carta de Terminación");
+
+                if (missing.Count > 0)
+                {
+                    throw new InvalidOperationException($"Para subir el Proyecto Final es obligatorio contar con los siguientes documentos acreditados: {string.Join(", ", missing)}.");
+                }
+
+                var sessionCount = await _context.AdvisorySessions
+                    .CountAsync(s => s.ProjectId == projectId && s.IsActive);
+                if (sessionCount < 2)
+                {
+                    throw new InvalidOperationException("Debe contar con al menos 2 sesiones de asesoría registradas por su asesor antes de subir el Reporte de Proyecto Final.");
+                }
+            }
         }
 
         public async Task<List<PendingAcceptanceDto>> GetPendingAcceptanceLettersAsync(long? careerId = null)
@@ -372,6 +424,8 @@ private static DocumentResponseDto MapToDto(Document doc)
 
         var query = _context.Projects
             .Include(p => p.Student)
+                .ThenInclude(s => s!.Advisor)
+            .Include(p => p.Advisor)
             .Include(p => p.Company)
             .Where(p => p.IsActive && p.Student != null && p.Student.IsActive)
             .Where(p => p.ProjectType != "acreditacion_innovatec" && p.ProjectType != "acreditacion_hackatec")
@@ -418,6 +472,8 @@ private static DocumentResponseDto MapToDto(Document doc)
             ProjectStatus = p.Status.ToString(),
             HasAcceptanceLetter = false,
             StatusLabel = "Sin carta de aceptación",
+            AdvisorId = p.AdvisorId ?? p.Student?.AdvisorId,
+            AdvisorName = p.Advisor?.FullName ?? p.Student?.Advisor?.FullName,
             ProjectCreatedAt = p.CreatedAt
         }).ToList();
 

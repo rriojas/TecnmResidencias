@@ -65,6 +65,12 @@ const canRecordSession = computed(() => {
   return true
 })
 
+const canManageSession = computed(() => {
+  if (authStore.isReadOnly || authStore.isCareerHead) return false
+  if (authStore.hasRole('academic', 'departmenthead') && !authStore.isAdmin) return false
+  return authStore.isAdmin || isAdvisor.value
+})
+
 // Paginación y Filtros
 const pageNumber = ref(1)
 const pageSize = ref(10)
@@ -720,7 +726,7 @@ onMounted(() => {
                 <td>
                   <div class="tecnm-row-actions">
                     <button
-                      v-if="isStaff"
+                      v-if="canManageSession"
                       type="button"
                       class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                       @click="openEditModal(s)"
@@ -736,7 +742,7 @@ onMounted(() => {
                       Auditoría
                     </button>
                     <button
-                      v-if="isStaff"
+                      v-if="canManageSession"
                       type="button"
                       class="tecnm-btn tecnm-btn-danger tecnm-btn-sm"
                       @click="handleDeleteSession(s)"
