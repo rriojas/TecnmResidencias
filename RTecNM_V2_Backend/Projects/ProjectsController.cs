@@ -216,7 +216,7 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpPatch("{id:long}/reset-to-draft")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = "admin,departmenthead,academic,academico,director,jefecarrera,careerhead,coordinadora,coordinator")]
     public async Task<IActionResult> ResetToDraft(long id)
     {
         var result = await _projectService.ResetToDraftAsync(id);

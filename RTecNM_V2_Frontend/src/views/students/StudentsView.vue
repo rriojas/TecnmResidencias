@@ -8,6 +8,7 @@ import { useGlobalSearch } from '@/composables/useGlobalSearch'
 import apiClient, { getUploadErrorMessage } from '@/services/api'
 import TecnmPagination from '@/components/common/TecnmPagination.vue'
 import TecnmBadge from '@/components/common/TecnmBadge.vue'
+import TecnmAdvisorFilter from '@/components/common/TecnmAdvisorFilter.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -770,21 +771,12 @@ onMounted(() => {
           </select>
         </div>
 
-        <div class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-          <label for="advisorFilterSelect" class="tecnm-field-label" style="margin-bottom: 0; white-space: nowrap; font-size: 0.85rem;">Asesor:</label>
-          <select
-            id="advisorFilterSelect"
-            v-model="selectedAdvisorFilter"
-            class="tecnm-form-control"
-            style="min-width: 220px; font-size: 0.85rem;"
-            @change="onAdvisorFilterChange"
-          >
-            <option value="all">Todos los Asesores</option>
-            <option v-for="adv in advisorsList" :key="adv.id" :value="String(adv.id)">
-              {{ adv.fullName }}
-            </option>
-          </select>
-        </div>
+        <TecnmAdvisorFilter
+          v-model="selectedAdvisorFilter"
+          :advisors="advisorsList"
+          empty-value="all"
+          @change="onAdvisorFilterChange"
+        />
 
         <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
           <select

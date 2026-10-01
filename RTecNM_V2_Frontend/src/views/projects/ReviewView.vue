@@ -8,6 +8,7 @@ import apiClient from '@/services/api'
 import TecnmPagination from '@/components/common/TecnmPagination.vue'
 import TecnmBadge from '@/components/common/TecnmBadge.vue'
 import TecnmAutocomplete from '@/components/common/TecnmAutocomplete.vue'
+import TecnmAdvisorFilter from '@/components/common/TecnmAdvisorFilter.vue'
 
 const authStore = useAuthStore()
 const { confirm } = useConfirm()
@@ -854,21 +855,13 @@ onMounted(() => {
           </select>
         </div>
 
-        <div v-if="!authStore.hasRole('advisor')" class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-          <label for="reviewAdvisorFilter" class="tecnm-field-label" style="margin-bottom: 0; white-space: nowrap; font-size: 0.85rem;">Asesor:</label>
-          <select
-            id="reviewAdvisorFilter"
-            v-model="selectedAdvisorFilter"
-            class="tecnm-form-control"
-            style="min-width: 200px; font-size: 0.85rem;"
-            @change="pageNumber = 1; loadProjects()"
-          >
-            <option value="">Todos los Asesores</option>
-            <option v-for="a in advisorsList" :key="a.id" :value="String(a.id)">
-              {{ a.fullName }}
-            </option>
-          </select>
-        </div>
+        <TecnmAdvisorFilter
+          v-if="!authStore.hasRole('advisor')"
+          v-model="selectedAdvisorFilter"
+          :advisors="advisorsList"
+          empty-value=""
+          @change="pageNumber = 1; loadProjects()"
+        />
 
         <div class="tecnm-toolbar-actions">
           <label v-if="!authStore.isCareerHead" class="tecnm-switch-label">

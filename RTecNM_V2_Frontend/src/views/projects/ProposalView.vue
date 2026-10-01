@@ -8,6 +8,7 @@ import apiClient from '@/services/api'
 import TecnmPagination from '@/components/common/TecnmPagination.vue'
 import TecnmBadge from '@/components/common/TecnmBadge.vue'
 import TecnmAutocomplete from '@/components/common/TecnmAutocomplete.vue'
+import TecnmAdvisorFilter from '@/components/common/TecnmAdvisorFilter.vue'
 
 const authStore = useAuthStore()
 const { confirm } = useConfirm()
@@ -127,6 +128,11 @@ const isStaff = computed(() => {
 
 function normStatus(st) {
   return String(st || '').toLowerCase().replace(/_/g, '').trim()
+}
+
+function isRejectedStatus(status) {
+  const s = normStatus(status)
+  return ['rejected', 'rechazado', 'correcciones', 'correccionesrequeridas', 'conobservaciones'].includes(s)
 }
 
 function canCancelProposal(proposal) {
@@ -519,17 +525,28 @@ async function handleProposalSubmit() {
 
 async function submitProposal(proposal) {
   if (authStore.isReadOnly) return
+  const isRejected = isRejectedStatus(proposal.status)
   const confirmed = await confirm({
-    title: 'Enviar a Revisión',
-    message: `¿Desea enviar a revisión el anteproyecto "${proposal.title}"? Una vez enviado, la División Académica procederá con su dictamen.`,
-    okText: 'Enviar a Revisión',
+    title: isRejected ? 'Atención de Observaciones' : 'Enviar a Revisión',
+    message: isRejected
+      ? `¿Confirmas que ya has atendido las observaciones del anteproyecto "${proposal.title}" y deseas enviarlo nuevamente a revisión?`
+      : `¿Desea enviar a revisión el anteproyecto "${proposal.title}"? Una vez enviado, la División Académica procederá con su dictamen.`,
+    okText: isRejected ? 'Ya atendí las observaciones' : 'Enviar a Revisión',
     cancelText: 'Cancelar',
   })
   if (!confirmed) return
 
   try {
     await apiClient.patch(`/v1/projects/${proposal.id}/submit`)
-    showAlert('Anteproyecto enviado a revisión exitosamente.', 'success')
+    showAlert(
+      isRejected
+        ? 'Observaciones atendidas exitosamente. El anteproyecto ha sido enviado nuevamente a revisión.'
+        : 'Anteproyecto enviado a revisión exitosamente.',
+      'success'
+    )
+    if (isDetailOpen.value && selectedProject.value?.id === proposal.id) {
+      selectedProject.value.status = 'under_review'
+    }
     loadStudentProposals()
   } catch (err) {
     showAlert(err.response?.data?.message || 'Error al enviar a revisión.', 'danger')
@@ -572,7 +589,7 @@ async function reactivateProposal(proposal) {
     await apiClient.patch(`/v1/projects/${proposal.id}/activate`)
     showAlert('Anteproyecto reactivado correctamente.', 'success')
     if (isDetailOpen.value && selectedProject.value?.id === proposal.id) {
-      selectedProject.value.status = 'pending'
+      selectedProject.value.status = 'under_review'
       selectedProject.value.isActive = true
     }
     loadStudentProposals()
@@ -581,26 +598,51 @@ async function reactivateProposal(proposal) {
   }
 }
 
-async function resetToDraft(proposal) {
-  if (!authStore.isAdmin) return
-  const confirmed = await confirm({
-    title: 'Restablecer a Borrador',
-    message: `¿Está seguro de restablecer el anteproyecto "${proposal.title}" a estado de borrador? Esto permitirá al estudiante editarlo y reenviarlo a revisión, o tramitarlo por InnovaTecNM. Se eliminarán los comentarios de revisión.`,
-    okText: 'Restablecer a Borrador',
-    cancelText: 'Cancelar',
-  })
-  if (!confirmed) return
+const isChangeStatusModalOpen = ref(false)
+const projectToChangeStatus = ref(null)
+const changeStatusTarget = ref('under_review')
+const changeStatusComments = ref('')
+const isChangingStatus = ref(false)
 
+function openChangeStatusDialog(proposal) {
+  projectToChangeStatus.value = proposal
+  changeStatusTarget.value = 'under_review'
+  changeStatusComments.value = ''
+  isChangeStatusModalOpen.value = true
+}
+
+async function handleConfirmChangeStatus() {
+  if (!projectToChangeStatus.value) return
+  if (changeStatusTarget.value === 'rejected' && !changeStatusComments.value.trim()) {
+    showAlert('Debe ingresar las observaciones requeridas para el alumno.', 'warning')
+    return
+  }
+
+  isChangingStatus.value = true
   try {
-    await apiClient.patch(`/v1/projects/${proposal.id}/reset-to-draft`)
-    showAlert('Anteproyecto restablecido a borrador exitosamente.', 'success')
-    if (isDetailOpen.value && selectedProject.value?.id === proposal.id) {
-      selectedProject.value.status = 'draft'
-      selectedProject.value.reviewComments = null
+    await apiClient.patch(`/v1/projects/${projectToChangeStatus.value.id}/status`, {
+      status: changeStatusTarget.value,
+      comments: changeStatusComments.value.trim() || undefined,
+    })
+    const isUnderReview = changeStatusTarget.value === 'under_review'
+    showAlert(
+      isUnderReview
+        ? 'Anteproyecto regresado a revisión exitosamente. No se requiere reenvío del alumno.'
+        : 'Observaciones registradas exitosamente. El anteproyecto queda en espera de que el alumno las atienda.',
+      'success'
+    )
+    if (isDetailOpen.value && selectedProject.value?.id === projectToChangeStatus.value.id) {
+      selectedProject.value.status = changeStatusTarget.value
+      if (changeStatusComments.value.trim()) {
+        selectedProject.value.reviewComments = changeStatusComments.value.trim()
+      }
     }
+    isChangeStatusModalOpen.value = false
     loadStudentProposals()
   } catch (err) {
-    showAlert(err.response?.data?.message || 'Error al restablecer a borrador.', 'danger')
+    showAlert(err.response?.data?.message || 'Error al modificar el estado del anteproyecto.', 'danger')
+  } finally {
+    isChangingStatus.value = false
   }
 }
 
@@ -840,21 +882,13 @@ onMounted(() => {
           </select>
         </div>
 
-        <div v-if="isStaff" class="tecnm-d-flex tecnm-align-center tecnm-gap-2" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-          <label for="proposalAdvisorFilter" class="tecnm-field-label" style="margin-bottom: 0; white-space: nowrap; font-size: 0.85rem;">Asesor:</label>
-          <select
-            id="proposalAdvisorFilter"
-            v-model="selectedAdvisorFilter"
-            class="tecnm-form-control"
-            style="min-width: 180px; font-size: 0.85rem;"
-            @change="pageNumber = 1; loadStudentProposals()"
-          >
-            <option value="all">Todos los Asesores</option>
-            <option v-for="adv in advisorsList" :key="adv.id" :value="String(adv.id)">
-              {{ adv.fullName }}
-            </option>
-          </select>
-        </div>
+        <TecnmAdvisorFilter
+          v-if="isStaff"
+          v-model="selectedAdvisorFilter"
+          :advisors="advisorsList"
+          empty-value="all"
+          @change="pageNumber = 1; loadStudentProposals()"
+        />
 
         <div class="tecnm-toolbar-actions">
           <label v-if="!authStore.isCareerHead" class="tecnm-switch-label">
@@ -971,12 +1005,12 @@ onMounted(() => {
                       {{ isStaff ? 'Editar' : 'Editar borrador' }}
                     </button>
                     <button
-                      v-if="!authStore.isReadOnly && !authStore.hasRole('vinculacion') && ['draft', 'rejected'].includes((p.status||'').toLowerCase()) && !isAccreditationType(p)"
+                      v-if="!authStore.isReadOnly && !authStore.hasRole('vinculacion') && ['draft', 'borrador', 'rejected', 'rechazado'].includes((p.status||'').toLowerCase()) && !isAccreditationType(p)"
                       type="button"
-                      class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                      :class="isRejectedStatus(p.status) ? 'tecnm-btn tecnm-btn-warning tecnm-btn-sm' : 'tecnm-btn tecnm-btn-primary tecnm-btn-sm'"
                       @click="submitProposal(p)"
                     >
-                      Enviar a revisión
+                      {{ isRejectedStatus(p.status) ? 'Ya atendí las observaciones' : 'Enviar a revisión' }}
                     </button>
                     <button
                       v-if="PRINTABLE_STATUSES.includes((p.status||'').toLowerCase())"
@@ -1011,12 +1045,13 @@ onMounted(() => {
                       Reactivar
                     </button>
                     <button
-                      v-if="authStore.isAdmin && ['approved', 'aprobado', 'in_progress', 'inprogress', 'en_progreso', 'completed', 'completado', 'rejected', 'rechazado'].includes((p.status||'').toLowerCase())"
+                      v-if="!authStore.isReadOnly && !authStore.hasRole('vinculacion') && (authStore.isAdmin || authStore.isCareerHead || authStore.isCoordinator) && ['approved', 'aprobado', 'in_progress', 'inprogress', 'en_progreso', 'completed', 'completado', 'rejected', 'rechazado', 'draft', 'borrador'].includes((p.status||'').toLowerCase())"
                       type="button"
                       class="tecnm-btn tecnm-btn-warning tecnm-btn-sm"
-                      @click="resetToDraft(p)"
+                      title="Regresar a revisión o solicitar observaciones"
+                      @click="openChangeStatusDialog(p)"
                     >
-                      Restablecer a Borrador
+                      Regresar a Revisión / Observación
                     </button>
                     <button
                       v-if="authStore.isAdmin"
@@ -1533,10 +1568,10 @@ onMounted(() => {
                 {{ ['rejected', 'rechazado'].includes((selectedProject.status || '').toLowerCase()) ? 'Observaciones y Correcciones Requeridas por la División / Revisor:' : 'Observaciones Registradas en el Dictamen:' }}
               </h4>
               <p style="margin: 0.25rem 0 0 0; white-space: pre-wrap;">{{ selectedProject.reviewComments }}</p>
-              <div v-if="['rejected', 'rechazado'].includes((selectedProject.status || '').toLowerCase()) && !authStore.isReadOnly" style="margin-top: 0.75rem;">
+              <div v-if="['rejected', 'rechazado'].includes((selectedProject.status || '').toLowerCase()) && !authStore.isReadOnly" style="margin-top: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
                 <button
                   type="button"
-                  class="tecnm-btn tecnm-btn-warning tecnm-btn-sm"
+                  class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
                   style="display: inline-flex; align-items: center; gap: 0.35rem;"
                   @click="isDetailOpen = false; openEditModal(selectedProject)"
                 >
@@ -1544,6 +1579,17 @@ onMounted(() => {
                     <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                   </svg>
                   Realizar Correcciones
+                </button>
+                <button
+                  type="button"
+                  class="tecnm-btn tecnm-btn-warning tecnm-btn-sm"
+                  style="display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 600;"
+                  @click="submitProposal(selectedProject); isDetailOpen = false"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                  Ya atendí las observaciones
                 </button>
               </div>
             </div>
@@ -1562,14 +1608,14 @@ onMounted(() => {
               {{ isStaff ? 'Editar Anteproyecto' : 'Editar Borrador' }}
             </button>
 
-            <!-- Enviar a revisión -->
+            <!-- Enviar a revisión / Ya atendí observaciones -->
             <button
-              v-if="!authStore.isReadOnly && !authStore.hasRole('vinculacion') && ['draft', 'rejected', 'rechazado'].includes((selectedProject.status||'').toLowerCase()) && !isAccreditationType(selectedProject)"
+              v-if="!authStore.isReadOnly && !authStore.hasRole('vinculacion') && ['draft', 'borrador', 'rejected', 'rechazado'].includes((selectedProject.status||'').toLowerCase()) && !isAccreditationType(selectedProject)"
               type="button"
-              class="tecnm-btn tecnm-btn-primary"
+              :class="isRejectedStatus(selectedProject.status) ? 'tecnm-btn tecnm-btn-warning' : 'tecnm-btn tecnm-btn-primary'"
               @click="submitProposal(selectedProject); isDetailOpen = false"
             >
-              Enviar a Revisión
+              {{ isRejectedStatus(selectedProject.status) ? 'Ya atendí las observaciones' : 'Enviar a Revisión' }}
             </button>
 
             <!-- Ir a Dictamen / Revisión (personal académico / jefatura) -->
@@ -1612,14 +1658,14 @@ onMounted(() => {
               Cancelar Solicitud
             </button>
 
-            <!-- Restablecer a Borrador (Solo Admin) -->
+            <!-- Regresar a Revisión / Observación (Staff) -->
             <button
-              v-if="authStore.isAdmin && ['approved', 'aprobado', 'in_progress', 'inprogress', 'en_progreso', 'completed', 'completado', 'rejected', 'rechazado'].includes((selectedProject.status||'').toLowerCase())"
+              v-if="!authStore.isReadOnly && !authStore.hasRole('vinculacion') && (authStore.isAdmin || authStore.isCareerHead || authStore.isCoordinator) && ['approved', 'aprobado', 'in_progress', 'inprogress', 'en_progreso', 'completed', 'completado', 'rejected', 'rechazado', 'draft', 'borrador'].includes((selectedProject.status||'').toLowerCase())"
               type="button"
               class="tecnm-btn tecnm-btn-warning"
-              @click="resetToDraft(selectedProject)"
+              @click="openChangeStatusDialog(selectedProject)"
             >
-              Restablecer a Borrador
+              Regresar a Revisión / Observación
             </button>
 
             <!-- Reactivar (Solo Admin) -->
@@ -1649,6 +1695,102 @@ onMounted(() => {
             @click="isDetailOpen = false"
           >
             Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para Regresar a Revisión o Poner en Observación -->
+    <div
+      v-if="isChangeStatusModalOpen && projectToChangeStatus"
+      id="changeStatusModal"
+      class="modal-backdrop active"
+      role="dialog"
+      aria-modal="true"
+      style="z-index: 1070;"
+      @click.self="isChangeStatusModalOpen = false"
+    >
+      <div class="modal-card" style="max-width: 600px; width: 95vw;">
+        <div class="modal-header">
+          <h3 class="modal-title">Regresar a Revisión / En Observación</h3>
+          <button
+            type="button"
+            class="modal-close"
+            aria-label="Cerrar modal"
+            @click="isChangeStatusModalOpen = false"
+          >
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <p style="margin-bottom: 1rem; color: var(--tecnm-gray-700);">
+            Seleccione el estado de retorno para el anteproyecto <strong>{{ projectToChangeStatus.title }}</strong>:
+          </p>
+
+          <div class="tecnm-form-group">
+            <label class="tecnm-field-label">Acción a realizar *</label>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
+              <label style="display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer;">
+                <input
+                  v-model="changeStatusTarget"
+                  type="radio"
+                  value="under_review"
+                  style="margin-top: 0.2rem;"
+                />
+                <div>
+                  <strong>Regresar a Revisión</strong>
+                  <div style="font-size: 0.8rem; color: #64748b;">
+                    Pone el anteproyecto en estado de revisión para que la jefatura/coordinación lo dictamine nuevamente. El alumno NO tiene que volver a enviar la solicitud.
+                  </div>
+                </div>
+              </label>
+              <label style="display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer;">
+                <input
+                  v-model="changeStatusTarget"
+                  type="radio"
+                  value="rejected"
+                  style="margin-top: 0.2rem;"
+                />
+                <div>
+                  <strong>Poner en Observación (Solicitar Correcciones)</strong>
+                  <div style="font-size: 0.8rem; color: #64748b;">
+                    Envía observaciones técnicas al residente para que realice las correcciones y presione el botón "Ya atendí las observaciones" para devolverlo a revisión.
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="tecnm-form-group" style="margin-top: 1rem;">
+            <label for="changeStatusComments" class="tecnm-field-label">
+              Observaciones o Motivo {{ changeStatusTarget === 'rejected' ? '*' : '(Opcional)' }}
+            </label>
+            <textarea
+              id="changeStatusComments"
+              v-model="changeStatusComments"
+              class="tecnm-form-control"
+              rows="4"
+              :placeholder="changeStatusTarget === 'rejected' ? 'Ingrese detalladamente las correcciones técnicas u observaciones que el alumno debe atender...' : 'Motivo opcional del retorno a revisión...'"
+              :disabled="isChangingStatus"
+            ></textarea>
+          </div>
+        </div>
+        <div class="tecnm-modal-footer">
+          <button
+            type="button"
+            class="tecnm-btn tecnm-btn-secondary"
+            :disabled="isChangingStatus"
+            @click="isChangeStatusModalOpen = false"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="tecnm-btn tecnm-btn-warning"
+            :disabled="isChangingStatus"
+            @click="handleConfirmChangeStatus"
+          >
+            {{ isChangingStatus ? 'Aplicando...' : 'Confirmar Cambio de Estado' }}
           </button>
         </div>
       </div>

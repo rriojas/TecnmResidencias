@@ -8,6 +8,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import TecnmPagination from '@/components/common/TecnmPagination.vue'
 import TecnmAutocomplete from '@/components/common/TecnmAutocomplete.vue'
 import TecnmBadge from '@/components/common/TecnmBadge.vue'
+import TecnmAdvisorFilter from '@/components/common/TecnmAdvisorFilter.vue'
 import apiClient, { getUploadErrorMessage } from '@/services/api'
 
 const route = useRoute()
@@ -1214,18 +1215,15 @@ onMounted(() => {
           <option value="incomplete">Incompletos (Archivos faltantes)</option>
         </select>
 
-        <select
+        <TecnmAdvisorFilter
           v-if="!authStore.hasRole('advisor')"
           v-model="matrixAdvisorFilter"
-          class="tecnm-form-control tecnm-form-control-sm"
-          style="width: auto; min-width: 190px;"
+          :advisors="advisorOptions"
+          :show-label="false"
+          placeholder="Buscar asesor..."
+          empty-value=""
           @change="handleMatrixSearch"
-        >
-          <option value="">Todos los Asesores</option>
-          <option v-for="a in advisorOptions" :key="a.id" :value="String(a.id)">
-            {{ a.fullName }}
-          </option>
-        </select>
+        />
 
         <button type="button" class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm" @click="handleMatrixSearch">
           Filtrar

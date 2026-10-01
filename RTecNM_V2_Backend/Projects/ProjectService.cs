@@ -273,8 +273,14 @@ public class ProjectService : IProjectService
         if (project.Status is not (ProjectStatus.Draft or ProjectStatus.Rejected))
             return Result<ProjectResponseDto>.Failure("Solo se pueden enviar a revisión anteproyectos en estado de borrador o devueltos con correcciones.", 400);
 
-        project.Status = ProjectStatus.Pending;
-        project.ReviewComments = null;
+        bool wasRejected = project.Status == ProjectStatus.Rejected;
+        project.Status = ProjectStatus.UnderReview;
+        if (wasRejected)
+        {
+            project.ReviewComments = !string.IsNullOrWhiteSpace(project.ReviewComments)
+                ? $"[Observaciones atendidas por el estudiante]:\n{project.ReviewComments}"
+                : "Observaciones atendidas por el estudiante. Pendiente de dictamen.";
+        }
         project.UpdatedAt = DateTime.UtcNow;
         project.UpdatedBy = _currentUser.UserId;
 
@@ -564,10 +570,6 @@ public class ProjectService : IProjectService
         if (project.Status == ProjectStatus.Cancelled)
             return Result<ProjectResponseDto>.Failure("El proyecto está cancelado y no se puede modificar su dictamen.", 400);
 
-        // La División no puede dictaminar un anteproyecto que sigue en borrador (no enviado a revisión).
-        if (project.Status == ProjectStatus.Draft)
-            return Result<ProjectResponseDto>.Failure("El anteproyecto está en borrador. Debe enviarse a revisión antes de ser dictaminado.", 400);
-
         if (!Enum.TryParse<ProjectStatus>(dto.Status, true, out var newStatus))
         {
             // Try mapping legacy, snake_case or Spanish strings
@@ -589,12 +591,16 @@ public class ProjectService : IProjectService
                 return Result<ProjectResponseDto>.Failure($"Estado '{dto.Status}' no es válido.");
         }
 
-        // Permitir desaprobar (pasar a Rejected o UnderReview) incluso si está Approved o InProgress
-        if ((project.Status is ProjectStatus.Approved or ProjectStatus.InProgress) && (newStatus is ProjectStatus.Rejected or ProjectStatus.UnderReview))
+        // La División no puede dictaminar un anteproyecto que sigue en borrador (no enviado a revisión), salvo para pasarlo a revisión.
+        if (project.Status == ProjectStatus.Draft && newStatus != ProjectStatus.UnderReview)
+            return Result<ProjectResponseDto>.Failure("El anteproyecto está en borrador. Debe enviarse a revisión antes de ser dictaminado.", 400);
+
+        // Permitir desaprobar o pasar a Rejected o UnderReview desde Approved, InProgress, Completed, Rejected o Draft
+        if ((project.Status is ProjectStatus.Approved or ProjectStatus.InProgress or ProjectStatus.Completed or ProjectStatus.Rejected or ProjectStatus.Draft) && (newStatus is ProjectStatus.Rejected or ProjectStatus.UnderReview))
         {
             if (!_currentUser.IsInRole(UserRole.Admin) && !_currentUser.IsInRole(UserRole.CareerHead) && !_currentUser.IsInRole(UserRole.Coordinator))
             {
-                return Result<ProjectResponseDto>.Failure("Solo el Administrador, Jefe de Carrera o Coordinador pueden desaprobar un anteproyecto.", 403);
+                return Result<ProjectResponseDto>.Failure("Solo el Administrador, Jefe de Carrera o Coordinador pueden modificar el estado del anteproyecto a revisión u observaciones.", 403);
             }
         }
         else if (project.Status == ProjectStatus.InProgress && newStatus is ProjectStatus.Draft or ProjectStatus.Pending or ProjectStatus.Approved)
@@ -766,18 +772,14 @@ public class ProjectService : IProjectService
 
     public async Task<Result<ProjectResponseDto>> ResetToDraftAsync(long id)
     {
-        if (!_currentUser.IsInRole(UserRole.Admin))
-            return Result<ProjectResponseDto>.Failure("Solo el Administrador puede restablecer un anteproyecto a borrador.", 403);
+        if (!_currentUser.IsInRole(UserRole.Admin) && !_currentUser.IsInRole(UserRole.CareerHead) && !_currentUser.IsInRole(UserRole.Coordinator))
+            return Result<ProjectResponseDto>.Failure("Solo el Administrador, Jefe de Carrera o Coordinador pueden regresar un anteproyecto a revisión.", 403);
 
         var project = await _repository.GetByIdAsync(id);
         if (project == null)
             return Result<ProjectResponseDto>.Failure("Anteproyecto no encontrado.", 404);
 
-        if (project.Status is not (ProjectStatus.Approved or ProjectStatus.InProgress or ProjectStatus.Completed or ProjectStatus.Rejected))
-            return Result<ProjectResponseDto>.Failure("Solo se pueden restablecer anteproyectos aprobados, en progreso, completados o rechazados.", 400);
-
-        project.Status = ProjectStatus.Draft;
-        project.ReviewComments = null;
+        project.Status = ProjectStatus.UnderReview;
         project.UpdatedAt = DateTime.UtcNow;
         project.UpdatedBy = _currentUser.UserId;
 
