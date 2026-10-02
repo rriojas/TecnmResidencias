@@ -61,12 +61,21 @@ public class EmailBackgroundWorker : BackgroundService
             config = await settingService.GetSmtpConfigAsync();
         }
 
-        _logger.LogInformation("[PROCESANDO CORREO] Para '{ToEmail}' | Asunto: '{Subject}' | Host={Host}:{Port}", msg.ToEmail, msg.Subject, config.Host, config.Port);
+        var bccCount = msg.BccEmails?.Count ?? 0;
+        var destinationLabel = bccCount > 0
+            ? (!string.IsNullOrWhiteSpace(msg.ToEmail) ? $"{msg.ToEmail} (+{bccCount} BCC)" : $"Lote masivo ({bccCount} BCC)")
+            : msg.ToEmail;
 
-        if (config.UseMockInDev || string.IsNullOrWhiteSpace(config.Username) || string.IsNullOrWhiteSpace(config.Password))
+        _logger.LogInformation("[PROCESANDO CORREO] Para '{Destination}' | Asunto: '{Subject}' | Host={Host}:{Port}", destinationLabel, msg.Subject, config.Host, config.Port);
+
+        if (config.UseMockInDev ||
+            string.IsNullOrWhiteSpace(config.Username) ||
+            string.IsNullOrWhiteSpace(config.Password) ||
+            config.Password.Contains("TU_CONTRASEÑA", StringComparison.OrdinalIgnoreCase) ||
+            config.SenderEmail.Contains("ejemplo.tecnm.mx", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogInformation("[MOCK EMAIL DISPATCH] Correo enviado simbólicamente en desarrollo:\n  Para: {ToEmail} ({ToName})\n  Asunto: {Subject}",
-                msg.ToEmail, msg.ToName, msg.Subject);
+            _logger.LogInformation("[MOCK EMAIL DISPATCH] Correo retenido en modo seguro / desarrollo:\n  Para: {Destination} ({ToName})\n  Asunto: {Subject}\n  Total BCC: {BccCount}",
+                destinationLabel, msg.ToName, msg.Subject, bccCount);
             return;
         }
 
@@ -74,7 +83,25 @@ public class EmailBackgroundWorker : BackgroundService
         {
             var mime = new MimeMessage();
             mime.From.Add(new MailboxAddress(config.SenderName, config.SenderEmail));
-            mime.To.Add(new MailboxAddress(msg.ToName ?? msg.ToEmail, msg.ToEmail));
+
+            if (!string.IsNullOrWhiteSpace(msg.ToEmail))
+            {
+                mime.To.Add(new MailboxAddress(msg.ToName ?? msg.ToEmail, msg.ToEmail));
+            }
+            else if (bccCount > 0)
+            {
+                var groupName = string.IsNullOrWhiteSpace(msg.ToName) ? "Comunidad TecNM" : msg.ToName;
+                mime.To.Add(new MailboxAddress(groupName, config.SenderEmail));
+            }
+
+            if (msg.BccEmails != null && bccCount > 0)
+            {
+                foreach (var bcc in msg.BccEmails.Where(e => !string.IsNullOrWhiteSpace(e)))
+                {
+                    mime.Bcc.Add(new MailboxAddress("", bcc.Trim()));
+                }
+            }
+
             mime.Subject = msg.Subject;
 
             var bodyBuilder = new BodyBuilder
@@ -99,11 +126,11 @@ public class EmailBackgroundWorker : BackgroundService
             await client.SendAsync(mime, ct);
             await client.DisconnectAsync(true, ct);
 
-            _logger.LogInformation("[EXITO] Correo enviado exitosamente vía SMTP a '{ToEmail}'", msg.ToEmail);
+            _logger.LogInformation("[EXITO] Correo enviado exitosamente vía SMTP a '{Destination}' (BCC={BccCount})", destinationLabel, bccCount);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[ADVERTENCIA] Error enviando correo vía SMTP a '{ToEmail}'. Mensaje retenido.", msg.ToEmail);
+            _logger.LogError(ex, "[ADVERTENCIA] Error enviando correo vía SMTP a '{Destination}'. Mensaje retenido.", destinationLabel);
         }
     }
 }

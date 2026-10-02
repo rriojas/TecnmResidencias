@@ -44,6 +44,25 @@ public class SearchRegistry
 
     private void RegisterDefaultSources()
     {
+        // 0. USERS
+        RegisterSource(new SearchSourceConfig
+        {
+            Key = "USERS",
+            DisplayName = "Usuarios",
+            ViewName = "vw_search_users",
+            KeyColumn = "id",
+            Columns = new List<SearchColumnMetadataDto>
+            {
+                new() { Name = "id", DisplayName = "ID", Type = "Integer", IsSearchable = false },
+                new() { Name = "user_id", DisplayName = "User ID", Type = "Integer", IsSearchable = false, IsDefaultVisible = false },
+                new() { Name = "control_number", DisplayName = "No. Control", Type = "Text", IsSearchable = true },
+                new() { Name = "full_name", DisplayName = "Nombre Completo", Type = "Text", IsSearchable = true },
+                new() { Name = "email", DisplayName = "Correo Electrónico", Type = "Text", IsSearchable = true },
+                new() { Name = "role", DisplayName = "Rol", Type = "Text", IsSearchable = true },
+                new() { Name = "career_name", DisplayName = "Carrera", Type = "Text", IsSearchable = true }
+            }
+        });
+
         // 1. STUDENTS
         RegisterSource(new SearchSourceConfig
         {
@@ -54,6 +73,7 @@ public class SearchRegistry
             Columns = new List<SearchColumnMetadataDto>
             {
                 new() { Name = "id", DisplayName = "ID", Type = "Integer", IsSearchable = false },
+                new() { Name = "user_id", DisplayName = "User ID", Type = "Integer", IsSearchable = false, IsDefaultVisible = false },
                 new() { Name = "control_number", DisplayName = "No. Control", Type = "Text", IsSearchable = true },
                 new() { Name = "full_name", DisplayName = "Nombre Completo", Type = "Text", IsSearchable = true },
                 new() { Name = "email", DisplayName = "Correo Electrónico", Type = "Text", IsSearchable = true },

@@ -233,6 +233,17 @@ const routes = [
     },
   },
   {
+    path: '/notifications/broadcast',
+    name: 'BroadcastNotifications',
+    component: () => import('@/views/notifications/BroadcastNotificationsView.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Emisión de Notificaciones - Sistema de Residencias',
+      roles: ['admin', 'academic', 'departmenthead', 'jefecarrera', 'careerhead', 'coordinadora', 'coordinator'],
+      navActive: 'broadcast-notifications',
+    },
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/dashboard',
   },

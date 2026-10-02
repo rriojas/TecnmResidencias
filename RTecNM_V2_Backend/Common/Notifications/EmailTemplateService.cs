@@ -5,6 +5,7 @@ public interface IEmailTemplateService
     EmailMessageDto BuildWelcomeEmail(string studentName, string controlNumber, string email, string loginUrl);
     EmailMessageDto BuildLetterAvailableEmail(string studentName, string documentTitle, string loginUrl);
     EmailMessageDto BuildPresentationLetterEmail(string studentName, string controlNumber, string email, string careerName, string companyName, byte[] pdfBytes);
+    EmailMessageDto BuildBroadcastNotificationEmail(string title, string description, string audienceLabel, DateTime? expiresAt, string portalUrl, List<string> bccEmails);
 }
 
 public class EmailTemplateService : IEmailTemplateService
@@ -229,6 +230,96 @@ public class EmailTemplateService : IEmailTemplateService
         {
             Subject = $"{documentTitle} Disponible en tu Expediente Digital — TecNM Monclova",
             BodyHtml = html
+        };
+    }
+
+    public EmailMessageDto BuildBroadcastNotificationEmail(
+        string title,
+        string description,
+        string audienceLabel,
+        DateTime? expiresAt,
+        string portalUrl,
+        List<string> bccEmails)
+    {
+        var encodedTitle = System.Net.WebUtility.HtmlEncode(title);
+        var encodedDesc = System.Net.WebUtility.HtmlEncode(description).Replace("\n", "<br />");
+        var expirationText = expiresAt.HasValue
+            ? $"<p style=\"margin:8px 0 0 0; font-size:13px; color:#7f8c8d;\">📅 <strong>Vigencia del aviso:</strong> {expiresAt.Value:dd/MM/yyyy HH:mm} UTC</p>"
+            : string.Empty;
+
+        var html = $@"
+<!DOCTYPE html>
+<html lang=""es"">
+<head>
+    <meta charset=""UTF-8"">
+    <title>{encodedTitle} — Aviso Oficial TecNM</title>
+</head>
+<body style=""margin:0; padding:0; background-color:#f4f6f9; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"">
+    <table width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""background-color:#f4f6f9; padding:20px 0;"">
+        <tr>
+            <td align=""center"">
+                <table width=""600"" cellpadding=""0"" cellspacing=""0"" style=""background-color:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.1); border:1px solid #e1e8ed;"">
+                    <!-- Header -->
+                    <tr>
+                        <td style=""background-color:#1B396A; padding:24px 30px; text-align:center;"">
+                            <h1 style=""color:#ffffff; margin:0; font-size:20px; font-weight:600; letter-spacing:0.5px;"">
+                                Tecnológico Nacional de México
+                            </h1>
+                            <p style=""color:#C5A059; margin:6px 0 0 0; font-size:13px; font-weight:500;"">
+                                Campus Monclova — Sistema de Residencias Profesionales
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- Badge Audiencia -->
+                    <tr>
+                        <td style=""background-color:#f8f9fa; padding:10px 30px; border-bottom:1px solid #e9ecef; font-size:12px; color:#1B396A; font-weight:600;"">
+                            📢 AVISO OFICIAL &bull; {System.Net.WebUtility.HtmlEncode(audienceLabel).ToUpperInvariant()}
+                        </td>
+                    </tr>
+                    <!-- Body -->
+                    <tr>
+                        <td style=""padding:30px; color:#2c3e50;"">
+                            <h2 style=""color:#1B396A; margin-top:0; font-size:18px; line-height:1.4;"">{encodedTitle}</h2>
+                            <div style=""background-color:#fdfdfd; border-left:4px solid #1B396A; padding:16px 20px; margin:20px 0; border-radius:4px; font-size:14px; line-height:1.7; color:#34495e;"">
+                                {encodedDesc}
+                            </div>
+                            {expirationText}
+                            <p style=""line-height:1.6; font-size:14px; color:#6c757d; margin-top:20px;"">
+                                Este aviso ha sido publicado en el panel de notificaciones oficial de la plataforma de Residencias.
+                            </p>
+                            <!-- CTA Button -->
+                            <table width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""margin-top:25px;"">
+                                <tr>
+                                    <td align=""center"">
+                                        <a href=""{portalUrl}"" style=""background-color:#1B396A; color:#ffffff; padding:12px 28px; text-decoration:none; font-weight:bold; border-radius:6px; display:inline-block; font-size:14px; border:1px solid #142a4f;"">
+                                            Ir a la Plataforma de Residencias
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style=""background-color:#f8f9fa; padding:16px 30px; text-align:center; border-top:1px solid #e9ecef; font-size:12px; color:#868e96;"">
+                            División de Estudios Profesionales / Coordinación de Residencias — TecNM Campus Monclova.<br />
+                            Mensaje emitido de manera automática. No responder directamente a esta cuenta.
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>";
+
+        return new EmailMessageDto
+        {
+            ToEmail = string.Empty,
+            ToName = audienceLabel,
+            Subject = $"[Aviso Oficial TecNM] {title}",
+            BodyHtml = html,
+            BccEmails = bccEmails
         };
     }
 }

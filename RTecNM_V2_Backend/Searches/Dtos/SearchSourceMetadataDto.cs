@@ -6,6 +6,7 @@ public class SearchColumnMetadataDto
     public string DisplayName { get; set; } = string.Empty;
     public string Type { get; set; } = "Text"; // Text, Integer, Date
     public bool IsSearchable { get; set; } = true;
+    public bool IsDefaultVisible { get; set; } = true;
 }
 
 public class SearchSourceMetadataDto

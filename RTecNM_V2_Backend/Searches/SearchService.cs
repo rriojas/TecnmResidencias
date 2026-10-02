@@ -292,6 +292,7 @@ public class SearchService : ISearchService
                 @"CREATE OR REPLACE VIEW vw_search_students AS
                 SELECT 
                     s.id AS id,
+                    s.user_id AS user_id,
                     s.control_number AS control_number,
                     CONCAT(s.first_name, ' ', s.last_name_1, COALESCE(' ' || s.last_name_2, '')) AS full_name,
                     COALESCE(u.email, '') AS email,
@@ -300,6 +301,20 @@ public class SearchService : ISearchService
                     s.is_active AS is_active
                 FROM students s
                 LEFT JOIN users u ON s.user_id = u.id;",
+
+                "DROP VIEW IF EXISTS vw_search_users CASCADE;",
+                @"CREATE OR REPLACE VIEW vw_search_users AS
+                SELECT 
+                    u.id AS id,
+                    u.id AS user_id,
+                    COALESCE(u.control_number, '') AS control_number,
+                    TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''), COALESCE(' ' || u.last_name_2, ''))) AS full_name,
+                    COALESCE(u.email, '') AS email,
+                    u.role::text AS role,
+                    COALESCE(c.name, '') AS career_name,
+                    u.is_active AS is_active
+                FROM users u
+                LEFT JOIN careers c ON u.career_id = c.id;",
 
                 "DROP VIEW IF EXISTS vw_search_advisors CASCADE;",
                 @"CREATE OR REPLACE VIEW vw_search_advisors AS

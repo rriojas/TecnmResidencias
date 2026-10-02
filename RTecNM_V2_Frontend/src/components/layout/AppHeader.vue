@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import NotificationBell from '@/components/layout/NotificationBell.vue'
 import isologoPath from '@/assets/images/tecnm-isologo.svg'
 
 const router = useRouter()
@@ -43,6 +44,9 @@ function handleLogout() {
           <!-- Vista Autenticada -->
           <template v-else>
             <div class="user-menu">
+              <!-- Campana de Notificaciones (aparece solo si hay pendientes) -->
+              <NotificationBell />
+
               <!-- Perfil de Usuario -->
               <div class="user-profile">
                 <span id="userAvatar" class="user-avatar" aria-hidden="true">{{ authStore.userAvatarInitials }}</span>

@@ -14,4 +14,5 @@ public class EmailMessageDto
     public string Subject { get; set; } = string.Empty;
     public string BodyHtml { get; set; } = string.Empty;
     public List<EmailAttachmentDto>? Attachments { get; set; }
+    public List<string>? BccEmails { get; set; }
 }

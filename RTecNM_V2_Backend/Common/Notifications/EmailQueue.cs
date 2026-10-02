@@ -23,7 +23,11 @@ public class EmailQueue : IEmailQueue
 
     public void Enqueue(EmailMessageDto message)
     {
-        if (message == null || string.IsNullOrWhiteSpace(message.ToEmail)) return;
+        if (message == null) return;
+        bool hasTo = !string.IsNullOrWhiteSpace(message.ToEmail);
+        bool hasBcc = message.BccEmails != null && message.BccEmails.Count > 0;
+        if (!hasTo && !hasBcc) return;
+
         _queue.Writer.TryWrite(message);
     }
 

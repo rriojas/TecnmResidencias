@@ -9,6 +9,7 @@ using TecNM.Residency.Evaluations;
 using TecNM.Residency.Projects;
 using TecNM.Residency.Students;
 using TecNM.Residency.Careers;
+using TecNM.Residency.Notifications;
 
 namespace TecNM.Residency.Common;
 
@@ -40,6 +41,8 @@ public class AppDbContext : DbContext
     public DbSet<Career> Careers => Set<Career>();
     public DbSet<AdvisorDepartment> AdvisorDepartments => Set<AdvisorDepartment>();
     public DbSet<UserCareer> UserCareers => Set<UserCareer>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<UserNotificationRead> UserNotificationReads => Set<UserNotificationRead>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -69,6 +72,8 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new SystemSettingConfiguration());
         modelBuilder.ApplyConfiguration(new CareerConfiguration());
         modelBuilder.ApplyConfiguration(new AdvisorDepartmentConfiguration());
+        modelBuilder.ApplyConfiguration(new NotificationConfiguration());
+        modelBuilder.ApplyConfiguration(new UserNotificationReadConfiguration());
     }
 }
 
