@@ -479,6 +479,7 @@ public static class DbSeeder
                 DROP VIEW IF EXISTS vw_search_advisors CASCADE;
                 DROP VIEW IF EXISTS vw_search_projects CASCADE;
                 DROP VIEW IF EXISTS vw_search_companies CASCADE;
+                DROP VIEW IF EXISTS vw_search_users CASCADE;
 
                 IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='careers') THEN
                     CREATE TABLE careers (
@@ -816,6 +817,7 @@ public static class DbSeeder
                     residency_modality VARCHAR(100) NULL,
                     sender_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
                     type VARCHAR(50) NOT NULL DEFAULT 'manual',
+                    target_user_id BIGINT NULL REFERENCES users(id) ON DELETE SET NULL,
                     is_active BOOLEAN NOT NULL DEFAULT TRUE,
                     is_visible BOOLEAN NOT NULL DEFAULT TRUE,
                     display_order INT NOT NULL DEFAULT 0,
@@ -826,8 +828,10 @@ public static class DbSeeder
                     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     deleted_at TIMESTAMP WITH TIME ZONE NULL
                 );
+                ALTER TABLE notifications ADD COLUMN IF NOT EXISTS target_user_id BIGINT NULL REFERENCES users(id) ON DELETE SET NULL;
                 CREATE INDEX IF NOT EXISTS ix_notifications_expires_at ON notifications(expires_at);
                 CREATE INDEX IF NOT EXISTS ix_notifications_type ON notifications(type);
+                CREATE INDEX IF NOT EXISTS ix_notifications_target_user_id ON notifications(target_user_id);
 
                 CREATE TABLE IF NOT EXISTS user_notification_reads (
                     id BIGSERIAL PRIMARY KEY,

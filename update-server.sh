@@ -147,6 +147,11 @@ if [ -f "${SCRIPT_DIR}/docs/database/add_document_deadlines_to_students.sql" ]; 
     docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" < "${SCRIPT_DIR}/docs/database/add_document_deadlines_to_students.sql" > /dev/null 2>&1 || true
 fi
 
+if [ -f "${SCRIPT_DIR}/docs/database/add_notifications_and_user_search.sql" ]; then
+    echo -e "   ${CYAN}🗄️  Asegurando tablas de notificaciones y vistas de búsqueda en PostgreSQL...${NC}"
+    docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" < "${SCRIPT_DIR}/docs/database/add_notifications_and_user_search.sql" > /dev/null 2>&1 || true
+fi
+
 # Recrear backend con la nueva imagen preservando volúmenes de uploads
 echo -e "   ${CYAN}🔄 Actualizando contenedor de Backend API...${NC}"
 docker compose up -d --no-deps backend
