@@ -1537,14 +1537,23 @@ onMounted(() => {
                       No se ha adjuntado la carta de aceptación expedida por la empresa receptora.
                     </div>
                   </div>
-                  <button
-                    v-if="cartaAceptacionDoc"
-                    type="button"
-                    class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
-                    @click="downloadDoc(cartaAceptacionDoc, 'Carta_Aceptacion.pdf')"
-                  >
-                    Descargar / Ver Carta &rarr;
-                  </button>
+                  <div v-if="cartaAceptacionDoc" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <button
+                      type="button"
+                      class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                      @click="downloadDoc(cartaAceptacionDoc, 'Carta_Aceptacion.pdf')"
+                    >
+                      Descargar / Ver Carta &rarr;
+                    </button>
+                    <router-link
+                      v-if="isRejectedStatus(selectedProject.status) || cartaAceptacionDoc.status === 'rejected'"
+                      :to="{ path: '/documents', query: { projectId: selectedProject.id } }"
+                      class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                      title="Subir corrección de Carta de Aceptación"
+                    >
+                      ↻ Re-subir Carta
+                    </router-link>
+                  </div>
                   <router-link
                     v-else
                     :to="{ path: '/documents', query: { projectId: selectedProject.id } }"

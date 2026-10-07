@@ -330,6 +330,24 @@ private static DocumentResponseDto MapToDto(Document doc)
             var f29 = existingDocs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Formato29, StringComparison.OrdinalIgnoreCase));
             bool isF29Approved = f29 != null && string.Equals(f29.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase);
 
+            // Regla: Para proyectos ordinarios es obligatorio tener Carta de Aceptación antes de cargar avances o formatos
+            bool isAccreditation = project.ProjectType is "acreditacion_innovatec" or "acreditacion_hackatec";
+            bool isPreApprovalType = docTypeLower == DocumentType.CartaAceptacion ||
+                                     docTypeLower == DocumentType.CartaAprobacion ||
+                                     docTypeLower == DocumentType.ConstanciaAcreditacion;
+
+            if (!isAccreditation && !isPreApprovalType)
+            {
+                bool hasCarta = existingDocs.Any(d =>
+                    d.DocumentType.Equals(DocumentType.CartaAceptacion, StringComparison.OrdinalIgnoreCase) ||
+                    d.DocumentType.Equals(DocumentType.CartaAprobacion, StringComparison.OrdinalIgnoreCase));
+
+                if (!hasCarta)
+                {
+                    throw new InvalidOperationException("Debe registrar la Carta de Aceptación oficial de la empresa antes de cargar formatos o avances posteriores.");
+                }
+            }
+
             // Regla: No se puede subir Formato 29v2 ni Formato 30 si el primer Formato 29 no está aprobado por coordinación
             if (docTypeLower == DocumentType.Formato29V2 || docTypeLower == DocumentType.Formato30)
             {

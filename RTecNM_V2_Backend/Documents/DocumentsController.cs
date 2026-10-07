@@ -67,10 +67,24 @@ public class DocumentsController : ControllerBase
                 return StatusCode(400, new { message = "El anteproyecto se encuentra cancelado. No se permiten cargas al expediente." });
 
             var isPreApprovalDoc = dto.DocumentType.Equals(DocumentType.CartaAceptacion, StringComparison.OrdinalIgnoreCase)
+                || dto.DocumentType.Equals(DocumentType.CartaAprobacion, StringComparison.OrdinalIgnoreCase)
                 || dto.DocumentType.Equals(DocumentType.ConstanciaAcreditacion, StringComparison.OrdinalIgnoreCase);
 
             if (!projectResult.Data.CanUploadDocuments && !isStaff && !isPreApprovalDoc && !isAccreditation)
                 return StatusCode(400, new { message = "El anteproyecto aún no ha sido aprobado. En esta etapa solo se requiere cargar la Carta de Aceptación / Aprobación de la empresa." });
+
+            if (!isStaff && !isAccreditation && !isPreApprovalDoc)
+            {
+                var projectDocs = await _documentRepository.GetActiveByProjectIdAsync(dto.ProjectId);
+                bool hasCarta = projectDocs.Any(d =>
+                    d.DocumentType.Equals(DocumentType.CartaAceptacion, StringComparison.OrdinalIgnoreCase) ||
+                    d.DocumentType.Equals(DocumentType.CartaAprobacion, StringComparison.OrdinalIgnoreCase));
+
+                if (!hasCarta)
+                {
+                    return StatusCode(400, new { message = "Es obligatorio registrar la Carta de Aceptación oficial antes de poder entregar otros formatos o avances de residencia." });
+                }
+            }
 
             if (!isStaff && (dto.DocumentType.Equals(DocumentType.Formato29V2, StringComparison.OrdinalIgnoreCase) || dto.DocumentType.Equals(DocumentType.Formato30, StringComparison.OrdinalIgnoreCase)))
             {
@@ -191,7 +205,9 @@ public class DocumentsController : ControllerBase
                     : contentType
             };
 
-            Response.Headers["Content-Disposition"] = $"inline; filename=\"{fileName}\"";
+            var cd = new Microsoft.Net.Http.Headers.ContentDispositionHeaderValue("inline");
+            cd.SetHttpFileName(fileName);
+            Response.Headers.ContentDisposition = cd.ToString();
             return File(fileBytes, resolvedContentType);
         }
         catch (KeyNotFoundException ex)

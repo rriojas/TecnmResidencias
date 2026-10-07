@@ -146,6 +146,7 @@ const cartaAceptacionDoc = computed(() => {
     (d) => ['carta_aceptacion', 'carta_aprobacion'].includes((d.documentType || '').toLowerCase()) && d.isActive
   ) || null
 })
+const hasCartaAceptacion = computed(() => !!cartaAceptacionDoc.value)
 
 const currentAdvisorLoad = ref(null)
 const selectedAdvisorId = ref(null)
@@ -760,7 +761,7 @@ async function openUploadModal() {
     return
   }
 
-  let defaultDocType = !isProjectApproved.value ? 'carta_aceptacion' : ''
+  let defaultDocType = (!hasCartaAceptacion.value && !isAccreditationProject.value) ? 'carta_aceptacion' : ''
   if (isStudent.value && studentDeadlineInfo.value.isDocumentBlocked) {
     if (studentDeadlineInfo.value.formato29Status !== 'approved') {
       defaultDocType = 'formato_29'
@@ -845,6 +846,15 @@ async function handleUploadSubmit() {
 
   // Validación de orden de formatos para estudiantes
   if (isStudent.value) {
+    // Proyectos ordinarios requieren obligatoriamente Carta de Aceptación antes de entregar cualquier formato o avance
+    if (!isAccreditationProject.value) {
+      const isCartaType = ['carta_aceptacion', 'carta_aprobacion'].includes(uploadForm.value.documentType.toLowerCase())
+      if (!hasCartaAceptacion.value && !isCartaType) {
+        showAlert('Es obligatorio registrar y subir tu Carta de Aceptación oficial antes de entregar otros formatos o avances de residencia.', 'warning')
+        return
+      }
+    }
+
     // Obtener documentos existentes para este proyecto
     const existingDocs = documents.value || []
     const tipoSeleccionado = uploadForm.value.documentType.toLowerCase()
@@ -891,7 +901,7 @@ async function handleUploadSubmit() {
   }
 
   if (isStudent.value && !isProjectApproved.value) {
-    const preApprovalAllowed = ['carta_aceptacion', 'constancia_acreditacion', 'otro']
+    const preApprovalAllowed = ['carta_aceptacion', 'carta_aprobacion', 'constancia_acreditacion']
     if (!preApprovalAllowed.includes(uploadForm.value.documentType)) {
       showAlert('En esta etapa previa al dictamen, solo se requiere subir tu Carta de Aceptación de la empresa.', 'warning')
       return
@@ -947,6 +957,25 @@ function closePreviewModal() {
     previewObjectUrl.value = null
   }
   previewDoc.value = null
+}
+
+async function downloadDocument(doc) {
+  if (!doc?.id) return
+  try {
+    const res = await apiClient.get(`/v1/documents/${doc.id}/download`, {
+      responseType: 'blob',
+    })
+    const url = window.URL.createObjectURL(new Blob([res.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', doc.fileName || 'documento.pdf')
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch {
+    showAlert('Error al descargar el documento.', 'danger')
+  }
 }
 
 // Modal Estado / Evaluación
@@ -1624,15 +1653,14 @@ onMounted(() => {
                     >
                       Vista Previa
                     </button>
-                    <a
-                      :href="`/api/v1/documents/${doc.id}/download`"
-                      :download="doc.fileName"
-                      target="_blank"
+                    <button
+                      type="button"
                       class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
-                      title="Descargar"
+                      title="Descargar archivo físico"
+                      @click="downloadDocument(doc)"
                     >
                       ⬇ Descargar
-                    </a>
+                    </button>
                     <button
                       v-if="canEvaluateThisDoc(doc)"
                       type="button"
@@ -1728,49 +1756,49 @@ onMounted(() => {
                 Diploma / Constancia de Acreditación (InnovaTecNM / HackaTec)
               </option>
               <option
-                v-if="!isAccreditationProject && (!isStudent || (!studentDeadlineInfo.isDocumentBlocked && !isProjectApproved))"
+                v-if="!isAccreditationProject && (!isStudent || !hasCartaAceptacion || cartaAceptacionDoc?.status === 'rejected' || isStaff)"
                 value="carta_aceptacion"
               >
                 Carta de Aceptación / Aprobación *
               </option>
               <option
-                v-if="isProjectApproved || isStaff"
+                v-if="(hasCartaAceptacion || isAccreditationProject || isStaff) && (isProjectApproved || isStaff)"
                 value="avance_1"
               >
                 Primer Avance de Residencia
               </option>
               <option
-                v-if="(isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status !== 'approved'))"
+                v-if="(hasCartaAceptacion || isAccreditationProject || isStaff) && (isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status !== 'approved'))"
                 value="formato_29"
               >
                 Formato 29 (Primer Seguimiento)
               </option>
               <option
-                v-if="(isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase)"
+                v-if="(hasCartaAceptacion || isAccreditationProject || isStaff) && (isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase)"
                 value="avance_2"
               >
                 Segundo Avance de Residencia
               </option>
               <option
-                v-if="(isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
+                v-if="(hasCartaAceptacion || isAccreditationProject || isStaff) && (isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
                 value="formato_29v2"
               >
                 Formato 29 (Segundo Seguimiento)
               </option>
               <option
-                v-if="(isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
+                v-if="(hasCartaAceptacion || isAccreditationProject || isStaff) && (isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
                 value="formato_30"
               >
                 Formato 30 (Evaluación Final)
               </option>
               <option
-                v-if="isProjectApproved || isStaff"
+                v-if="(hasCartaAceptacion || isAccreditationProject || isStaff) && (isProjectApproved || isStaff)"
                 value="carta_terminacion"
               >
                 Carta de Terminación de la Empresa
               </option>
               <option
-                v-if="isProjectApproved || isStaff"
+                v-if="(hasCartaAceptacion || isAccreditationProject || isStaff) && (isProjectApproved || isStaff)"
                 value="proyecto_final"
               >
                 Reporte de Proyecto Final

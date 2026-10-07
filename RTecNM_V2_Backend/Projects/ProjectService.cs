@@ -632,6 +632,24 @@ public class ProjectService : IProjectService
             {
                 return Result<ProjectResponseDto>.Failure("No se puede aprobar el anteproyecto sin contar con la Carta de Aceptación oficial (o constancia de acreditación en proyectos especiales) registrada en el sistema.", 400);
             }
+
+            // Auto-aprobar documentos de aceptación o constancia al dictaminar anteproyecto
+            var acceptanceDocs = activeDocs.Where(d =>
+                d.DocumentType.Equals(DocumentType.CartaAceptacion, StringComparison.OrdinalIgnoreCase) ||
+                d.DocumentType.Equals(DocumentType.CartaAprobacion, StringComparison.OrdinalIgnoreCase) ||
+                (isAccreditation && d.DocumentType.Equals(DocumentType.ConstanciaAcreditacion, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
+
+            foreach (var doc in acceptanceDocs)
+            {
+                if (!string.Equals(doc.Status, DocumentStatus.Approved, StringComparison.OrdinalIgnoreCase))
+                {
+                    doc.Status = DocumentStatus.Approved;
+                    doc.UpdatedAt = DateTime.UtcNow;
+                    doc.UpdatedBy = _currentUser.UserId;
+                    await _documentRepository.UpdateAsync(doc);
+                }
+            }
         }
 
         project.Status = newStatus;
