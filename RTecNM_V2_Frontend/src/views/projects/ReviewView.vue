@@ -537,19 +537,19 @@ async function handleValidateAccreditation(approved, denied = false) {
   }
 
   const title = approved
-    ? 'Validar y Liberar Residencia'
+    ? 'Validar Constancia y Aprobar Anteproyecto'
     : denied
       ? 'Denegar Acreditación por InnovaTecNM'
       : 'Regresar con Observaciones'
 
   const message = approved
-    ? `¿Está seguro de validar la constancia y liberar la residencia de "${selectedProject.value.studentName}" con calificación del 100%?`
+    ? `¿Está seguro de validar la constancia de "${selectedProject.value.studentName}"? El anteproyecto quedará aprobado para asignación de asesor académico e inicio de residencia activa.`
     : denied
       ? `¿Está seguro de denegar la solicitud de acreditación de "${selectedProject.value.studentName}"? Al denegarla, se reactivarán sus opciones para registrar anteproyecto ordinario.`
       : `¿Está seguro de regresar la constancia al estudiante con las observaciones de calidad/formato indicadas?`
 
   const okText = approved
-    ? 'Validar y Liberar (100%)'
+    ? 'Validar y Aprobar Anteproyecto'
     : denied
       ? 'Confirmar Denegación'
       : 'Regresar con Observaciones'
@@ -564,14 +564,25 @@ async function handleValidateAccreditation(approved, denied = false) {
 
   isSubmitting.value = true
   try {
+    if (approved && selectedAdvisorId.value && Number(selectedAdvisorId.value) !== Number(selectedProject.value.advisorId)) {
+      try {
+        await apiClient.post('/v1/advisors/assign', {
+          advisorId: Number(selectedAdvisorId.value),
+          projectId: selectedProject.value.id,
+          advisorType: 'internal',
+        })
+      } catch {}
+    }
+
     await apiClient.post(`/v1/projects/${selectedProject.value.id}/accreditation/validate`, {
       approved,
       denied,
       observations: reviewComments.value.trim() || undefined,
+      advisorId: selectedAdvisorId.value ? Number(selectedAdvisorId.value) : undefined,
     })
     showAlert(
       approved
-        ? '¡Acreditación VALIDADA y Residencia LIBERADA con calificación de 100%!'
+        ? '¡Constancia VALIDADA! Anteproyecto aprobado con asesor asignado y seguimiento de formatos.'
         : denied
           ? 'Acreditación DENEGADA. Se reactivaron automáticamente las secciones ordinarias del estudiante.'
           : 'Observaciones enviadas al estudiante. Podrá re-enviar su constancia corregida.',
@@ -1127,11 +1138,87 @@ onMounted(() => {
             {{ selectedProject.title }}
           </p>
 
+          <!-- Datos de Empresa/Institución y Asignación de Asesor Interno (Común a todo anteproyecto) -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: var(--tecnm-spacing-md);">
+            <div>
+              <h4 class="tecnm-field-label">
+                {{ isAccreditation(selectedProject) ? 'Institución / Certamen' : 'Empresa Receptora' }}
+              </h4>
+              <p class="tecnm-field-value">
+                {{ selectedProject.companyName || (isAccreditation(selectedProject) ? 'INSTITUTO TECNOLOGICO SUPERIOR DE MONCLOVA' : '—') }}
+              </p>
+            </div>
+            <div>
+              <h4 class="tecnm-field-label">Asesor Interno Asignado</h4>
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.35rem;">
+                <span v-if="selectedProject.advisorName" class="tecnm-badge tecnm-badge-success" style="font-size: 0.85rem;">
+                  {{ selectedProject.advisorName }}
+                </span>
+                <span v-else class="tecnm-badge tecnm-badge-warning" style="font-size: 0.85rem;">
+                  Pendiente de asignación
+                </span>
+                <span
+                  v-if="selectedProject.advisorName && currentAdvisorLoad !== null"
+                  class="tecnm-badge tecnm-badge-info"
+                  style="font-size: 0.78rem;"
+                  title="Alumnos actualmente asignados a este asesor"
+                >
+                  {{ currentAdvisorLoad }} alumno{{ currentAdvisorLoad === 1 ? '' : 's' }} asignado{{ currentAdvisorLoad === 1 ? '' : 's' }}
+                </span>
+              </div>
+
+              <!-- Asignar Asesor Interno directamente debajo del campo cuando esté disponible con Carta de Aceptación o Diploma -->
+              <div
+                v-if="canAssignAdvisor && (cartaAceptacionDoc || accreditationDocs.length > 0) && !['completed', 'cancelled'].includes((selectedProject.status || '').toLowerCase())"
+                style="margin-top: 0.5rem;"
+              >
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                  <div style="flex: 1; min-width: 220px;">
+                    <TecnmAutocomplete
+                      v-model="selectedAdvisorId"
+                      endpoint="/v1/advisors"
+                      global-search-source="ADVISORS"
+                      placeholder="Buscar asesor académico por nombre..."
+                      :initial-item="initialReviewAdvisor"
+                      @select="item => selectedAdvisorCandidate = item"
+                      @clear="selectedAdvisorCandidate = null"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
+                    :disabled="isSubmitting || !selectedAdvisorId || Number(selectedAdvisorId) === Number(selectedProject.advisorId)"
+                    @click="handleAssignAdvisor"
+                  >
+                    {{ selectedProject.advisorName ? 'Cambiar Asesor' : 'Asignar Asesor' }}
+                  </button>
+                </div>
+                <div
+                  v-if="selectedAdvisorCandidate && (selectedAdvisorCandidate.assignedStudentsCount !== undefined || selectedAdvisorCandidate.assigned_students_count !== undefined)"
+                  class="tecnm-text-muted"
+                  style="margin-top: 0.35rem; font-size: 0.8rem;"
+                >
+                  <span>Carga docente del seleccionado: </span>
+                  <strong style="color: var(--tecnm-blue-primary, #1b396a);">
+                    {{ selectedAdvisorCandidate.assignedStudentsCount ?? selectedAdvisorCandidate.assigned_students_count }} alumnos asignados
+                  </strong>
+                </div>
+              </div>
+              <div
+                v-else-if="canAssignAdvisor && !cartaAceptacionDoc && accreditationDocs.length === 0 && !['completed', 'cancelled'].includes((selectedProject.status || '').toLowerCase())"
+                class="tecnm-text-muted"
+                style="margin-top: 0.35rem; font-size: 0.75rem;"
+              >
+                <em>La asignación se habilitará al contar con la carta de aceptación o diploma.</em>
+              </div>
+            </div>
+          </div>
+
           <!-- SECCIÓN ESPECIAL ACREDITACIÓN INNOVATECNM NACIONAL -->
           <template v-if="isAccreditation(selectedProject)">
             <div class="tecnm-alert tecnm-alert-info" style="margin-bottom: 1rem;">
-              <strong>Modalidad de Acreditación Directa:</strong>
-              El residente tramitó su acreditación mediante <strong>{{ getAccreditationBadgeLabel(selectedProject) }}</strong>. No requiere anteproyecto ordinario ni asignación de asesor. Al validar la constancia oficial, la residencia se liberará automáticamente al 100%.
+              <strong>Modalidad de Acreditación ({{ getAccreditationBadgeLabel(selectedProject) }}):</strong>
+              El residente tramitó su acreditación mediante certamen nacional. Al validar la constancia oficial, el anteproyecto quedará aprobado para proceder con la asignación de asesor académico y entrega ordinaria de formatos.
             </div>
 
             <!-- Card de Constancia / Diplomas Adjuntos -->
@@ -1221,78 +1308,7 @@ onMounted(() => {
 
           <!-- SECCIÓN ANTEPROYECTO TRADICIONAL -->
           <template v-else>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: var(--tecnm-spacing-md);">
-              <div>
-                <h4 class="tecnm-field-label">Empresa Receptora</h4>
-                <p class="tecnm-field-value">{{ selectedProject.companyName || '—' }}</p>
-              </div>
-              <div>
-                <h4 class="tecnm-field-label">Asesor Interno Asignado</h4>
-                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.35rem;">
-                  <span v-if="selectedProject.advisorName" class="tecnm-badge tecnm-badge-success" style="font-size: 0.85rem;">
-                    {{ selectedProject.advisorName }}
-                  </span>
-                  <span v-else class="tecnm-badge tecnm-badge-warning" style="font-size: 0.85rem;">
-                    Pendiente de asignación
-                  </span>
-                  <span
-                    v-if="selectedProject.advisorName && currentAdvisorLoad !== null"
-                    class="tecnm-badge tecnm-badge-info"
-                    style="font-size: 0.78rem;"
-                    title="Alumnos actualmente asignados a este asesor"
-                  >
-                    {{ currentAdvisorLoad }} alumno{{ currentAdvisorLoad === 1 ? '' : 's' }} asignado{{ currentAdvisorLoad === 1 ? '' : 's' }}
-                  </span>
-                </div>
-
-                <!-- Asignar Asesor Interno directamente debajo del campo cuando esté disponible con Carta de Aceptación o Diploma -->
-                <div
-                  v-if="canAssignAdvisor && (cartaAceptacionDoc || accreditationDocs.length > 0) && !['completed', 'cancelled'].includes((selectedProject.status || '').toLowerCase())"
-                  style="margin-top: 0.5rem;"
-                >
-                  <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-                    <div style="flex: 1; min-width: 220px;">
-                      <TecnmAutocomplete
-                        v-model="selectedAdvisorId"
-                        endpoint="/v1/advisors"
-                        global-search-source="ADVISORS"
-                        placeholder="Buscar asesor académico por nombre..."
-                        :initial-item="initialReviewAdvisor"
-                        @select="item => selectedAdvisorCandidate = item"
-                        @clear="selectedAdvisorCandidate = null"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      class="tecnm-btn tecnm-btn-primary tecnm-btn-sm"
-                      :disabled="isSubmitting || !selectedAdvisorId || Number(selectedAdvisorId) === Number(selectedProject.advisorId)"
-                      @click="handleAssignAdvisor"
-                    >
-                      {{ selectedProject.advisorName ? 'Cambiar Asesor' : 'Asignar Asesor' }}
-                    </button>
-                  </div>
-                  <div
-                    v-if="selectedAdvisorCandidate && (selectedAdvisorCandidate.assignedStudentsCount !== undefined || selectedAdvisorCandidate.assigned_students_count !== undefined)"
-                    class="tecnm-text-muted"
-                    style="margin-top: 0.35rem; font-size: 0.8rem;"
-                  >
-                    <span>Carga docente del seleccionado: </span>
-                    <strong style="color: var(--tecnm-blue-primary, #1b396a);">
-                      {{ selectedAdvisorCandidate.assignedStudentsCount ?? selectedAdvisorCandidate.assigned_students_count }} alumnos asignados
-                    </strong>
-                  </div>
-                </div>
-                <div
-                  v-else-if="canAssignAdvisor && !cartaAceptacionDoc && accreditationDocs.length === 0 && !['completed', 'cancelled'].includes((selectedProject.status || '').toLowerCase())"
-                  class="tecnm-text-muted"
-                  style="margin-top: 0.35rem; font-size: 0.75rem;"
-                >
-                  <em>La asignación se habilitará al contar con la carta de aceptación o diploma.</em>
-                </div>
-              </div>
-            </div>
-
-            <!-- Card de Documento Requerido para Dictamen (Carta de Aceptación / Aprobación o Diploma de InnovaTecNM) -->
+            <!-- Card de Documento Requerido para Dictamen (Carta de Aceptación / Aprobación de la Empresa Receptora) -->
             <div class="tecnm-card" style="margin-bottom: 1.25rem; border: 1px solid var(--tecnm-border-color, #e2e8f0);">
               <div class="tecnm-card-header" style="background: var(--tecnm-bg-light, #f8fafc); padding: 0.75rem 1rem;">
                 <h4 class="tecnm-card-title" style="font-size: 0.95rem; margin: 0;">
@@ -1597,10 +1613,10 @@ onMounted(() => {
               type="button"
               class="tecnm-btn tecnm-btn-success"
               :disabled="isSubmitting || !hasAcceptanceOrAccreditationLetter"
-              :title="!hasAcceptanceOrAccreditationLetter ? 'Requiere Constancia de InnovaTecNM para ser liberado' : 'Validar y Liberar'"
+              :title="!hasAcceptanceOrAccreditationLetter ? 'Requiere Constancia de InnovaTecNM para ser aprobado' : 'Validar y Aprobar Anteproyecto'"
               @click="handleValidateAccreditation(true, false)"
             >
-              Validar y Liberar Residencia (100%)
+              Validar y Aprobar Anteproyecto
             </button>
           </template>
 

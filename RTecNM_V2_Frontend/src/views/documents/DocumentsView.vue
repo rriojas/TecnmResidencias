@@ -1121,8 +1121,8 @@ onMounted(() => {
     <template v-if="isStudent">
       <!-- Casos para Modalidad InnovaTecNM Nacional -->
       <template v-if="isAccreditationProject">
-        <div v-if="isAccreditationCompleted" class="tecnm-alert tecnm-alert-success" role="alert" style="margin-bottom: 1rem;">
-          <span><strong>Residencia Acreditada y Liberada al 100% por InnovaTecNM Nacional:</strong> Tu constancia oficial fue validada por la Jefatura. Tu expediente digital se encuentra exento de carta de aceptación, solicitud y anexos adicionales.</span>
+        <div v-if="isProjectApproved" class="tecnm-alert tecnm-alert-success" role="alert" style="margin-bottom: 1rem;">
+          <span><strong>Anteproyecto Validado por InnovaTecNM Nacional:</strong> Tu constancia oficial fue aprobada por la Jefatura. Tu asesor académico asignado dará seguimiento a tus entregas de formatos y reportes ordinarios.</span>
         </div>
         <div v-else-if="isAccreditationReturned" class="tecnm-alert tecnm-alert-warning" role="alert" style="margin-bottom: 1rem;">
           <div class="tecnm-d-flex tecnm-justify-between tecnm-align-center tecnm-flex-wrap tecnm-gap-2">
@@ -1133,7 +1133,7 @@ onMounted(() => {
           </div>
         </div>
         <div v-else-if="isAccreditationUnderReview" class="tecnm-alert tecnm-alert-info" role="alert" style="margin-bottom: 1rem;">
-          <span><strong>Trámite de InnovaTecNM Nacional en Revisión:</strong> Tu constancia oficial está siendo analizada por la Jefatura de Carrera. Por tu modalidad de residencia, <strong>no requieres subir carta de aceptación ni ningún tipo de formato ordinario</strong>.</span>
+          <span><strong>Trámite de InnovaTecNM Nacional en Revisión:</strong> Tu constancia oficial está siendo analizada por la Jefatura de Carrera. Al ser aprobada, se asignará tu asesor académico y se habilitarán los formatos ordinarios de residencia.</span>
         </div>
         <div v-else-if="isAccreditationDenied" class="tecnm-alert tecnm-alert-danger" role="alert" style="margin-bottom: 1rem;">
           <span><strong>Acreditación por InnovaTecNM No Aprobada:</strong> Tu constancia no fue validada. Se han reactivado las opciones ordinarias y la entrega de formatos.</span>
@@ -1284,28 +1284,26 @@ onMounted(() => {
                   </span>
                 </td>
                 <td>
-                  <span v-if="item.isAccreditation" class="tecnm-badge tecnm-badge-secondary" title="Exento por InnovaTecNM">Exento</span>
-                  <span v-else-if="item.documents['solicitud']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
+                  <span v-if="item.documents['solicitud']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
                   <span v-else class="tecnm-badge tecnm-badge-warning" style="font-weight: 600;" title="Sin entregar">Faltante</span>
                 </td>
                 <td>
-                  <span v-if="item.isAccreditation" class="tecnm-badge tecnm-badge-secondary" title="Exento por InnovaTecNM">Exento</span>
-                  <span v-else-if="item.documents['carta_aceptacion']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
+                  <span v-if="item.documents['carta_aceptacion'] || (item.isAccreditation && item.documents['constancia_acreditacion'])" class="tecnm-badge tecnm-badge-success" :title="item.isAccreditation ? 'Acreditado vía InnovaTecNM' : 'Subido'">
+                    {{ item.isAccreditation ? 'Acreditado' : 'Subido' }}
+                  </span>
                   <span v-else class="tecnm-badge tecnm-badge-warning" style="font-weight: 600;" title="Sin entregar">Faltante</span>
                 </td>
                 <td>
-                  <span v-if="item.isAccreditation" class="tecnm-badge tecnm-badge-secondary" title="Exento por InnovaTecNM">Exento</span>
-                  <span v-else-if="item.documents['dictamen']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
+                  <span v-if="item.documents['dictamen']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
                   <span v-else class="tecnm-badge tecnm-badge-warning" style="font-weight: 600;" title="Sin entregar">Faltante</span>
                 </td>
                 <td>
-                  <span v-if="item.isAccreditation" class="tecnm-badge tecnm-badge-secondary" title="Exento por InnovaTecNM">Exento</span>
-                  <span v-else-if="item.documents['libranza']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
+                  <span v-if="item.documents['libranza']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
                   <span v-else class="tecnm-badge tecnm-badge-warning" style="font-weight: 600;" title="Sin entregar">Faltante</span>
                 </td>
                 <td>
                   <span v-if="item.isCompleted" class="tecnm-badge tecnm-badge-success" style="font-weight: 700;">
-                    {{ item.isAccreditation ? '✓ Acreditado (InnovaTec)' : '✓ Completado' }}
+                    ✓ Completado
                   </span>
                   <span v-else class="tecnm-badge tecnm-badge-warning">
                     Incompleto ({{ item.uploadedCount }}/{{ item.requiredCount }})
@@ -1350,7 +1348,7 @@ onMounted(() => {
 
       <!-- Banner de Bloqueo por Fecha Límite en Expediente -->
       <div
-        v-if="isStudent && studentDeadlineInfo.isDocumentBlocked && !isAccreditationProject"
+        v-if="isStudent && studentDeadlineInfo.isDocumentBlocked"
         class="tecnm-card tecnm-mb-3"
         style="border-left: 5px solid #dc2626; background: #fff5f5;"
       >
@@ -1600,8 +1598,7 @@ onMounted(() => {
               </tr>
               <tr v-else-if="documents.length === 0">
                 <td colspan="6" class="tecnm-table-empty">
-                  <span v-if="isProjectCompleted && !isAccreditationProject">No hay documentos registrados en este expediente concluido.</span>
-                  <span v-else-if="isAccreditationProject && !isAccreditationDenied">La acreditación por InnovaTecNM Nacional no requiere entrega de documentos ordinarios adicionales.</span>
+                  <span v-if="isProjectCompleted">No hay documentos registrados en este expediente concluido.</span>
                   <span v-else-if="isProjectPending">El expediente se habilitará una vez aprobado el anteproyecto.</span>
                   <span v-else>No hay documentos registrados para este proyecto. Haga clic en "+ Subir Documento".</span>
                 </td>
@@ -1725,55 +1722,55 @@ onMounted(() => {
             >
               <option value="">-- Seleccionar Tipo --</option>
               <option
-                v-if="isAccreditationActive || isStaff"
+                v-if="isAccreditationProject && (!isProjectApproved || isStaff)"
                 value="constancia_acreditacion"
               >
                 Diploma / Constancia de Acreditación (InnovaTecNM / HackaTec)
               </option>
               <option
-                v-if="!isAccreditationActive && (!isStudent || (!studentDeadlineInfo.isDocumentBlocked && !isProjectApproved))"
+                v-if="!isAccreditationProject && (!isStudent || (!studentDeadlineInfo.isDocumentBlocked && !isProjectApproved))"
                 value="carta_aceptacion"
               >
                 Carta de Aceptación / Aprobación *
               </option>
               <option
-                v-if="!isAccreditationActive && (isProjectApproved || isStaff)"
+                v-if="isProjectApproved || isStaff"
                 value="avance_1"
               >
                 Primer Avance de Residencia
               </option>
               <option
-                v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status !== 'approved'))"
+                v-if="(isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status !== 'approved'))"
                 value="formato_29"
               >
                 Formato 29 (Primer Seguimiento)
               </option>
               <option
-                v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase)"
+                v-if="(isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase)"
                 value="avance_2"
               >
                 Segundo Avance de Residencia
               </option>
               <option
-                v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
+                v-if="(isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
                 value="formato_29v2"
               >
                 Formato 29 (Segundo Seguimiento)
               </option>
               <option
-                v-if="!isAccreditationActive && (isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
+                v-if="(isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
                 value="formato_30"
               >
                 Formato 30 (Evaluación Final)
               </option>
               <option
-                v-if="!isAccreditationActive && (isProjectApproved || isStaff)"
+                v-if="isProjectApproved || isStaff"
                 value="carta_terminacion"
               >
                 Carta de Terminación de la Empresa
               </option>
               <option
-                v-if="!isAccreditationActive && (isProjectApproved || isStaff)"
+                v-if="isProjectApproved || isStaff"
                 value="proyecto_final"
               >
                 Reporte de Proyecto Final
@@ -1781,14 +1778,14 @@ onMounted(() => {
             </select>
 
             <div
-              v-if="isStudent && !isAccreditationActive && studentDeadlineInfo.isDocumentBlocked"
+              v-if="isStudent && studentDeadlineInfo.isDocumentBlocked"
               style="margin-top: 0.5rem; padding: 0.5rem 0.75rem; background: #fff5f5; border: 1px solid #fecaca; border-radius: 4px; color: #b91c1c; font-size: 0.85rem;"
             >
               <strong>Atención:</strong> Acceso restringido por fecha límite vencida. Únicamente puede cargar y entregar los formatos oficiales pendientes ({{ studentDeadlineInfo.formato29Status !== 'approved' ? 'Formato 29' : 'Formato 29v2 y Formato 30' }}).
             </div>
 
             <small
-              v-if="isStudent && !isAccreditationActive && !studentDeadlineInfo.canUploadSecondPhase && !studentDeadlineInfo.isDocumentBlocked"
+              v-if="isStudent && !studentDeadlineInfo.canUploadSecondPhase && !studentDeadlineInfo.isDocumentBlocked"
               class="tecnm-form-hint"
               style="color: var(--tecnm-gray-600); margin-top: 0.35rem; display: block;"
             >

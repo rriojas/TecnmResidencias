@@ -424,7 +424,7 @@ watch(
               <div class="tecnm-info-tile">
                 <span class="tecnm-info-tile-label">Asesor Institucional</span>
                 <span class="tecnm-info-tile-value">
-                  {{ student.advisorName || (project && project.advisorName) || (isAccreditationProject ? 'Exento (InnovaTecNM)' : 'Sin Asignar') }}
+                  {{ student.advisorName || (project && project.advisorName) || 'Sin Asignar' }}
                 </span>
               </div>
 
@@ -510,8 +510,8 @@ watch(
                   <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
                 </svg>
                 <span style="font-size: 0.88rem; line-height: 1.45;">
-                  <strong>Modalidad de Acreditación Directa ({{ accreditationLabel }}):</strong>
-                  El alumno tramitó su acreditación mediante certamen nacional. Este registro funge como su <strong>anteproyecto oficial</strong> para el expediente institucional de residencia. Al validarse la constancia, la residencia se acredita al 100% y queda exenta de asesor ordinario.
+                  <strong>Modalidad de Acreditación ({{ accreditationLabel }}):</strong>
+                  El alumno tramitó su anteproyecto mediante certamen nacional. Este registro funge como su <strong>anteproyecto oficial</strong> para el expediente institucional. Al validarse la constancia, el alumno continúa su residencia activa con asesor asignado y entrega ordinaria de formatos.
                 </span>
               </div>
 
@@ -524,7 +524,7 @@ watch(
                 <div class="tecnm-info-tile">
                   <span class="tecnm-info-tile-label">Asesor Interno</span>
                   <span class="tecnm-info-tile-value">
-                    {{ project.advisorName || (isAccreditationProject ? 'Exento (Certamen Nacional)' : 'Sin Asignar') }}
+                    {{ project.advisorName || student.advisorName || 'Sin Asignar' }}
                   </span>
                 </div>
 

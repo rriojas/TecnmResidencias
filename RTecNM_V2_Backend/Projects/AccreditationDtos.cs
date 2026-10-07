@@ -15,6 +15,7 @@ public class ReviewAccreditationDto
     public bool Approved { get; set; }
     public bool Denied { get; set; } = false; // true si la acreditación no es aceptada / rechazada definitivamente
     public string? Observations { get; set; }
+    public long? AdvisorId { get; set; }
 }
 
 public class ResubmitAccreditationDto

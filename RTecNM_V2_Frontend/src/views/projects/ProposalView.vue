@@ -789,7 +789,7 @@ onMounted(() => {
         <div>
           <strong>Trámite de InnovaTecNM Nacional en Revisión por la Jefatura:</strong>
           <p class="tecnm-mt-1 tecnm-mb-0">
-            Has enviado tu constancia oficial de <strong>InnovaTecNM Nacional</strong>. El registro de nuevo anteproyecto ordinario se encuentra pausado mientras se realiza el dictamen. Al ser aprobada, tu residencia se liberará al 100%.
+            Has enviado tu constancia oficial de <strong>InnovaTecNM Nacional</strong>. El registro de nuevo anteproyecto ordinario se encuentra pausado mientras se realiza el dictamen. Al ser aprobada, tu anteproyecto quedará validado y se te asignará asesor institucional.
           </p>
         </div>
       </div>
@@ -807,12 +807,12 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Acreditado / Completado -->
+      <!-- Acreditado / Aprobado -->
       <div v-else-if="isAccreditationCompleted" class="tecnm-alert tecnm-alert-success" role="alert" style="margin-bottom: 1rem;">
         <div>
-          <strong>¡Residencia Profesional Acreditada al 100% mediante InnovaTecNM Nacional!</strong>
+          <strong>¡Anteproyecto Validado mediante InnovaTecNM Nacional!</strong>
           <p class="tecnm-mt-1 tecnm-mb-0">
-            Tu constancia fue aprobada satisfactoriamente. Tu residencia se encuentra liberada y exenta de anteproyecto ordinario, asignación de asesor y formatos adicionales.
+            Tu constancia fue aprobada satisfactoriamente. Tu anteproyecto se encuentra validado y tu residencia continúa activa con tu asesor académico para la entrega y evaluación de tus formatos ordinarios.
           </p>
         </div>
       </div>
@@ -1407,8 +1407,8 @@ onMounted(() => {
           <!-- SECCIÓN ESPECIAL PARA ACREDITACIÓN INNOVATECNM NACIONAL -->
           <template v-if="isAccreditationType(selectedProject)">
             <div class="tecnm-alert tecnm-alert-info" style="margin-bottom: 1rem;">
-              <strong>Modalidad de Acreditación Directa (InnovaTecNM Nacional):</strong>
-              El estudiante tramitó su acreditación mediante el certamen nacional. La institución receptora vinculada es el <strong>{{ selectedProject.companyName || 'INSTITUTO TECNOLOGICO SUPERIOR DE MONCLOVA' }}</strong>. Al ser validado, la residencia profesional se acredita al 100%.
+              <strong>Modalidad de Acreditación (InnovaTecNM Nacional):</strong>
+              El estudiante tramitó su acreditación mediante certamen nacional. La institución vinculada es el <strong>{{ selectedProject.companyName || 'INSTITUTO TECNOLOGICO SUPERIOR DE MONCLOVA' }}</strong>. Al ser validado por la Jefatura, funge como anteproyecto aprobado para inicio de residencia activa.
             </div>
 
             <!-- Card de Constancia Adjunta -->
@@ -1449,7 +1449,7 @@ onMounted(() => {
               </div>
               <div>
                 <h4 class="tecnm-field-label">Modalidad de Acreditación</h4>
-                <p class="tecnm-field-value">InnovaTecNM Nacional (Exento de Asesor)</p>
+                <p class="tecnm-field-value">InnovaTecNM Nacional</p>
               </div>
               <div>
                 <h4 class="tecnm-field-label">Fecha de Registro</h4>

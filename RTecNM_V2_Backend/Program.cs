@@ -152,6 +152,9 @@ using (var scope = app.Services.CreateScope())
         }
         await DbSeeder.BootstrapSystemAsync(dbContext, adminPassword);
 
+        // Remediación idempotente de acreditaciones InnovaTec completadas indebidamente
+        await AccreditationRemediation.RemediateAutocompletedAccreditationsAsync(dbContext, app.Logger);
+
         // Generar/Asegurar plantillas Excel por defecto (Plantilla_Alumnos.xlsx y Plantilla_Empresas.xlsx)
         ExcelTemplateSeeder.EnsureTemplatesExist(app.Environment.ContentRootPath, app.Logger);
 

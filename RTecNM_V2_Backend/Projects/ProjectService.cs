@@ -1047,12 +1047,33 @@ public class ProjectService : IProjectService
 
         if (dto.Approved)
         {
-            project.Status = ProjectStatus.Completed;
+            project.Status = ProjectStatus.Approved;
             project.ReviewComments = !string.IsNullOrWhiteSpace(dto.Observations)
                 ? dto.Observations.Trim()
-                : "Constancia y acreditación validada con éxito.";
+                : "Constancia y acreditación validada con éxito. Anteproyecto aprobado para inicio de residencia.";
             project.UpdatedAt = DateTime.UtcNow;
             project.UpdatedBy = _currentUser.UserId;
+
+            if (dto.AdvisorId.HasValue && dto.AdvisorId.Value > 0)
+            {
+                var advisor = await _advisorRepository.GetByIdAsync(dto.AdvisorId.Value);
+                if (advisor != null)
+                {
+                    project.AdvisorId = advisor.Id;
+                    if (project.StudentId > 0)
+                    {
+                        var student = await _studentRepository.GetByIdAsync(project.StudentId);
+                        if (student != null)
+                        {
+                            student.AdvisorId = advisor.Id;
+                            student.AdvisorAssignedAt = DateTime.UtcNow;
+                            student.UpdatedAt = DateTime.UtcNow;
+                            student.UpdatedBy = _currentUser.UserId;
+                            await _studentRepository.UpdateAsync(student);
+                        }
+                    }
+                }
+            }
 
             if (constanciaDoc != null)
             {
@@ -1062,26 +1083,6 @@ public class ProjectService : IProjectService
                 constanciaDoc.UpdatedBy = _currentUser.UserId;
                 await _documentRepository.UpdateAsync(constanciaDoc);
                 await _documentRepository.SaveChangesAsync();
-            }
-
-            // Asentar automáticamente las 3 evaluaciones con calificación de 100%
-            var periods = new[] { "partial_1", "partial_2", "final" };
-            foreach (var period in periods)
-            {
-                var eval = new Evaluation
-                {
-                    ProjectId = project.Id,
-                    EvaluatorId = _currentUser.UserId,
-                    EvaluationPeriod = period,
-                    Score = 100m,
-                    Feedback = "Acreditación de Residencia Profesional por evento institucional InnovaTecNM Nacional. Calificación aprobatoria emitida al validar constancia oficial.",
-                    IsActive = true,
-                    IsVisible = true,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
-                    CreatedBy = _currentUser.UserId
-                };
-                await _evaluationRepository.SaveEvaluationAsync(eval);
             }
         }
         else if (dto.Denied)

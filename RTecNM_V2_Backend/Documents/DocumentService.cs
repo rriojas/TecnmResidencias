@@ -580,10 +580,16 @@ private static DocumentResponseDto MapToDto(Document doc)
             }
 
             bool isAccreditation = p.ProjectType is "acreditacion_innovatec" or "acreditacion_hackatec";
-            int requiredCount = isAccreditation ? 1 : coreTypes.Length;
-            int uploadedCount = isAccreditation
-                ? (docMap.ContainsKey(DocumentType.ConstanciaAcreditacion.ToLowerInvariant()) ? 1 : 0)
-                : coreTypes.Count(t => docMap.ContainsKey(t.ToLowerInvariant()));
+            int requiredCount = coreTypes.Length;
+            int uploadedCount = coreTypes.Count(t =>
+            {
+                if (t.Equals(DocumentType.CartaAceptacion, StringComparison.OrdinalIgnoreCase))
+                {
+                    return docMap.ContainsKey(DocumentType.CartaAceptacion.ToLowerInvariant()) ||
+                           docMap.ContainsKey(DocumentType.ConstanciaAcreditacion.ToLowerInvariant());
+                }
+                return docMap.ContainsKey(t.ToLowerInvariant());
+            });
             bool isCompleted = uploadedCount >= requiredCount;
 
             if (!string.IsNullOrWhiteSpace(completionStatus))
