@@ -282,9 +282,40 @@ public class ProjectService : IProjectService
                 : "Observaciones atendidas por el estudiante. Pendiente de dictamen.";
         }
         project.UpdatedAt = DateTime.UtcNow;
-        project.UpdatedBy = _currentUser.UserId;
-
         await _repository.UpdateAsync(project);
+
+        // Asegurar que la solicitud oficial quede registrada y confirmada en el expediente
+        var activeDocs = await _documentRepository.GetActiveByProjectIdAsync(project.Id);
+        var existingSolicitud = activeDocs.FirstOrDefault(d => d.DocumentType.Equals(DocumentType.Solicitud, StringComparison.OrdinalIgnoreCase));
+        if (existingSolicitud == null)
+        {
+            await _documentRepository.AddAsync(new Document
+            {
+                ProjectId = project.Id,
+                DocumentType = DocumentType.Solicitud,
+                FileName = $"Solicitud_Anteproyecto_{project.Id}.pdf",
+                FilePath = $"uploads/generated/solicitud_{project.Id}.pdf",
+                FileSize = 125_000,
+                ContentType = "application/pdf",
+                Status = DocumentStatus.Approved,
+                IsActive = true,
+                IsVisible = true,
+                DisplayOrder = 1,
+                UploadedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                CreatedBy = project.StudentId
+            });
+            await _documentRepository.SaveChangesAsync();
+        }
+        else if (existingSolicitud.Status != DocumentStatus.Approved)
+        {
+            existingSolicitud.Status = DocumentStatus.Approved;
+            existingSolicitud.UpdatedAt = DateTime.UtcNow;
+            await _documentRepository.UpdateAsync(existingSolicitud);
+            await _documentRepository.SaveChangesAsync();
+        }
+
         return Result<ProjectResponseDto>.Success(MapToDto(project));
     }
 

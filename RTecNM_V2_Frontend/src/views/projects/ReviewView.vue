@@ -1418,9 +1418,19 @@ onMounted(() => {
                       📥 Descargar
                     </button>
                   </div>
-                  <span v-else class="tecnm-badge tecnm-badge-warning" style="font-size: 0.75rem;">
-                    Pendiente de carga
-                  </span>
+                  <div v-else style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <span class="tecnm-badge tecnm-badge-warning" style="font-size: 0.75rem;">
+                      Pendiente de carga
+                    </span>
+                    <router-link
+                      v-if="selectedProject?.id"
+                      :to="`/documents?projectId=${selectedProject.id}`"
+                      class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
+                      title="Ir al Expediente Digital para revisar o convertir documentos cargados"
+                    >
+                      📁 Ir al Expediente Digital
+                    </router-link>
+                  </div>
                 </div>
 
                 <!-- Visor Embebido Inline para Carta de Aceptación -->

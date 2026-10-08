@@ -155,6 +155,9 @@ using (var scope = app.Services.CreateScope())
         // Remediación idempotente de acreditaciones InnovaTec completadas indebidamente
         await AccreditationRemediation.RemediateAutocompletedAccreditationsAsync(dbContext, app.Logger);
 
+        // Confirmar solicitudes para todos los estudiantes con anteproyecto activo enviado
+        await SolicitudRemediation.RemediateActiveProjectSolicitudesAsync(dbContext, app.Logger);
+
         // Generar/Asegurar plantillas Excel por defecto (Plantilla_Alumnos.xlsx y Plantilla_Empresas.xlsx)
         ExcelTemplateSeeder.EnsureTemplatesExist(app.Environment.ContentRootPath, app.Logger);
 

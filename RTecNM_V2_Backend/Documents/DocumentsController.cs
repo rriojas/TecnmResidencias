@@ -73,7 +73,15 @@ public class DocumentsController : ControllerBase
             if (!projectResult.Data.CanUploadDocuments && !isStaff && !isPreApprovalDoc && !isAccreditation)
                 return StatusCode(400, new { message = "El anteproyecto aún no ha sido aprobado. En esta etapa solo se requiere cargar la Carta de Aceptación / Aprobación de la empresa." });
 
-            if (!isStaff && !isAccreditation && !isPreApprovalDoc)
+            var isSubsequentResidencyFormat = dto.DocumentType.Equals(DocumentType.Avance1, StringComparison.OrdinalIgnoreCase)
+                || dto.DocumentType.Equals(DocumentType.Avance2, StringComparison.OrdinalIgnoreCase)
+                || dto.DocumentType.Equals(DocumentType.Formato29, StringComparison.OrdinalIgnoreCase)
+                || dto.DocumentType.Equals(DocumentType.Formato29V2, StringComparison.OrdinalIgnoreCase)
+                || dto.DocumentType.Equals(DocumentType.Formato30, StringComparison.OrdinalIgnoreCase)
+                || dto.DocumentType.Equals(DocumentType.CartaTerminacion, StringComparison.OrdinalIgnoreCase)
+                || dto.DocumentType.Equals(DocumentType.ProyectoFinal, StringComparison.OrdinalIgnoreCase);
+
+            if (!isAccreditation && isSubsequentResidencyFormat)
             {
                 var projectDocs = await _documentRepository.GetActiveByProjectIdAsync(dto.ProjectId);
                 bool hasCarta = projectDocs.Any(d =>

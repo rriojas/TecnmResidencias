@@ -844,9 +844,17 @@ async function handleUploadSubmit() {
     return
   }
 
+  // Validación estricta: formatos subsecuentes requieren Carta de Aceptación obligatoria
+  const subsequentFormats = ['avance_1', 'formato_29', 'avance_2', 'formato_29v2', 'formato_30', 'carta_terminacion', 'proyecto_final']
+  if (!isAccreditationProject.value && subsequentFormats.includes(uploadForm.value.documentType.toLowerCase())) {
+    if (!hasCartaAceptacion.value) {
+      showAlert('Es obligatorio registrar y validar la Carta de Aceptación oficial antes de cargar formatos o avances posteriores.', 'warning')
+      return
+    }
+  }
+
   // Validación de orden de formatos para estudiantes
   if (isStudent.value) {
-    // Proyectos ordinarios requieren obligatoriamente Carta de Aceptación antes de entregar cualquier formato o avance
     if (!isAccreditationProject.value) {
       const isCartaType = ['carta_aceptacion', 'carta_aprobacion'].includes(uploadForm.value.documentType.toLowerCase())
       if (!hasCartaAceptacion.value && !isCartaType) {
@@ -985,6 +993,7 @@ async function openStatusModal(doc) {
     id: doc.id,
     typeLabel,
     fileName: doc.fileName,
+    documentType: (doc.documentType || '').toLowerCase(),
     status: doc.status || 'approved',
     rejectionReason: doc.rejectionReason || '',
   }
@@ -1016,6 +1025,7 @@ async function handleSaveStatus() {
     const payload = {
       status: statusForm.value.status,
       rejectionReason: statusForm.value.rejectionReason.trim(),
+      documentType: statusForm.value.documentType,
     }
     await apiClient.patch(`/v1/documents/${statusForm.value.id}/status`, payload)
 
@@ -1079,6 +1089,54 @@ function handleOpenAudit(doc) {
       title: `${documentTypeLabels[doc.documentType] || doc.documentType} (${doc.fileName})`,
     },
   })
+}
+
+// Conversión rápida a Carta de Aceptación para Jefes de Carrera / Coordinación
+const canConvertToCarta = computed(() => {
+  if (authStore.isReadOnly || authStore.hasRole('vinculacion')) return false
+  return (
+    authStore.isAdmin ||
+    authStore.isCareerHead ||
+    authStore.isCoordinator ||
+    authStore.hasRole('admin', 'departmenthead', 'jefecarrera', 'careerhead', 'coordinator', 'coordinadora', 'academic')
+  )
+})
+
+function canConvertThisDoc(doc) {
+  if (!canConvertToCarta.value) return false
+  if (!doc) return false
+  const t = (doc.documentType || '').toLowerCase()
+  if (['carta_aceptacion', 'carta_aprobacion'].includes(t)) return false
+  return !hasCartaAceptacion.value
+}
+
+async function handleConvertToCarta(doc) {
+  if (!doc?.id) return
+  const currentTypeName = documentTypeLabels[doc.documentType] || doc.documentType || 'documento'
+  const ok = await confirm({
+    title: 'Convertir a Carta de Aceptación',
+    message: `¿Desea convertir este archivo ("${doc.fileName}", clasificado como ${currentTypeName}) en la Carta de Aceptación oficial del estudiante? Quedará validado como Carta de Aceptación oficial aprobada y habilitará el expediente.`,
+    okText: 'Sí, Convertir a Carta',
+    cancelText: 'Cancelar',
+  })
+  if (!ok) return
+
+  isSubmitting.value = true
+  try {
+    const payload = {
+      documentType: 'carta_aceptacion',
+      status: 'approved',
+      rejectionReason: '',
+    }
+    await apiClient.patch(`/v1/documents/${doc.id}/status`, payload)
+    showAlert(`El documento "${doc.fileName}" ha sido convertido a Carta de Aceptación oficial (Aprobada).`, 'success')
+    await loadDocuments()
+  } catch (err) {
+    const msg = err.response?.data?.message || 'Error al convertir el documento a Carta de Aceptación.'
+    showAlert(msg, 'danger')
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 onMounted(() => {
@@ -1313,7 +1371,7 @@ onMounted(() => {
                   </span>
                 </td>
                 <td>
-                  <span v-if="item.documents['solicitud']" class="tecnm-badge tecnm-badge-success" title="Subido">Subido</span>
+                  <span v-if="item.documents['solicitud'] || (item.projectStatus !== 'cancelled' && item.projectStatus !== 'draft')" class="tecnm-badge tecnm-badge-success" title="Solicitud iniciada y confirmada">Registrada</span>
                   <span v-else class="tecnm-badge tecnm-badge-warning" style="font-weight: 600;" title="Sin entregar">Faltante</span>
                 </td>
                 <td>
@@ -1513,6 +1571,16 @@ onMounted(() => {
       </div>
 
       <div class="tecnm-card-body">
+        <div
+          v-if="canConvertToCarta && !hasCartaAceptacion && documents.length > 0 && !isAccreditationProject"
+          class="tecnm-card"
+          style="margin-bottom: 1rem; padding: 0.75rem 1rem; background: #FFFBEB; border-left: 4px solid var(--tecnm-gold-accent, #d97706); display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;"
+        >
+          <div style="font-size: 0.88rem; color: #92400e;">
+            <strong>Atención Jefatura de Carrera:</strong> Este expediente aún no cuenta con <strong>Carta de Aceptación oficial</strong> registrada. Si el estudiante adjuntó la carta bajo otro formato (ej. Dictamen de Aprobación o Solicitud), puede usar el botón <strong>"📄 Convertir a Carta"</strong> en la fila del archivo correspondiente para convertirlo y aprobarlo sin pedirle al alumno que vuelva a subirlo.
+          </div>
+        </div>
+
         <div class="tecnm-table-responsive">
           <table id="documentsTable" class="tecnm-table tecnm-table-striped">
             <thead>
@@ -1670,6 +1738,16 @@ onMounted(() => {
                       Evaluar
                     </button>
                     <button
+                      v-if="canConvertThisDoc(doc)"
+                      type="button"
+                      class="tecnm-btn tecnm-btn-accent tecnm-btn-sm"
+                      title="Convertir este archivo a Carta de Aceptación oficial del estudiante"
+                      :disabled="isSubmitting"
+                      @click="handleConvertToCarta(doc)"
+                    >
+                      📄 Convertir a Carta
+                    </button>
+                    <button
                       v-if="authStore.canSeeAudit"
                       type="button"
                       class="tecnm-btn tecnm-btn-secondary tecnm-btn-sm"
@@ -1756,52 +1834,64 @@ onMounted(() => {
                 Diploma / Constancia de Acreditación (InnovaTecNM / HackaTec)
               </option>
               <option
-                v-if="!isAccreditationProject && (!isStudent || !hasCartaAceptacion || cartaAceptacionDoc?.status === 'rejected' || isStaff)"
+                v-if="!isAccreditationProject && (!hasCartaAceptacion || cartaAceptacionDoc?.status === 'rejected' || isStaff)"
                 value="carta_aceptacion"
               >
                 Carta de Aceptación / Aprobación *
               </option>
               <option
-                v-if="(hasCartaAceptacion || isAccreditationProject || isStaff) && (isProjectApproved || isStaff)"
+                v-if="(hasCartaAceptacion || isAccreditationProject) && (isProjectApproved || isStaff)"
                 value="avance_1"
               >
                 Primer Avance de Residencia
               </option>
               <option
-                v-if="(hasCartaAceptacion || isAccreditationProject || isStaff) && (isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status !== 'approved'))"
+                v-if="(hasCartaAceptacion || isAccreditationProject) && (isProjectApproved || isStaff) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status !== 'approved'))"
                 value="formato_29"
               >
                 Formato 29 (Primer Seguimiento)
               </option>
               <option
-                v-if="(hasCartaAceptacion || isAccreditationProject || isStaff) && (isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase)"
+                v-if="(hasCartaAceptacion || isAccreditationProject) && (isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase)"
                 value="avance_2"
               >
                 Segundo Avance de Residencia
               </option>
               <option
-                v-if="(hasCartaAceptacion || isAccreditationProject || isStaff) && (isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
+                v-if="(hasCartaAceptacion || isAccreditationProject) && (isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
                 value="formato_29v2"
               >
                 Formato 29 (Segundo Seguimiento)
               </option>
               <option
-                v-if="(hasCartaAceptacion || isAccreditationProject || isStaff) && (isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
+                v-if="(hasCartaAceptacion || isAccreditationProject) && (isProjectApproved || isStaff) && (!isStudent || studentDeadlineInfo.canUploadSecondPhase) && (!isStudent || !studentDeadlineInfo.isDocumentBlocked || (studentDeadlineInfo.isDocumentBlocked && studentDeadlineInfo.formato29Status === 'approved'))"
                 value="formato_30"
               >
                 Formato 30 (Evaluación Final)
               </option>
               <option
-                v-if="(hasCartaAceptacion || isAccreditationProject || isStaff) && (isProjectApproved || isStaff)"
+                v-if="(hasCartaAceptacion || isAccreditationProject) && (isProjectApproved || isStaff)"
                 value="carta_terminacion"
               >
                 Carta de Terminación de la Empresa
               </option>
               <option
-                v-if="(hasCartaAceptacion || isAccreditationProject || isStaff) && (isProjectApproved || isStaff)"
+                v-if="(hasCartaAceptacion || isAccreditationProject) && (isProjectApproved || isStaff)"
                 value="proyecto_final"
               >
                 Reporte de Proyecto Final
+              </option>
+              <option
+                v-if="isStaff"
+                value="dictamen"
+              >
+                Dictamen de Aprobación
+              </option>
+              <option
+                v-if="isStaff"
+                value="otro"
+              >
+                Otro / Evidencia Adicional
               </option>
             </select>
 
@@ -2065,6 +2155,31 @@ onMounted(() => {
               type="application/pdf"
               style="width: 100%; height: 190px; border: none;"
             />
+          </div>
+
+          <div v-if="isStaff" class="tecnm-form-group">
+            <label for="statusDocTypeSelect" class="tecnm-label">Tipo de Documento / Reclasificación</label>
+            <select
+              id="statusDocTypeSelect"
+              v-model="statusForm.documentType"
+              class="tecnm-form-control"
+            >
+              <option value="carta_aceptacion">Carta de Aceptación / Aprobación</option>
+              <option value="dictamen">Dictamen de Aprobación</option>
+              <option value="solicitud">Solicitud de Residencia</option>
+              <option value="constancia_acreditacion">Constancia de Acreditación (InnovaTec/HackaTec)</option>
+              <option value="avance_1">Primer Avance de Residencia</option>
+              <option value="formato_29">Formato 29 (Primer Seguimiento)</option>
+              <option value="avance_2">Segundo Avance de Residencia</option>
+              <option value="formato_29v2">Formato 29 (Segundo Seguimiento)</option>
+              <option value="formato_30">Formato 30 (Evaluación Final)</option>
+              <option value="carta_terminacion">Carta de Terminación de la Empresa</option>
+              <option value="proyecto_final">Reporte de Proyecto Final</option>
+              <option value="otro">Otro / Evidencia</option>
+            </select>
+            <small class="tecnm-form-hint" style="color: var(--tecnm-gray-600); margin-top: 0.25rem; display: block;">
+              Permite corregir el tipo si el alumno subió un formato bajo una categoría equivocada (ej. Dictamen en vez de Carta de Aceptación).
+            </small>
           </div>
 
           <div class="tecnm-form-group">

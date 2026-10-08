@@ -13,6 +13,7 @@ public class UpdateDocumentStatusDto
 {
     public string Status { get; set; } = string.Empty;
     public string? RejectionReason { get; set; }
+    public string? DocumentType { get; set; }
 }
 
 public class DocumentResponseDto

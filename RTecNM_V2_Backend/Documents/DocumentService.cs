@@ -153,6 +153,47 @@ public class DocumentService : IDocumentService
         var fullPath = Path.Combine(uploadsRootPath, relative.Replace('/', Path.DirectorySeparatorChar));
         if (!File.Exists(fullPath))
         {
+            if (document.DocumentType.Equals(DocumentType.Solicitud, StringComparison.OrdinalIgnoreCase))
+            {
+                var project = await _projectRepository.GetByIdAsync(document.ProjectId);
+                if (project != null)
+                {
+                    var studentName = project.Student is null
+                        ? string.Empty
+                        : $"{project.Student.FirstName} {project.Student.LastName}".Trim();
+
+                    var pdfData = new ProjectPdfData(
+                        studentName,
+                        project.Company?.Name ?? string.Empty,
+                        project.Company?.Rfc ?? string.Empty,
+                        project.Company?.Sector,
+                        project.Company?.Address,
+                        project.Company?.ContactName ?? string.Empty,
+                        project.Company?.ContactEmail ?? string.Empty,
+                        project.Company?.ContactPhone,
+                        project.Advisor?.FullName ?? string.Empty,
+                        project.Title,
+                        project.ProjectType,
+                        project.ProblemStatement,
+                        project.Justification,
+                        project.GeneralObjective,
+                        project.Objectives
+                            .Where(o => o.IsActive)
+                            .OrderBy(o => o.ObjectiveNumber)
+                            .Select(o => o.Description)
+                            .ToList()
+                    );
+                    var generatedBytes = ProjectPdfService.GenerateProjectPdf(pdfData);
+                    try
+                    {
+                        var dir = Path.GetDirectoryName(fullPath);
+                        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                        await File.WriteAllBytesAsync(fullPath, generatedBytes);
+                    }
+                    catch { }
+                    return (generatedBytes, "application/pdf", document.FileName);
+                }
+            }
             throw new FileNotFoundException($"El archivo físico no existe en la ruta: {document.FilePath}");
         }
 
@@ -182,6 +223,11 @@ public class DocumentService : IDocumentService
             {
                 throw new UnauthorizedAccessException("Los avances de residencia únicamente pueden ser calificados y validados por el Asesor asignado.");
             }
+        }
+
+        if (!string.IsNullOrWhiteSpace(dto.DocumentType) && DocumentType.IsValid(dto.DocumentType))
+        {
+            document.DocumentType = dto.DocumentType.Trim().ToLowerInvariant();
         }
 
         document.Status = dto.Status.ToLowerInvariant();
@@ -594,6 +640,22 @@ private static DocumentResponseDto MapToDto(Document doc)
                     FileName = d.FileName,
                     Status = d.Status,
                     UploadedAt = d.UploadedAt
+                };
+            }
+
+            // Si el alumno inició el proceso enviando su anteproyecto (no cancelado y no borrador), la Solicitud está confirmada
+            bool hasActiveSubmittedProposal = p.DeletedAt == null && 
+                                              p.Status != ProjectStatus.Cancelled && 
+                                              p.Status != ProjectStatus.Draft;
+            if (hasActiveSubmittedProposal && !docMap.ContainsKey(DocumentType.Solicitud.ToLowerInvariant()))
+            {
+                docMap[DocumentType.Solicitud.ToLowerInvariant()] = new DocumentFileSummaryDto
+                {
+                    Id = 0,
+                    DocumentType = DocumentType.Solicitud,
+                    FileName = $"Solicitud_Anteproyecto_{p.Id}.pdf",
+                    Status = DocumentStatus.Approved,
+                    UploadedAt = p.CreatedAt
                 };
             }
 
