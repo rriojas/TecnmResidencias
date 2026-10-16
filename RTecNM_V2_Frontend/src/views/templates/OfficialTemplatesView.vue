@@ -543,7 +543,8 @@ onMounted(() => {
                 <th>Nombre del Formato</th>
                 <th style="width: 130px;">Categoría</th>
                 <th style="width: 90px; text-align: center;">Versión</th>
-                <th style="width: 140px;">Tipo / Tamaño</th>
+                <th style="width: 80px; text-align: center;">Tipo</th>
+                <th style="width: 100px;">Tamaño</th>
                 <th style="width: 140px;">Fecha Actualización</th>
                 <th v-if="authStore.isAdmin" style="width: 100px; text-align: center;">Estado</th>
                 <th style="width: 220px; text-align: right;">Acciones</th>
@@ -582,20 +583,20 @@ onMounted(() => {
                   </span>
                 </td>
 
-                <!-- Tipo / Tamaño -->
-                <td>
-                  <div style="display: flex; align-items: center; gap: 0.4rem;">
-                    <span
-                      class="tecnm-badge"
-                      :class="isWordDocument(item.currentFileName, item.currentContentType) ? 'tecnm-badge-primary' : 'tecnm-badge-danger'"
-                      style="font-size: 0.75rem; text-transform: uppercase;"
-                    >
-                      {{ isWordDocument(item.currentFileName, item.currentContentType) ? 'WORD' : 'PDF' }}
-                    </span>
-                    <span style="font-size: 0.8rem; color: var(--tecnm-gray-600);">
-                      {{ formatBytes(item.currentFileSize) }}
-                    </span>
-                  </div>
+                <!-- Tipo -->
+                <td style="text-align: center;">
+                  <span
+                    class="tecnm-badge"
+                    :class="isWordDocument(item.currentFileName, item.currentContentType) ? 'tecnm-badge-primary' : 'tecnm-badge-danger'"
+                    style="font-size: 0.75rem; text-transform: uppercase;"
+                  >
+                    {{ isWordDocument(item.currentFileName, item.currentContentType) ? 'WORD' : 'PDF' }}
+                  </span>
+                </td>
+
+                <!-- Tamaño -->
+                <td style="font-size: 0.85rem; color: var(--tecnm-gray-600);">
+                  {{ formatBytes(item.currentFileSize) }}
                 </td>
 
                 <!-- Fecha -->
